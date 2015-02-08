@@ -1,0 +1,15 @@
+
+<div class="sidebar">
+	<div class="archive-bar">
+		<a style="margin:20px;display:block;" href="{{site.url}}/blog/archive.html" >View Archive</a>
+
+		<div class="tag-list">
+				<span>Tags:</span>
+				{% for post in site.posts %}
+					{% for tag in post.tags %}
+						{{tag}}
+					{% endfor %}
+				{% endfor %}
+			</div>
+	</div>
+</div>

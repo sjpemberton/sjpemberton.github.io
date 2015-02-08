@@ -1,19 +1,32 @@
-<!DOCTYPE html>
-<html>
-	<head>
-		<title>SJPemberton.Github</title>
-	</head>
-	<body>
-		<nav>
+---
+layout: default
+title: Steven Pemberton.Net
+id: home
+---
 
-		</nav>
-		<div class="container">
-    		<div class="content">
-        		<h1>A work in progress...</h1>
-				    <p></p>
-    		</div>
+
+	<div class="home-intro">
+		 <div class="centered">
+			 <div class="vertical-align">
+				<h1 class="white-header">A Developer's Blog.</h1>
+				<p class="intro">.Net, F#, C#, Javascript</p>
+				<p></p>
+			</div>
 		</div>
-		<footer>
-		</footer>
-	</body>
-</html>
+	</div>
+    <div class="centered main">
+    	<h1>Latest Blog Post</h1>
+    	<hr>
+		{% for post in site.posts limit:1 %}
+
+		<h2>{{ post.title }}</h2>
+		<div class="post-excerpt">
+			{{post.excerpt}}
+		</div>
+		<div class="more-link">
+			 <a href="{{ post.url }}">Read more...</a><br><br>
+		</div>
+		{% endfor %}
+
+
+	</div>
