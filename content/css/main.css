@@ -113,7 +113,15 @@ footer {
 	}
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 1024px) and (max-width: 1440px) {
+	.centered{
+	    margin:0 auto;
+	    width:70%;
+	    height:100%;
+	}
+}
+
+@media (min-width: 1440px) {
 	.centered{
 	    margin:0 auto;
 	    width:50%;
@@ -188,7 +196,6 @@ footer .centered {
 
 
 #header nav {
-    width: 70%;
     position:absolute;
     bottom:10px;
     right:0;
