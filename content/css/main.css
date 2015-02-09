@@ -68,21 +68,6 @@ pre {
 
 #page-content, #content{    
     width: 100%;
-    /*height: 100%;  
-    -webkit-box-flex: 1;
-    -moz-box-flex: 1;       
-                
-    -webkit-flex: 1;          
-    -ms-flex: 1;             
-    flex: 1; 
-
-    display: -webkit-box;      
-    display: -moz-box;         
-    display: -ms-flexbox;       
-    display: -webkit-flex;     
-    display: flex;              
-
-    justify-content:center; */
 }
 
 #content{ 
@@ -91,7 +76,7 @@ pre {
 
 #page-content{
     padding-top:100px;
-	transition: all 0.4s ease;
+    transition: all 0.4s ease;
 }
 
 .push{
@@ -120,10 +105,20 @@ footer {
 
 }
 
-.centered{
-    margin:0 auto;
-    width:60%;
-    height:100%;
+@media (max-width: 1024px) {
+	.centered
+	    margin:0 auto;
+	    width:90%;
+	    height:100%;
+	}
+}
+
+@media (min-width: 1024px) {
+	.centered{
+	    margin:0 auto;
+	    width:50%;
+	    height:100%;
+	}
 }
 
 footer .centered {
@@ -185,7 +180,6 @@ footer .centered {
 
 #title-container{
     color: #f5f5f5;
-    width:30%;
     position:absolute;
     height:100px;
     line-height: 100px;
