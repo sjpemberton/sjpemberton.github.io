@@ -106,7 +106,7 @@ footer {
 }
 
 @media (max-width: 1024px) {
-	.centered
+	.centered{
 	    margin:0 auto;
 	    width:90%;
 	    height:100%;
