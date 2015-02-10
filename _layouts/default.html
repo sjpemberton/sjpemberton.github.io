@@ -5,26 +5,9 @@
     <link rel="stylesheet" type="text/css" href="{{site.url}}/content/css/main.css">
     <link type="text/css" rel="stylesheet" href="{{site.url}}/content/css/style.css" />
     <script src="{{site.url}}/content/tips.js" type="text/javascript"></script>
-    <script src="{{site.url}}/content/header.js" type="text/javascript"></script>
 </head>
 <body id="{{page.id}}">
-    <div id="header">
-        <div id="content" >
-            <div class="centered">
-                <div id="title-container">
-                    <h2 class="site-title"><a href="/">Steven Pemberton</a></h2>
-                    <!--<span class="site-description">A programming blog</span>-->
-                </div>
-                <nav >
-                    <ul>
-                        <li class="nav-item" id="aboutnav"><a href="/about">About</a></li>
-                        <li class="nav-item" id="blognav"><a href="/blog">Blog</a></li>
-                        <li class="nav-item" id="contactnav"><a href="/contact">Contact</a></li>
-                    </ul>
-                </nav>
-            </div>
-        </div>
-    </div>
+    {% include header.html %}
     <div id="page-content" >
         {{ content }}
     </div> 
