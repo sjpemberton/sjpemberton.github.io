@@ -75,11 +75,17 @@ ul.posts li {
 
 #header.sticky{ position:fixed; }
 
-#home .site-title {    
+#home .site-title {   
+    visibility:hidden;
+    height:0;
     opacity:0;
-    transition: all 0.4s ease;
+    transition: opacity 0.4s ease;
 } 
-#home #header.sticky .site-title { opacity:1; }
+#home #header.sticky .site-title { 
+    opacity:1; 
+    height:auto;
+    visibility:visible;
+}
 
 .site-title{
     text-align: center;
