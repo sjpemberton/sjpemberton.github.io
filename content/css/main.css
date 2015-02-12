@@ -36,7 +36,7 @@ pre {
 }
 
 ul.posts { 
-    margin: 20px auto 40px; 
+    margin: 2em auto 3em; 
     font-size: 1.5em;
 }
 
@@ -48,119 +48,49 @@ ul.posts li {
     width: 100%;
 }
 
-#content{ 
-    height:100%;
-}
+#content{ height:100%; }
 
 #page-content{
     padding-top:30px;
     margin-top:48px;
 }
-#home #page-content{margin-top:0;}
-#home #page-content.sticky{
-    margin-top:48px;
-}
 
-.push{
-    height: 142px;
-}
+#home #page-content{ margin-top:0; }
+#home #page-content.sticky{ margin-top:48px; }
+.push{ height: 142px; }
 
-footer {
-  /* .push must be the same height as footer */
-    position: absolute;
-    height: 142px;
-    width: 100%;
-    bottom: 0;
-}
-
-.vertical-align {
-  position: relative;
-  top: 50%;
-  -webkit-transform: translateY(-50%);
-  -ms-transform: translateY(-50%);
-  transform: translateY(-50%);
-}
-
-
-#sidebar-left{
-
-}
-
-#sidebar-right{
-
-}
-
-@media (max-width: 1024px) {
-	.centered{
-	    margin:0 auto;
-	    width:90%;
-	    height:100%;
-	}
-}
-
-@media (min-width: 1024px) and (max-width: 1440px) {
-	.centered{
-	    margin:0 auto;
-	    width:70%;
-	    height:100%;
-	}
-}
-
-@media (min-width: 1440px) {
-	.centered{
-	    margin:0 auto;
-	    width:50%;
-	    height:100%;
-	}
-}
-
-footer .centered {
-    height: 100px; 
-    border-top: 2px solid #CCC;
-    font-size: .8em;
+.centered{
+    margin:0 auto;
+    width:90%;
+    height:100%;
 }
 
 #header {
     width:100%;
     background:#1e1e1e;
-    height: 48px;
     top:0;
-    background:#1e1e1e;
-    margin: 0 0 0 0;
-	z-index:1100;
+    margin: 0;
+    z-index:1100;
 }
 
-#header.sticky{
-    position:fixed;
-}
-#home .site-title a{
+#header.sticky{ position:fixed; }
+
+#home .site-title {    
     opacity:0;
+    transition: all 0.4s ease;
 } 
-#home #header.sticky .site-title a{opacity:1;}
-
+#home #header.sticky .site-title { opacity:1; }
 
 .site-title{
-    display:block;
-    height: 48px;
-    line-height: 48px;
+    text-align: center;
+    line-height: 2em;
 }
+.site-title a{ color:#f5f5f5; }
+.site-title a:hover{ color:orange; }
 
-.site-title a{
-    color:#f5f5f5;
-    transition: all 0.4s ease;
-}
-.site-title a:hover{
-    color:orange;
-}
-.centered.main{ height:3000px}
-#page-content .centered.main{
-	margin-top: 30px;
-}
+#page-content .centered.main{ margin-top: 30px; }
 
-
-#header .centered{ 
-    position:relative;
-    }
+#header .centered{ position:relative; }
 
 #title-container{
     color: #f5f5f5;
@@ -170,18 +100,10 @@ footer .centered {
     transition: all 0.4s ease;
 }
 
-
 #header nav {
-    position:absolute;
-    height:48px;
-    line-height: 48px;
-    right:0;
-    bottom:0;
+    width: 100%;
+    text-align: center;
     transition: all 0.4s ease;
-}
-
-#header nav ul{
-    float:right;
 }
 
 #header nav li {
@@ -197,14 +119,47 @@ footer .centered {
     color: #f5f5f5;
     text-align: center;
     display: block;
-    width:80px;
-	transition: all 0.4s ease;
+    line-height:2em;
+    transition: all 0.4s ease;
 }
 
-#header nav li  a:hover {
+#header nav li a:hover {
     text-decoration: underline;
     color:orange;
 }
+
+#home-header{ background: #1e1e1e; }
+
+#home-header .centered{
+    background-image: url("/content/images/BlogCodeSnip.png");
+    background-repeat: no-repeat;
+    background-size: 460px 200px;
+    text-align: center;
+    padding: 2.8em 0;
+}
+
+@media all and (min-width: 36em) {
+    body #header nav{
+        width:auto;
+        position: absolute;
+        right:0;
+        bottom: 0;
+        display: inline-block;
+    }
+
+    body .site-title{
+        display:inline-block;
+    }
+}
+
+@media all and (min-width: 60em) {
+    body .centered{
+        margin:0 auto;
+        width:60%;
+        height:100%;
+    }
+}
+
 
 #home #homenav,
 #about #aboutnav,
@@ -218,12 +173,8 @@ footer .centered {
     text-shadow:1px 1px #000;
 }
 
-.recent-posts{
-    margin: 20px 0;
-}
-.posts-list{
-    margin: 20px;
-}
+.recent-posts{ margin: 20px 0;}
+.posts-list{ margin: 20px; }
 
 .more-link a{
     color:#111;
@@ -231,50 +182,21 @@ footer .centered {
     text-decoration: none;
     transition: all 0.4s ease;
 }
-
-.more-link a:hover{
-    color:#028fcc;
-}
+.more-link a:hover{ color:#028fcc; }
 
 
-/* Page specific */
+.intro{ color: orange; }
 
-.home-intro{
-    background: #1e1e1e;
-    height: 200px;
-	-webkit-transform-style: preserve-3d;
-	-moz-transform-style: preserve-3d;
-	transform-style: preserve-3d;
-}
+.comments-holder{ margin:40px 0; }
 
-.home-intro .centered{
-	background-image: url("/content/images/BlogCodeSnip.png");
-    background-repeat: no-repeat;
-    /* background-position: 100%; */
-    background-size: 460px 200px;
-    text-align: center;
-}
-
-.intro{
-	color: orange;
-;}
-
-.comments-holder{
-    margin:40px 0;
-}
-
-.post-excerpt{
-    font-size: 0.6em;
-}
+.post-excerpt{ font-size: 0.7em; }
 
 .post-title{
     margin:20px 0;
     font-size: 2em;
 }
 
-.post-meta{
-    text-align: right;
-}
+.post-meta{ text-align: right; }
 
 .github-logo img{
     height:32px;
@@ -282,21 +204,31 @@ footer .centered {
     transition: background-color 0.4s ease;
 }
 
-.github-logo img, .twitter-link img{
-    margin:10px;
-}
+
+.twitter-link img{ height:32px; }
+.github-logo img, .twitter-link img{ margin:10px; }
 .github-logo img:hover{
     border-radius: 50%;
     background-color: orange;
 }
 
-.twitter-link img{
-     height:32px;
-}
-
 .tag-list{
     display:inline-block;
     margin:20px;
+}
+
+footer {
+  /* .push must be the same height as footer */
+    position: absolute;
+    height: 142px;
+    width: 100%;
+    bottom: 0;
+}
+
+footer .centered {
+    height: 100px; 
+    border-top: 2px solid #CCC;
+    font-size: .8em;
 }
 
 .footer-about{
@@ -305,23 +237,11 @@ footer .centered {
     float: right;
 }
 
-.sidebar {
-position: fixed;
-right: 30px;
-top: 30%;
-border:1px solid #ddd;
-width: 200px;
+.footer-about a{
+    color:#333;
 }
+.footer-about a:hover{color:#028fcc;}
 
-.archive-bar a{
-    color:#111;
-    text-decoration: none;
-
-}
-
-.archive-bar a:hover{
-    color:#028fcc;
-}
 
 .archive-links{
     margin:20px auto;
@@ -340,24 +260,13 @@ width: 200px;
 
 }
 
-.archive-links a:hover{
-    color:#028fcc;
-}
+.archive-links a:hover{ color:#028fcc; }
 
-
-.blog-container{
-
-}
-
-.blog-container ul{
-    margin:20px 20px 20px 40px;
-}
+.blog-container ul{ margin:20px 20px 20px 40px; }
 
 .blog-container ul a{
     color: #1e1e1e;
     text-decoration: none;
 }
 
-.blog-container ul a:hover{
-     color:#028fcc;
-}
+.blog-container ul a:hover{ color:#028fcc; }
