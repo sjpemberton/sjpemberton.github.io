@@ -5,6 +5,7 @@ id: home
 ---
 
     <div class="centered main">
+	{% if site.posts.size > 0  %}
     	<h1>Latest Blog Post</h1>
     	<hr>
 		{% for post in site.posts limit:1 %}
@@ -17,6 +18,7 @@ id: home
 			 <a href="{{ post.url }}">Read more...</a><br><br>
 		</div>
 		{% endfor %}
+	{% endif%}
 
 
 	</div>
