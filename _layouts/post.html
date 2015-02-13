@@ -15,7 +15,7 @@
     <div id="page-content">
         <div class="centered main">
         <h1>{{ page.title }}</h1>
-        <p class="meta">{{ page.date | date: "%d %b, %Y" }}</p>
+        {% include postmeta.html %}
 
         <div class="post">
             {{ content }}

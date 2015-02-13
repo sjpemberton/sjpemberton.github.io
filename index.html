@@ -4,21 +4,32 @@ title: Steven Pemberton.Net
 id: home
 ---
 
-    <div class="centered main">
+<div class="centered main">
 	{% if site.posts.size > 0  %}
-    	<h1>Latest Blog Post</h1>
-    	<hr>
-		{% for post in site.posts limit:1 %}
-
-		<h2>{{ post.title }}</h2>
-		<div class="post-excerpt">
-			{{post.excerpt}}
+	<div id="recent-posts">
+		<div class="posts-list">
+			{% for post in site.posts limit:4 %}
+			<div class="post">
+				<div class="post-title">
+					<a  href="{{post.url}}"><h1 >{{ post.title }}</h1></a>
+				</div>
+				
+				{% include postmeta.html %}
+				
+				<div class="post-excerpt">
+					{{post.excerpt}}
+				</div>
+				
+				<div class="more-link">
+					 <a href="{{ post.url }}">Read more...</a><br><br>
+				</div>
+			</div>
+			{% endfor %}
 		</div>
-		<div class="more-link">
-			 <a href="{{ post.url }}">Read more...</a><br><br>
-		</div>
-		{% endfor %}
-	{% endif%}
-
-
 	</div>
+
+	<div class="archive-links">
+		<a class="archive-link" href="{{site.url}}/archive">Go To The Archive</a>
+	</div>
+	{% endif %}
+</div>

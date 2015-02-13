@@ -1,0 +1,9 @@
+<div class="post-meta">
+	<div class="published"><b>Published On:</b> {{ post.date | date: "%d %b, %Y" }}</div>
+	{% if post.tags.size > 0  %}
+	<div class="tags"><b>Tags:</b> {{post.tags}}</div>
+	{% endif %}
+	{% if post.categories.size > 0  %}
+	<div class="catagory"><b>Categories:</b> {{post.categories}}</div>
+	{% endif %}
+</div>
