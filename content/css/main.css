@@ -212,11 +212,37 @@ ul.posts li {
 
 
 .twitter-link img{ height:32px; }
+.github-logo {color:#111;}
 .github-logo img, .twitter-link img{ margin:10px; }
-.github-logo img:hover{
+.github-logo:hover img{
     border-radius: 50%;
     background-color: orange;
 }
+
+.github-logo.contact, .twitter-link.contact{
+    display: block;
+    text-align: center;
+    text-decoration: none;
+}
+.github-logo.contact img, .twitter-link.contact img{
+    margin:0;
+    position: relative;
+    top:6px;
+}
+.github-logo.contact span, .twitter-link.contact span{
+    font-size: 1.6em;
+    color:#111;
+    transition: color 0.4s ease;
+    margin-left: .6em;
+}
+.github-logo:hover span, .twitter-link:hover span{color:orange;}
+
+.email-link{text-align: center;}
+.email-link a{
+    transition: color 0.4s ease;
+    color:#111;
+}
+.email-link:hover a{color:orange;}
 
 .tag-list{
     display:inline-block;
@@ -243,9 +269,7 @@ footer .centered {
     float: right;
 }
 
-.footer-about a{
-    color:#333;
-}
+.footer-about a{ color:#333; }
 .footer-about a:hover{color:#028fcc;}
 
 
