@@ -252,7 +252,7 @@ ul.posts li {
 footer {
   /* .push must be the same height as footer */
     position: absolute;
-    height: 142px;
+    height: 150px;
     width: 100%;
     bottom: 0;
 }
@@ -287,7 +287,6 @@ footer .centered {
     font-size: 2em;
     text-decoration: none;
     transition: all 0.4s ease;
-
 }
 
 .archive-links a:hover{ color:#028fcc; }
@@ -300,3 +299,22 @@ footer .centered {
 }
 
 .blog-container ul a:hover{ color:#028fcc; }
+
+#error-links{
+	margin:2em auto;
+	display:block;
+}
+
+.error-link {
+	display: inline-block;
+	margin:0 2em;
+	font-size: 2em;
+	font-weight:bold;
+}
+
+.error-link a{
+	text-decoration:none;
+	color:#111;
+	transition: all 0.4s ease;
+}
+.error-link:hover a{color:orange;}
