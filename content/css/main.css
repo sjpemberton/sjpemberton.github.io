@@ -14,21 +14,27 @@ body{
     font-family: 'Open Sans', serif;
 }
 
+a{color:#028fcc;}
+
 hr{
     border-style: solid;
     border-color: #1e1e1e;
 }
 
 h1 {
-    font-size: 2.5em;
+    font-size: 3em;
     color:#111;
-    font-family:'Helvetica', 'Arial', 'Sans-Serif';
+}
+
+ul {
+	padding-left: 40px;
 }
 
 p {
     font-size: 1.5em;
     line-height: 1.4em;
     color: #333;
+	margin: 1em 0;
 }
 
 pre {
@@ -106,6 +112,9 @@ ul.posts li {
     transition: all 0.4s ease;
 }
 
+nav ul{
+	padding:0;
+	}
 #header nav {
     width: 100%;
     text-align: center;
@@ -179,8 +188,8 @@ ul.posts li {
     text-shadow:1px 1px #000;
 }
 
-.recent-posts{ margin: 20px 0;}
-.posts-list{ margin: 20px; }
+.recent-posts{ margin: 1em 0;}
+.posts-list{ margin: 1em 0; }
 
 .more-link a{
     color:#111;
@@ -195,14 +204,35 @@ ul.posts li {
 
 .comments-holder{ margin:40px 0; }
 
-.post-excerpt{ font-size: 0.7em; }
-
-.post-title{
-    margin:20px 0;
-    font-size: 2em;
+.post{
+	margin: 1em 0;
+}
+.post-excerpt{ 
+	font-size: 0.7em; 
+	margin: 1em 0;
 }
 
-.post-meta{ text-align: right; }
+.post-title{ 
+	margin:1em 0;
+	border-bottom: 1px solid #ccc;
+}
+.post-title a, .post-title h1{
+	color:#111;
+	text-decoration:none;
+	transition: all 0.4s ease;
+}
+.post-title:hover h1{color:#028fcc;}
+.post-title h1 {
+	font-size: 3em;
+	line-height:1.3em;
+}
+
+.post-meta{ margin:0.5em 0;}
+
+.post-meta div {
+	color:#888;
+	display: inline-block;
+}
 
 .github-logo img{
     height:32px;
@@ -235,14 +265,14 @@ ul.posts li {
     transition: color 0.4s ease;
     margin-left: .6em;
 }
-.github-logo:hover span, .twitter-link:hover span{color:orange;}
+.github-logo:hover span, .twitter-link:hover span{color:#028fcc;}
 
 .email-link{text-align: center;}
 .email-link a{
     transition: color 0.4s ease;
     color:#111;
 }
-.email-link:hover a{color:orange;}
+.email-link:hover a{color:#028fcc;}
 
 .tag-list{
     display:inline-block;
@@ -264,6 +294,7 @@ footer .centered {
 }
 
 .footer-about{
+	font-size:1.5em;
     margin:20px;
     text-align: center;
     float: right;
@@ -275,9 +306,7 @@ footer .centered {
 
 .archive-links{
     margin:20px auto;
-    padding: 20px;
     text-align: center;
-    border-top: 2px solid #CCC;
 }
 
 .archive-links a{
@@ -289,16 +318,24 @@ footer .centered {
     transition: all 0.4s ease;
 }
 
-.archive-links a:hover{ color:#028fcc; }
-
-.blog-container ul{ margin:20px 20px 20px 40px; }
-
-.blog-container ul a{
-    color: #1e1e1e;
-    text-decoration: none;
+.archive-year{
+	border-bottom: 1px solid #ccc;
 }
 
-.blog-container ul a:hover{ color:#028fcc; }
+.archive-links a:hover{ color:#028fcc; }
+
+.blog-container ul{
+	margin: 1em 0;
+}
+
+.blog-container ul a{
+    color: #028fcc;
+	font-weight:bold;
+    text-decoration: none;
+	transition: all 0.4s ease;
+}
+
+.blog-container ul a:hover{ color:orange; }
 
 #error-links{
 	margin:2em auto;
