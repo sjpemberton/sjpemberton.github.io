@@ -5,7 +5,7 @@ id: blog
 ---
 
 <div class="centered main">
-
+	{% if site.posts.size > 0  %}
 	<div id="recent-posts">
 		<h1>Recent Posts</h1>
 		<hr>
@@ -33,5 +33,5 @@ id: blog
 	<div class="archive-links">
 		<a class="archive-link" href="{{site.url}}/blog/archive.html">View Archive</a>
 	</div>
-
+	{% endif %}
 </div>
