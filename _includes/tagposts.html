@@ -2,7 +2,7 @@
 	<h1>Posts Tagged With "{{ include.tag }}"</h1>
 	<div class="blog-container">
 		<ul>
-		{% for post in include.tag-posts %}
+		{% for post in site.tags[tag] %}
 		    	<li><span>{{ post.date | date: "%d %B %Y" }} : </span><a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a></li>
 		{% endfor %}
 		</ul>
