@@ -12,9 +12,14 @@ html{
 
 body{
     font-family: 'Open Sans', serif;
+    font-size: 0.8em;
 }
 
-a{color:#028fcc;}
+a{
+    color:#028fcc;
+    transition: color 0.4s ease;
+}
+a:hover{color:orange;}
 
 hr{
     border-style: solid;
@@ -118,7 +123,6 @@ nav ul{
 #header nav {
     width: 100%;
     text-align: center;
-    transition: all 0.4s ease;
 }
 
 #header nav li {
@@ -135,7 +139,7 @@ nav ul{
     text-align: center;
     display: block;
     line-height:2em;
-    transition: all 0.4s ease;
+    transition: color 0.4s ease;
 }
 
 #header nav li a:hover {
@@ -153,7 +157,15 @@ nav ul{
     padding: 2.8em 0;
 }
 
-@media all and (min-width: 36em) {
+@media all and (min-width: 30em){
+        body{
+        font-size: 1em;
+    }
+
+}
+
+@media all and (min-width: 38em) {
+
     body #header nav{
         width:auto;
         position: absolute;
@@ -195,7 +207,7 @@ nav ul{
     color:#111;
     font-weight: bold;
     text-decoration: none;
-    transition: all 0.4s ease;
+    transition: color 0.4s ease;
 }
 .more-link a:hover{ color:#028fcc; }
 
@@ -219,9 +231,9 @@ nav ul{
 .post-title a, .post-title h1{
 	color:#111;
 	text-decoration:none;
-	transition: all 0.4s ease;
+	transition: color 0.4s ease;
 }
-.post-title:hover h1{color:#028fcc;}
+#home .post-title:hover h1{color:#028fcc;}
 .post-title h1 {
 	font-size: 3em;
 	line-height:1.3em;
@@ -232,7 +244,10 @@ nav ul{
 .post-meta div {
 	color:#888;
 	display: inline-block;
+    margin-right: 1em;
 }
+
+.meta-link{text-decoration: none;}
 
 .github-logo img{
     height:32px;
@@ -295,35 +310,39 @@ footer .centered {
 
 .footer-about{
 	font-size:1.5em;
-    margin:20px;
+    margin:20px auto;
     text-align: center;
-    float: right;
 }
 
 .footer-about a{ color:#333; }
 .footer-about a:hover{color:#028fcc;}
 
 
-.archive-links{
-    margin:20px auto;
+.archive-links, .post-nav{
+    margin-top:3em;
     text-align: center;
 }
 
-.archive-links a{
+.archive-links a, .post-nav a{
     color: #1e1e1e;
     text-decoration: none;
     font-weight: bold;
-    font-size: 2em;
+    font-size: 1.5em;
     text-decoration: none;
-    transition: all 0.4s ease;
+    transition: color 0.4s ease;
 }
 
 .archive-year{
 	border-bottom: 1px solid #ccc;
 }
 
+.share-links{
+	text-align:right;
+	color: #888;
+}
+
 .archive-links a:hover{ color:#028fcc; }
-.share-links{float:right;}
+.archive-links a:hover, .post-nav a:hover{ color:#028fcc; }
 
 .blog-container ul{
 	margin: 1em 0;
@@ -333,7 +352,7 @@ footer .centered {
     color: #028fcc;
 	font-weight:bold;
     text-decoration: none;
-	transition: all 0.4s ease;
+	transition: color 0.4s ease;
 }
 
 .blog-container ul a:hover{ color:orange; }
@@ -353,6 +372,6 @@ footer .centered {
 .error-link a{
 	text-decoration:none;
 	color:#111;
-	transition: all 0.4s ease;
+	transition: color 0.4s ease;
 }
 .error-link:hover a{color:orange;}
