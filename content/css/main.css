@@ -319,7 +319,7 @@ footer .centered {
 
 
 .archive-links, .post-nav{
-    margin:20px auto;
+    margin-top:3em;
     text-align: center;
 }
 
@@ -336,6 +336,12 @@ footer .centered {
 	border-bottom: 1px solid #ccc;
 }
 
+.share-links{
+	text-align:right;
+	color: #888;
+}
+
+.archive-links a:hover{ color:#028fcc; }
 .archive-links a:hover, .post-nav a:hover{ color:#028fcc; }
 
 .blog-container ul{
