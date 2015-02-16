@@ -323,6 +323,7 @@ footer .centered {
 }
 
 .archive-links a:hover{ color:#028fcc; }
+.share-links{float:right;}
 
 .blog-container ul{
 	margin: 1em 0;
