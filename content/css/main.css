@@ -228,12 +228,12 @@ nav ul{
 	margin:1em 0;
 	border-bottom: 1px solid #ccc;
 }
-.post-title a, .post-title h1{
+.post-title a, .post-title h1, .tag-link, .tag-link h2{
 	color:#111;
 	text-decoration:none;
 	transition: color 0.4s ease;
 }
-#home .post-title:hover h1{color:#028fcc;}
+#home .post-title:hover h1, .tag-link:hover h2{color:#028fcc;}
 .post-title h1 {
 	font-size: 3em;
 	line-height:1.3em;
