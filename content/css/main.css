@@ -36,8 +36,8 @@ ul {
 }
 
 p {
-    font-size: 1.5em;
-    line-height: 1.4em;
+    font-size: 1.2em;
+    line-height: 1.1em;
     color: #333;
 	margin: 1em 0;
 }
@@ -182,7 +182,7 @@ nav ul{
 @media all and (min-width: 60em) {
     body .centered{
         margin:0 auto;
-        width:60%;
+        width:50%;
         height:100%;
     }
 }
@@ -220,7 +220,7 @@ nav ul{
 	margin: 1em 0;
 }
 .post-excerpt{ 
-	font-size: 0.7em; 
+	font-size: 0.85em; 
 	margin: 1em 0;
 }
 
@@ -375,3 +375,12 @@ footer .centered {
 	transition: color 0.4s ease;
 }
 .error-link:hover a{color:orange;}
+
+p code {
+    font-family: Menlo, Monaco, "Courier New", monospace;
+    padding: .25em .5em;
+    font-size: 85%;
+    color: #bf616a;
+    background-color: #f9f9f9;
+    border-radius: 3px;
+}
