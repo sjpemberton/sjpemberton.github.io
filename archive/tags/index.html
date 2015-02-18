@@ -18,7 +18,7 @@ id: blog
 	{% assign sortedtags = tags | split:' ' | sort %}
 
 	{% for tag in sortedtags %}
-	  	<h2 class="archive-year">{{ tag }}</h2>
+	  	<a class="tag-link" href="/archive/tags/{{tag}}.html"><h2 class="archive-year">{{ tag }}</h2></a>
 	  	<ul>
 	  		{% for post in site.tags[tag] %}
 	    		<li><span>{{ post.date | date: "%d %B %Y" }} : </span><a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a></li>

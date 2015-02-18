@@ -1,4 +1,6 @@
 name: StevenPemberton.Net
+description: Software Develpopment Blog. .NET, F#, C#
+url: http://stevenpemberton.net
 baseurl: http://stevenpemberton.net
 markdown: kramdown
 permalink: /blog/:year/:month/:day/:title
