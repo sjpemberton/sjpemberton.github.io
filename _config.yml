@@ -1,5 +1,5 @@
 name: StevenPemberton.Net
-baseurl: http://stevenpemberton.net/
+baseurl: http://stevenpemberton.net
 markdown: kramdown
 permalink: /blog/:year/:month/:day/:title
 exclude: ['fsharp-posts', 'tools', 'packages', 'SJPemberton.Net.sln']
