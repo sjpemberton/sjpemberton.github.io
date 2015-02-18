@@ -215,7 +215,7 @@ This allows us to show Liquid examples like so:
 {% endhighlight %}
 
 
-That's all there is too it!  
+That's all there is to it!  
 Happy blogging.
 
 
