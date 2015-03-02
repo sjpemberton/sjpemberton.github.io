@@ -8,6 +8,10 @@ tags: ["fsharp"]
 meta: Utilising FSharp Units of Measure for type safe calculations
 ---
 
+
+(*** hide ***)
+    [<Measure>] type gp
+
 (**
 
 #F# Units of Measure
@@ -32,11 +36,6 @@ For example, we can declare a `UoM` for some of the measures of volume we will n
 
 *)
 
-
-(*** hide ***)
-    [<Measure>] type gp
-
-(** *)
     ///Litre (or Liter in the US)
     [<Measure>] type L
 
@@ -50,7 +49,7 @@ Once we have these measures defined we can use them in a number of ways
 - To return a specific unit of measure from a function
 - For defining new units of measure in terms of the original
 
-Here is an example of a function that can only take a values that have a dimension specified.
+Here is an example of a function that can only take values that have a dimension specified.
 
 *)
 
@@ -67,10 +66,11 @@ Consider the following example where we attempt to call the function with dimens
 
 *)
 
-    let totalGravPoints = totalGravityPoints 240.0 5
+    let totalGravPoints = totalGravityPoints 240.0 5.0
 
 (**
-Attempting to compile this line of code produces the following error (of many)
+Attempting to compile this line of code produces the following error (of many) 
+notifying us that we haven't satisfied the type constraints and preventing us from introducing possible errors in our code.
 
 
     [lang=output]
@@ -79,8 +79,79 @@ Attempting to compile this line of code produces the following error (of many)
       but here has type
     float 
 
+Likewise the compiler will stop us from passing different `UoM` to the function. 
+Suppose we attempted to pass a Litre value to the previous function instead of the expected Gallons.  
+
+We receive a similar error as before.
+
+*)
+    let totalGravPoints = TotalGravityPoints 240.0<gp / usGal> 5.0<L>
+(**
+   
+
+    [lang=output]
+    error FS0001: Type mismatch. Expecting a
+        float<usGal>    
+    but given a
+        float<L>    
+    The unit of measure 'usGal' does not match the unit of measure 'L'
+
+This example may be quite contrived, but imagine if that litre value came from the result of some other calculation.  
+If we allowed any old float through when calculating our beers gravity points we could well end up with an extremely strong or weak beer and nobody wants that.
+
+This brings us onto the second use of units of measure; As the value returned by a function.
+
+Lets take the following function as an example;
 *)
 
+    ///Calculates the maximum potential gravity points for a given weight of grain with the given extract potential, divided by the target volume
+    let MaxPotentialPoints (grainPotential:float<gp/lb>) (grain:float<lb>) (vol:float<usGal>) = 
+        (grainPotential * grain) / vol
+
+(**
+
+The F# compiler correctly infers that the result of this function is of the type float<gp/usGal>  
+    
+    [lang=output]
+    val MaxPotentialPoints :
+      grainPotential:float<gp/lb> ->
+        grain:float<lb> -> vol:float<usGal> -> float<gp/usGal>
+  
+So in this case, we do not need to do anything special in order to get the correct result.  
+This is not always the case however.  
+
+Sometimes we may need to take a few further steps in order to help the compiler infer the correct type.  
+For example if we have a function that works on dimensionless values, but we want it to return one with a specific dimension, we have a few options.  
+
+1. We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.
+
+*)
+        let TotalGravityPoints potential vol =  
+            (potential * vol) * 1.0<gp / usGal> 
+
+(**
+        [lang=output]
+        val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
+
+2. We can explicitly declare the return type of the function and then use one of the helper functions `LanguagePrimitives.FloatWithMeasure` or 'LanguagePrimitives.IntWithMeasure'.
+*)
+
+        let TotalGravityPoints potential vol : float<gp / usGal> =  
+            LanguagePrimitives.FloatWithMeasure (potential * vol);;
+
+(**
+        [lang=output]
+        val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
+
+
+We can also alter the returned type when UoM are passed into the function by calculating out the units we do not want.
+
+*)
+       
+       
+(**
+It really is down to personal preference which direction you take here. I prefer to let the type system do the hard work and so only specify the minimum required.
+*) 
 
 (**
 
