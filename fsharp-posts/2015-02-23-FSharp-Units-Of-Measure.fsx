@@ -45,11 +45,20 @@ For example, we can declare a `UoM` for some of the measures of volume we will n
 (**
 Once we have these measures defined we can use them in a number of ways
 
+- For defining new units of measure in terms of the original
 - To restrict the parameters to a function - typically a calculation
 - To return a specific unit of measure from a function
-- For defining new units of measure in terms of the original
 
-Here is an example of a function that can only take values that have a dimension specified.
+##Deriving other units of measure
+
+    [<Measure>] type ppg = gp / usGal
+
+##Using Units of Measure for error prevention
+
+Units of measure come in extremely handy for preventing us introducing errors into our code due to passing the wrong value to a function.  
+As an example taken from the world of brewing, we wouldn't want to mix up the units when making calculations about how much grain we need.
+
+Below is an example of a function that can only take values that have a dimension specified.
 
 *)
 
@@ -137,57 +146,53 @@ For example if we have a function that works on dimensionless values, but we wan
 *)
 
         let TotalGravityPoints potential vol : float<gp / usGal> =  
-            LanguagePrimitives.FloatWithMeasure (potential * vol);;
+            LanguagePrimitives.FloatWithMeasure (potential * vol)
 
 (**
         [lang=output]
         val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
 
 
-We can also alter the returned type when UoM are passed into the function by calculating out the units we do not want.
+Elsewhere, where units of measure are needed to be converted into others, you can either cast to float/int to remove the dimensions or calculate out the units you don't want.  
+Personally if I need to take one of these approaches, I opt for casting to remove the dimensions before using the multiply by one trick in order to return the result as the unit of measure I want as it tends to make code clearer than having to multiply/divide by multiple different units of measure.
+The inner code would not be type safe, but we know that the passed in values will be checked by the compiler anyway.
 
+This is also a good approach when the units being used don't have a direct, or easy to express, relation.
 *)
-       
-       
+
+    let ToGravity (gravityPoints:float<gp>) =
+        ((float gravityPoints / 1000.0) + 1.0) * 1.0<sg>
+
 (**
-It really is down to personal preference which direction you take here. I prefer to let the type system do the hard work and so only specify the minimum required.
+It really is down to personal preference which direction you take here. However I generally take whichever approach results in the most readable code.
 *) 
 
 (**
 
-A few things need to be mentioned when working with `UoM`.
-
-1. You can declare a unit of measure to be made up of other units of measure.
-
-2. You can interchange UoM as long as they are equivalent. For example we could pass a ppg into the above function.
-
-3. In order to remove units from a measure you must either calculate them out or cast to float (effectively removing them).
-
-4. You can use generics with units of measure.
-
-Lets look at these points in more detail while staying in our domain of brewing.
-
-##Composing measures from measures
-
-    [<Measure>] type ppg = gp / usGal
-
-##Units of measure equivalence
-
 ##Converting to and from units of measure
 
-PPG is a value representing Gravity Points (gp - Also in the example) per lb of grain, per US Gallon of extract. 
-When we multiply this by the volume we are saying that, for the given volume of extract with the given PPG, we would have the resulting value as total `gravity points`.
+Converting between units of measure couldn't be simpler and it gives us a beautiful way of expressing common unit conversions for our brewing calculations.  
+For instance we can declare two constants that represent the conversion factors between  Litres/Gallons and Pound/Kg.  
+This then allows us to use 2 simple functions to convert between the respective `UoM`.
 
-In order to convert between PPG and GP (Gravity Points) we either need to calculate out the units we don't need (ie: the lb and gallons in the `PPG` and `usGal` units),
-or we simply remove the units of measure by casting to float as seen above.  
-We could of cause treat gravity points as a `<ppg usGal>` unit of measure itself, but in this particular case, when this unit would only serve to complicate things, it is much clearer to do away with the units during the calculation.  
-After all, the compiler has already done its job and prevented any incorrect units being passed to the function.
+    //Constants
+    let litresPerUsGallon = 3.78541<L/usGal>
+    let poundPerKg = 2.20462<lb/kg>
 
-Finally we multiply by `1.0<gp>`. This simply converts the output of the function to a `float<gp>`. Just what we need.
+    //Conversion Funcs
+    let ToPound (kg:float<kg>) = poundPerKg * kg
+    let ToKilograms (lb:float<lb>) = lb / poundPerKg
+    let ToLitres (litres:float<usGal>) = litres * litresPerUsGallon
+    let ToUsGallons (gallons:float<L>) = gallons / litresPerUsGallon
 
-Note: You can also use LanguagePrimitives.FloatWithMeasure to return a float with a given measure. This measure can either be specified explicitly or inferred by the type system.
+##Generics and Units of Measure and common pit falls
 
 
 
+#Important points
+
+1. Units of measure do not exist at runtime and cannot be used by non F# sharp assemblies.
+
+2. You can interchange UoM as long as they are equivalent. For example we could pass a ppg, (which is lb/usGal) into the a function expecting a lb / usGal.
 
 *)
