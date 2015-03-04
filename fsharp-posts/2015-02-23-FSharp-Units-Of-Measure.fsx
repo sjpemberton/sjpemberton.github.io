@@ -17,22 +17,23 @@ meta: Utilising FSharp Units of Measure for type safe calculations
 #F# Units of Measure
 
 Have you ever wished that you could have type safe calculations throughout your application?  
-Or have you wasted time hunting down errors due to using the wrong unit in a calculation?
+Well through the use of `FSharp Units of Measure` (UoM), now you can!
 
-If so then `FSharp Units of Measure` (UoM) will be right up your street.
+In this post I will explore the various ways of using [FSharp Units of Measure] and the benefits they bring. 
+To do this, I've decided to put `UoM` to the test by applying them in a real world example; The calculations required to brew some beer.  
 
-In this post I will explore the various ways of using `F# Units of Measure` and the benefits this brings.  
-I decided I would put `UoM` to the test by using them in a real world example and what could be a better application then that of brewing beer.  
-Therefore the following is a worked example of various calculations used at various stages of the brewing process.
+What follows is a worked example of some of the calculations used at various stages of the brewing process, highlighting how, through the use of 'Units of Measure', we can help to ensure correctness and brew some good beer.
 
 <!-- more -->
 
 ##Units of Measure - An introduction
 
-Units of measure in F# are types that can be associated with floating point or signed integer values.  
-By associating a `UoM` with a value it allows the F# compiler to perform additional type checking on the use of these units.
+Units of measure in F# are a type of metadata that can be associated with floating point or signed integer values.  
+By associating a `UoM` with a quantity value it allows the F# compiler to perform additional type checking on the use of these units, enforcing relationships between units in arithmetic and reducing potential errors.
 
-For example, we can declare a `UoM` for some of the measures of volume we will need when calculating our beer recipes.
+To declare a `Unit of Measure` we use the `[<Measure>]` attribute, followed by the type keyword and the name we want to give the measure.
+
+For example, we can declare `Units of measure` for some of the measures of volume we will need when calculating the ingredients in our beer recipes.
 
 *)
 
@@ -43,15 +44,53 @@ For example, we can declare a `UoM` for some of the measures of volume we will n
     [<Measure>] type usGal
 
 (**
-Once we have these measures defined we can use them in a number of ways
 
+Using these measures is as simple as annotating a float literal.
+    
+    //Volume in litres
+    let volume = 120<L>
+
+After defining some of the measures we need, they can be utilised in a number of ways.
+ 
 - For defining new units of measure in terms of the original
-- To restrict the parameters to a function - typically a calculation
-- To return a specific unit of measure from a function
+- To constrain the values involved in calculations to particular measures
+- To provide type safe conversions between measures
+- In types to create associations between different measures
 
-##Deriving other units of measure
+These a re just a few of the ways I regularly utilise `measures` in my own code.  
+If anyone has any other useful applications I would love to hear about them.
+
+##Defining units of measure in terms of others
+
+Sometimes, it can be a useful technique to define a unit of measure in terms of other, previously defined measures.  
+Doing so allows us to use the 'derived' measures in place of inferred results of calculations and can increase code clarity.
+
+Let's take an example from our brewing process.  
+We often need to associate something called gravity points, with a volume of liquid.  
+Gravity points are a very simplified definition of the amount of sugar in liquid. Obviously, this liquid could be in any number of units of measure, and it is paramount that we ensure we do not mix measures of volume (or related measures) during recipe planning.
+
+ The most common measurement used in home brewing circles is that of points per gallon (or points per pound per gallon - PPG) so let's define a measure for that.  
+ Firstly, we need to define a measure for gravity points.
+
+ *)
+    ///Gravity Point - A Simplified brewing unit for amount of sugar dissolved in solution
+    [<Measure>] type gp
+
+(**
+Next up, we define the association between gravity points and US gallons.
+*)
 
     [<Measure>] type ppg = gp / usGal
+
+(**
+Our ppg measure can now be used in our calculations, which we'll get to in a minute.  
+But first, a few quick points on this type of measure.
+
+ - The formulas that represent the measures can be written in various equivalent ways. This sometimes manifests in the results of expressions - more on this later.
+ - Equivalent formulas are compiled into a common representation and can therefore be substituted freely.
+ - You cannot use numeric values in these formulae. However, we can declare conversion constants which we will also see later.
+
+These points and others are explained in detail on the [MSDN] page for Units of measure.
 
 ##Using Units of Measure for error prevention
 
@@ -195,4 +234,10 @@ This then allows us to use 2 simple functions to convert between the respective 
 
 2. You can interchange UoM as long as they are equivalent. For example we could pass a ppg, (which is lb/usGal) into the a function expecting a lb / usGal.
 
+*)
+
+(**
+
+[FSharp Units of Measure]: https://msdn.microsoft.com/en-us/library/dd233243.aspx
+[MSDN]: https://msdn.microsoft.com/en-us/library/dd233243.aspx
 *)
