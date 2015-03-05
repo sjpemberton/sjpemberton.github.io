@@ -57,7 +57,7 @@ After defining some of the measures we need, they can be utilised in a number of
 - To provide type safe conversions between measures
 - In types to create associations between different measures
 
-These a re just a few of the ways I regularly utilise `measures` in my own code.  
+These are just a few of the ways I regularly utilise `measures` in my own code.  
 If anyone has any other useful applications I would love to hear about them.
 
 ##Defining units of measure in terms of others
@@ -89,15 +89,16 @@ But first, a few quick points on this type of measure.
  - The formulas that represent the measures can be written in various equivalent ways. This sometimes manifests in the results of expressions - more on this later.
  - Equivalent formulas are compiled into a common representation and can therefore be substituted freely.
  - You cannot use numeric values in these formulae. However, we can declare conversion constants which we will also see later.
+ - You can use `1` in these formulae. `1` represents a dimensionless value. I will touch on dimesnionless values when discussing conversion to and from measures.
 
-These points and others are explained in detail on the [MSDN] page for Units of measure.
+These points and others are explained in detail on the [MSDN] page for Units of Measure.
 
 ##Using Units of Measure for error prevention
 
-Units of measure come in extremely handy for preventing us introducing errors into our code due to passing the wrong value to a function.  
+Units of measure come in extremely handy for preventing us introducing errors into our code by using a value with an incorrect unit in a calculation or function.  
 As an example taken from the world of brewing, we wouldn't want to mix up the units when making calculations about how much grain we need.
 
-Below is an example of a function that can only take values that have a dimension specified.
+Below is an example of a function that can only take values that have the dimensions specified.
 
 *)
 
@@ -108,7 +109,7 @@ Below is an example of a function that can only take values that have a dimensio
 (**
 
 As you can see, this function is declared with explicit type annotations specifying the dimensions of the parameters.  
-The FSharp compiler will now stop you from attempting to use this function with either dimensionless floats, or floats with the the wrong dimension.
+The FSharp compiler will now stop you from attempting to use this function with either dimensionless floats, or floats with the the wrong dimension (and of course, non float values).
 
 Consider the following example where we attempt to call the function with dimensionless values:
 
@@ -117,9 +118,7 @@ Consider the following example where we attempt to call the function with dimens
     let totalGravPoints = totalGravityPoints 240.0 5.0
 
 (**
-Attempting to compile this line of code produces the following error (of many) 
-notifying us that we haven't satisfied the type constraints and preventing us from introducing possible errors in our code.
-
+Attempting to compile this line of code produces the following error notifying us that we haven't satisfied the type constraints and preventing us from introducing possible errors in our code.
 
     [lang=output]
     error FS0001: This expression was expected to have type
@@ -128,7 +127,7 @@ notifying us that we haven't satisfied the type constraints and preventing us fr
     float 
 
 Likewise the compiler will stop us from passing different `UoM` to the function. 
-Suppose we attempted to pass a Litre value to the previous function instead of the expected Gallons.  
+Suppose we attempted to use a Litre volume value instead of the expected US Gallons.  
 
 We receive a similar error as before.
 
@@ -145,9 +144,11 @@ We receive a similar error as before.
     The unit of measure 'usGal' does not match the unit of measure 'L'
 
 This example may be quite contrived, but imagine if that litre value came from the result of some other calculation.  
-If we allowed any old float through when calculating our beers gravity points we could well end up with an extremely strong or weak beer and nobody wants that.
+If we allowed any old float through when calculating our beers gravity points, we could very well end up with an extremely strong (or weak) beer and nobody wants that.
 
-This brings us onto the second use of units of measure; As the value returned by a function.
+This brings us nicely to our next section. 
+
+##Type inference and measure equality
 
 Lets take the following function as an example;
 *)
@@ -164,33 +165,86 @@ The F# compiler correctly infers that the result of this function is of the type
     val MaxPotentialPoints :
       grainPotential:float<gp/lb> ->
         grain:float<lb> -> vol:float<usGal> -> float<gp/usGal>
-  
-So in this case, we do not need to do anything special in order to get the correct result.  
-This is not always the case however.  
+ 
+We also know that equivalent measures are interchangeable.  
+This means, we could also declare this function as returning a `<ppg>` measure explicitly like so.
 
-Sometimes we may need to take a few further steps in order to help the compiler infer the correct type.  
-For example if we have a function that works on dimensionless values, but we want it to return one with a specific dimension, we have a few options.  
+*)
+    //Explicit return type
+    let MaxPotentialPoints (grainPotential:float<gp/lb>) (grain:float<lb>) (vol:float<usGal>) :float<ppg> = 
+        (grainPotential * grain) / vol
+
+(**
+    //Value
+    val MaxPotentialPoints :
+        grainPotential:float<pgp> ->
+            grain:float<lb> -> vol:float<usGal> -> float<ppg>
+
+So in this case, we do not need to do anything special in order to get the correct result, as we could just as easily use the first version that returned a `float<lb / usGal>` anywhere we needed a `<ppg>` value.
+In some situations, it can make code much clearer to be explicit about the return type.
+
+Consider the following example where we use a `<pgp>` measure instead of the `<gp/lb>` for the grainPotential:
+
+*)
+    ///Potential Gravity Points - The number of Gravity points in a lb of a particular malt
+    [<Measure>] type pgp = gp / lb
+
+    let MaxPotentialPoints (grainPotential:float<pgp>) (grain:float<lb>) (vol:float<usGal>) = 
+        (grainPotential * grain) / vol
+
+(**
+
+The return type of this function is inferred to be as follows:
+    
+    [lang=output]
+    val MaxPotentialPoints :
+      grainPotential:float<pgp> ->
+        grain:float<lb> -> vol:float<usGal> -> float<lb pgp/usGal>
+
+While this is not incorrect, it can be confusing.  
+We can clearly see that the `pgp` measure is equivalent to that of `gp /lb` so why has the inferred return type changed from the first example?  
+
+I believe the reasoning is that, although the compiler creates a common representation of the equivalent measures for use at runtime, it doesn't expose this to the user.  
+It is pretty clear to see that all three of the above examples are correct and equivelent. For example `lb pgp/usGal` becomes `(lb * (gp/lb))/usGal`, reducing to  `gp / usGal`.  
+
+We can of course prove this equality in code by running a quick test in F# interactive.
+    
+    200.0<lb pgp/usGal> = 200.0<ppg>;;
+    //result
+    val it : bool = true
+
+    200.0<lb pgp/usGal> = 200.0<gp/usGal>;;
+    //result
+    val it : bool = true
+
+
+That covers returning the types that the compiler expects, but what about when we need to *change* the measures associated with a type?
+
+##Converting to and from units of measure
+ 
+Consider a function that works on dimensionless values but we want it to return one with a specific dimension, we have a few options.  
 
 1. We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.
-
 *)
         let TotalGravityPoints potential vol =  
             (potential * vol) * 1.0<gp / usGal> 
 
-(**
+ (**           
         [lang=output]
         val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
+
 
 2. We can explicitly declare the return type of the function and then use one of the helper functions `LanguagePrimitives.FloatWithMeasure` or 'LanguagePrimitives.IntWithMeasure'.
 *)
 
         let TotalGravityPoints potential vol : float<gp / usGal> =  
             LanguagePrimitives.FloatWithMeasure (potential * vol)
-
-(**
+(** 
         [lang=output]
         val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
 
+
+##Converting between Units of Measure
 
 Elsewhere, where units of measure are needed to be converted into others, you can either cast to float/int to remove the dimensions or calculate out the units you don't want.  
 Personally if I need to take one of these approaches, I opt for casting to remove the dimensions before using the multiply by one trick in order to return the result as the unit of measure I want as it tends to make code clearer than having to multiply/divide by multiple different units of measure.
@@ -208,31 +262,20 @@ It really is down to personal preference which direction you take here. However 
 
 (**
 
-##Converting to and from units of measure
 
-Converting between units of measure couldn't be simpler and it gives us a beautiful way of expressing common unit conversions for our brewing calculations.  
-For instance we can declare two constants that represent the conversion factors between  Litres/Gallons and Pound/Kg.  
-This then allows us to use 2 simple functions to convert between the respective `UoM`.
 
-    //Constants
-    let litresPerUsGallon = 3.78541<L/usGal>
-    let poundPerKg = 2.20462<lb/kg>
-
-    //Conversion Funcs
-    let ToPound (kg:float<kg>) = poundPerKg * kg
-    let ToKilograms (lb:float<lb>) = lb / poundPerKg
-    let ToLitres (litres:float<usGal>) = litres * litresPerUsGallon
-    let ToUsGallons (gallons:float<L>) = gallons / litresPerUsGallon
 
 ##Generics and Units of Measure and common pit falls
 
 
 
-#Important points
+##Units of Measure at runtime and interoperability
 
 1. Units of measure do not exist at runtime and cannot be used by non F# sharp assemblies.
 
-2. You can interchange UoM as long as they are equivalent. For example we could pass a ppg, (which is lb/usGal) into the a function expecting a lb / usGal.
+
+
+#Conclusion
 
 *)
 
