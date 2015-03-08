@@ -89,7 +89,7 @@ But first, a few quick points on this type of measure.
  - The formulas that represent the measures can be written in various equivalent ways. This sometimes manifests in the results of expressions - more on this later.
  - Equivalent formulas are compiled into a common representation and can therefore be substituted freely.
  - You cannot use numeric values in these formulae. However, we can declare conversion constants which we will also see later.
- - You can use `1` in these formulae. `1` represents a dimensionless value. I will touch on dimesnionless values when discussing conversion to and from measures.
+ - You can use `1` in these formulae. `1` represents a dimensionless value. I will touch on dimensionless values when discussing error prevention in the next section.
 
 These points and others are explained in detail on the [MSDN] page for Units of Measure.
 
@@ -145,6 +145,36 @@ We receive a similar error as before.
 
 This example may be quite contrived, but imagine if that litre value came from the result of some other calculation.  
 If we allowed any old float through when calculating our beers gravity points, we could very well end up with an extremely strong (or weak) beer and nobody wants that.
+
+The Fsharp compiler will also prevent us introducing arithmetic errors such as attempting to add/subtract a different or dimensionless unit from another.  
+For instance, the following would not compile, returning the error shown.
+
+*)
+
+    let volume = 5.0<usGal> + 5.0<L>
+    //result
+    error FS0001: The unit of measure 'L' does not match the unit of measure 'usGal'
+
+(**
+Likewise attempting to use a dimensionless value would also fail.  
+*)
+
+    let volume = 5.0<usGal> + 5.0
+    //result
+    error FS0001: The type 'float' does not match the type 'float<usGal>'
+
+(**
+A dimensionless value can either be declared simply with no measure, as above, or with the explicit measure of `1` like so:  
+*)
+
+    let volume = 5.0<usGal> + 5.0<1>
+    //result
+    error FS0001: The type 'float' does not match the type 'float<usGal>'
+
+(**
+
+Although we cannot add/subtract different or dimensionless values, we can multiply or divide them.  
+Multiplying/dividing by a dimensionless value will result in same measure, however using a different measure in the calculation with result in a different/new measure.  
 
 This brings us nicely to our next section. 
 
@@ -204,8 +234,8 @@ The return type of this function is inferred to be as follows:
 While this is not incorrect, it can be confusing.  
 We can clearly see that the `pgp` measure is equivalent to that of `gp /lb` so why has the inferred return type changed from the first example?  
 
-I believe the reasoning is that, although the compiler creates a common representation of the equivalent measures for use at runtime, it doesn't expose this to the user.  
-It is pretty clear to see that all three of the above examples are correct and equivelent. For example `lb pgp/usGal` becomes `(lb * (gp/lb))/usGal`, reducing to  `gp / usGal`.  
+I believe the reasoning is that, although the compiler creates a common representation of the equivalent measures for use at runtime, it doesn't expose this to us (a possible gotcha with type inference and units of measure perhaps?).  
+It is pretty clear to see that all three of the above examples are correct and equivalent. For example `lb pgp/usGal` becomes `(lb * (gp/lb))/usGal`, reducing to  `gp / usGal`.  
 
 We can of course prove this equality in code by running a quick test in F# interactive.
     
@@ -224,40 +254,42 @@ That covers returning the types that the compiler expects, but what about when w
  
 Consider a function that works on dimensionless values but we want it to return one with a specific dimension, we have a few options.  
 
-1. We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.
+- We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.
 *)
-        let TotalGravityPoints potential vol =  
-            (potential * vol) * 1.0<gp / usGal> 
+    let TotalGravityPoints potential vol =  
+        (potential * vol) * 1.0<gp / usGal> 
 
- (**           
-        [lang=output]
-        val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
+(**           
+    [lang=output]
+    val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
 
 
-2. We can explicitly declare the return type of the function and then use one of the helper functions `LanguagePrimitives.FloatWithMeasure` or 'LanguagePrimitives.IntWithMeasure'.
+- We can explicitly declare the return type of the function and then use one of the helper functions `LanguagePrimitives.FloatWithMeasure` or 'LanguagePrimitives.IntWithMeasure'.
 *)
 
-        let TotalGravityPoints potential vol : float<gp / usGal> =  
-            LanguagePrimitives.FloatWithMeasure (potential * vol)
+    let TotalGravityPoints potential vol : float<gp / usGal> =  
+        LanguagePrimitives.FloatWithMeasure (potential * vol)
+
 (** 
-        [lang=output]
-        val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
+    [lang=output]
+    val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
 
 
 ##Converting between Units of Measure
 
 Elsewhere, where units of measure are needed to be converted into others, you can either cast to float/int to remove the dimensions or calculate out the units you don't want.  
-Personally if I need to take one of these approaches, I opt for casting to remove the dimensions before using the multiply by one trick in order to return the result as the unit of measure I want as it tends to make code clearer than having to multiply/divide by multiple different units of measure.
+Personally, if I need to take one of these approaches, I *usually* opt for casting to remove the dimensions before using the multiply by one trick in order to return the result as the unit of measure I want as it tends to make code clearer than having to multiply/divide by multiple different units of measure.
 The inner code would not be type safe, but we know that the passed in values will be checked by the compiler anyway.
 
-This is also a good approach when the units being used don't have a direct, or easy to express, relation.
+This is also a good approach when the units being used don't have a direct/easy to express relation or you don't want to declare a complex unit of measure.  
+For example, take the following function for converting gravity points to specific gravity.
 *)
 
     let ToGravity (gravityPoints:float<gp>) =
         ((float gravityPoints / 1000.0) + 1.0) * 1.0<sg>
 
 (**
-It really is down to personal preference which direction you take here. However I generally take whichever approach results in the most readable code.
+It really is down to personal preference which direction you take here. However I generally take whichever approach results in the most readable code in my current situation.
 *) 
 
 (**
