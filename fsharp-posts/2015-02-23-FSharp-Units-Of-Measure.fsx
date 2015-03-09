@@ -178,6 +178,28 @@ Multiplying/dividing by a dimensionless value will result in same measure, howev
 
 This brings us nicely to our next section. 
 
+##Effects of multiplication and division
+
+By multiplying or dividing a value that either has a measure already, or is dimesnionless, we can create new unit of measure.  
+The result of this process is effectively to *combine* two different units of measure (of course a dimesionless value can be thought of as an explicit measure of 1).  
+
+We have already declared a unit of measure that can be used to demonstrate this, our `ppg` measure.  
+A `ppg` value is simply a `gp` value divided by a `usGal` value.
+*)
+
+    let totalGravityPoints = 240.0<gp>
+    let beerVolume = 5.0<usGal>
+    let pointsPerGallon = totalGravityPoints / beerVolume
+
+(**
+
+The value of pointsPerGallon above is just what we would expect.
+
+    val pointsPerGallon : float<gp/usGal> = 48.0
+
+The exact same principle works for multiplication and don't forget, two or more units of measure can be considered equal.  
+Let's explore measure equality now.
+
 ##Type inference and measure equality
 
 Lets take the following function as an example;
@@ -189,7 +211,7 @@ Lets take the following function as an example;
 
 (**
 
-The F# compiler correctly infers that the result of this function is of the type float<gp/usGal>  
+The F# compiler correctly infers that the result of this function is of the type `float<gp/usGal>` 
     
     [lang=output]
     val MaxPotentialPoints :
@@ -248,7 +270,37 @@ We can of course prove this equality in code by running a quick test in F# inter
     val it : bool = true
 
 
-That covers returning the types that the compiler expects, but what about when we need to *change* the measures associated with a type?
+That covers returning specific measures, but what about when we need to *change* the measure associated with a value?
+
+##Conversion between measures
+
+Sometimes, we want to be able to quickly convert between to different units of measure.  
+As I mentioned previously, we cannot simply declare a new measure to represent a conversion factor, but we can declare this as a constant value in terms of the measures in question.  
+
+Consider an example of converting a volume of beer from US Gallons to Litres.  
+To do this we can declare the conversion factor as follows.
+
+*)
+    let litresPerUsGallon = 3.78541<L/usGal>
+
+(**
+The conversion factor is given a combined measure of `L/UsGal` (or Litres per gallon). This specifies that 1 Us Gallon is 3.78541 Litres.  
+This conversion factor can then be utilised in functions or expressions where needed.
+
+*)
+
+    let volume = 5.0<usGal>
+    let volumeInLitres = volume * litresPerUsGallon 
+
+    let ToUsGallons (litres:float<L>) = litres / litresPerUsGallon
+    let gallons = ToUsGallons 20.0<L>
+(**
+
+The resulting values of the examples above show how the use of the conversion constant allows for completely type self unit conversions. Pretty cool.  
+
+    val volumeInLitres : float<L> = 18.92705
+    val gallons : float<usGal> = 5.283443537
+
 
 ##Converting to and from units of measure
  
