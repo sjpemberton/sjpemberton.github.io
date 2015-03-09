@@ -10,7 +10,9 @@ meta: Utilising FSharp Units of Measure for type safe calculations
 
 
 (*** hide ***)
-    [<Measure>] type gp
+    [<Measure>] type sg
+    [<Measure>] type lb
+    [<Measure>] type percentage
 
 (**
 
@@ -146,7 +148,7 @@ We receive a similar error as before.
 This example may be quite contrived, but imagine if that litre value came from the result of some other calculation.  
 If we allowed any old float through when calculating our beers gravity points, we could very well end up with an extremely strong (or weak) beer and nobody wants that.
 
-The Fsharp compiler will also prevent us introducing arithmetic errors such as attempting to add/subtract a different or dimensionless unit from another.  
+The FSharp compiler will also prevent us introducing arithmetic errors such as attempting to add/subtract a different or dimensionless unit from another.  
 For instance, the following would not compile, returning the error shown.
 
 *)
@@ -296,17 +298,19 @@ This conversion factor can then be utilised in functions or expressions where ne
     let gallons = ToUsGallons 20.0<L>
 (**
 
-The resulting values of the examples above show how the use of the conversion constant allows for completely type self unit conversions. Pretty cool.  
+The resulting values of the examples above show how the use of the conversion constant allows for completely type safe unit conversions. Pretty cool huh?  
 
+    [lang=output]
     val volumeInLitres : float<L> = 18.92705
     val gallons : float<usGal> = 5.283443537
 
 
 ##Converting to and from units of measure
  
-Consider a function that works on dimensionless values but we want it to return one with a specific dimension, we have a few options.  
+At some point when using units of measure, you will undoubtedly need to convert from dimensionless values to ones with measures and vice versa.  
+Say we have a function that works on dimensionless values, but we want it to return a specific measure; We have a couple of options available to us in order to accomplish this task.  
 
-- We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.
+- We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.  
 *)
     let TotalGravityPoints potential vol =  
         (potential * vol) * 1.0<gp / usGal> 
@@ -327,11 +331,48 @@ Consider a function that works on dimensionless values but we want it to return 
     val totalGravityPoints : potential:float -> vol:float -> float<gp/usGal>
 
 
-##Converting between Units of Measure
+In order to remove a dimension from a value, we either need to cast it to float/int to remove the dimension or calculate out the units you don't want. 
 
-Elsewhere, where units of measure are needed to be converted into others, you can either cast to float/int to remove the dimensions or calculate out the units you don't want.  
-Personally, if I need to take one of these approaches, I *usually* opt for casting to remove the dimensions before using the multiply by one trick in order to return the result as the unit of measure I want as it tends to make code clearer than having to multiply/divide by multiple different units of measure.
-The inner code would not be type safe, but we know that the passed in values will be checked by the compiler anyway.
+*)
+
+    let cast = float 5.0<L>
+    //result
+    val cast : float = 5.0
+
+    let multiplyOut = 5.0<L> / 1.0<L>
+    //result
+    val multiplyOut : float = 5.0
+
+(**
+
+The second example above clearly has the advantage of being type safe. Whether you need type safety or not in a situation like is therefore a key factor in which approach to take.
+
+##Which approach to choose?
+
+We have already seen how you can use conversion constants in order to convert between units of measure.  
+However, we can also leverage the previously mentioned, much simpler techniques in order to achieve the same goal with the *potential* for easier to comprehend code.
+Personally, I *generally* utilise both techniques, but in certain situations one approach can be more favourable than the other.  
+
+###The fully type safe approach
+
+For the most part I try and utilise type safety throughout my code that requires units of measure.  
+Generally speaking this is completely painless and the fantastic type inference provided by the FSharp type system eliminates most of the bloat from our code.
+
+Therefore we can create functions that are fully type safe, including the calculations within them, while maintaining readability.  
+*)
+    ///Yeast attenuation - The difference in specific gravity between original gravity and final gravity, as a percentage
+    let YeastAttenuation (originalGravity:float<sg>) (finalGravity:float<sg>) =
+        ((originalGravity - finalGravity) / (originalGravity - 1.0<sg>)) * 100.0<percentage>
+
+(**
+###The not fully type safe approach
+
+When I don't care for type safety **during** a calculation I will choose the casting approach to remove dimensions due to the boost in readability it can provide.
+Usually, this is when I have a complex calculation contained in a function and I only truly need to restrict the inputs to it.  
+
+By opting for casting to remove the dimensions and the multiply by one trick in order to return the result as the unit of measure I want, I believe it makes code clearer than the alterative
+of having to include measures on literals used as well as multiply/divide out the unwanted dimensions.  
+The inner code would not be type safe, but we know that the passed in values will be checked by the compiler anyway. This can be *good enough* in some cases.
 
 This is also a good approach when the units being used don't have a direct/easy to express relation or you don't want to declare a complex unit of measure.  
 For example, take the following function for converting gravity points to specific gravity.
@@ -341,17 +382,95 @@ For example, take the following function for converting gravity points to specif
         ((float gravityPoints / 1000.0) + 1.0) * 1.0<sg>
 
 (**
-It really is down to personal preference which direction you take here. However I generally take whichever approach results in the most readable code in my current situation.
-*) 
+
+Of course we could apply both techniques in the same situation.  
+For example we could cast some values to float to reduce complexity, while retaining some level of type safety through the other values involved.  
+
+*)
+
+    ///The estimated gravity of wort created from an amount of grain in lb with the given ppg, at a particular efficiency and for a target volume
+    let EstimateGravity  (vol:float<usGal>) (grain:float<lb>) (grainPotential:float<pgp>) (efficiency:float<percentage>) =
+        ((grainPotential * grain * (float efficiency / 100.0)) / vol) * 1.0<usGal>
+        |> ToGravity
 
 (**
+It really is ultimately down to personal preference which direction you take.
 
+##Generics and Units of Measure
 
+###Functions
 
+Sometimes we want to create functions or types that can be used with more than one unit of measure. Enter generics.  
+We can use generics with units of measure in much the same way as we would with normal types.  
+We do however need to explicitly declare the use of the generic units. This can be done by using either an underscore `<_>` or the usual letters. (Using letters allows us to enforce equality constraints between multiple generic parameters, while underscores are effectively a wildcard)
 
-##Generics and Units of Measure and common pit falls
+*)
+    let AddVolumes (vol1:float<_>) (vol2:float<_>) = vol1 + vol2
+    //alternatively
+    let AddVolumes (vol1:float<'u>) (vol2:float<'u>) = vol1 + vol2
+    //result
+    val AddVolumes : vol1:float<'u> -> vol2:float<'u> -> float<'u>
 
+(**
+It is worth noting that this function can be executed with any unit type including a dimensionless value.  
+It can therefore be used with plain floats, however type safety is applied in the sense that the two values must have the same dimension.
 
+In simple cases like this, the use of generics gives us everything we need. This is not always the case though...  
+
+Lets take a more complex example.  
+Consider a function that calculates the amount of grain in weight required to brew an amount of beer that has a specific amount of gravity points.
+It is easy to see that such a function could be used to determine the weight of grain in various units.
+*)
+
+    ///Calculates required Grain in weight from the target gravity points and effective malt potential (in relation to a fixed weight).
+    let GrainRequired (gravityPoints:float<gp>) (effectivePotential:float<gp/'u>) =
+        gravityPoints / effectivePotential
+
+(**
+    [lang=output]
+    val GrainRequired :
+        gravityPoints:float<gp> -> effectivePotential:float<'u> -> float<gp/'u>
+
+The use of generics here associates a fixed unit (the gravity points) with any unit of weight.  
+Unfortunately however, the effectivePotential inferred to have the unit `<'u>`, losing the link between gravity points and weight unit.
+
+We can make this better.   
+By adding an explicit generic attribute to the function itself, we can further aid the type system in applying our constraint.
+*)
+
+    let GrainRequired<[<Measure>]'u> (gravityPoints:float<gp>) (effectivePotential:float<gp/'u>) =
+        gravityPoints / effectivePotential
+
+(**
+    [lang=output]
+    val GrainRequired :
+        gravityPoints:float<gp> -> effectivePotential:float<gp/'u> -> float<'u>
+
+This looks better, and we can see that by being explicit about the type we expect in return we can restrict the input as required.
+*)
+
+    let weight = GrainRequired<lb> 180.0<gp> 36.0
+    //result
+    error FS0001: This expression was expected to have type
+        float<gp/lb>    
+    but here has type
+        float
+
+(**
+However, that is not the end of the story as there is nothing to stop us **not** being explicit about the type we want.  
+We can then pass any unit we like to the function and get a potential unwanted unit back.  
+Luckily though, it is highly likely that the result of this function will be used somewhere that is expecting a particular unit, reducing the chance of errors.  
+This approach isn't bullet proof though and it helps to be aware of the pit falls.
+
+If anyone knows of a better approach, please feel free to get in touch.
+
+###Types
+
+Using generic measures with types to constrain relationships.
+
+*)
+
+(**
 
 ##Units of Measure at runtime and interoperability
 
