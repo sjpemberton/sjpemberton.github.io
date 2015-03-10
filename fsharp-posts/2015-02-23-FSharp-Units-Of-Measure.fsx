@@ -21,10 +21,13 @@ meta: Utilising FSharp Units of Measure for type safe calculations
 Have you ever wished that you could have type safe calculations throughout your application?  
 Well through the use of `FSharp Units of Measure` (UoM), now you can!
 
-In this post I will explore the various ways of using [FSharp Units of Measure] and the benefits they bring. 
-To do this, I've decided to put `UoM` to the test by applying them in a real world example; The calculations required to brew some beer.  
+In this post I will explore the various ways of using [FSharp Units of Measure] and the benefits they bring.  
+Before I started writing this article, I had not used Units of Measure before. I therefore thought it would be a good idea to aid the learning process by applying them in a small project.
+To do this, I decided to put `UoM` to the test by applying them in a real world example; The calculations required to brew some beer.  
 
-What follows is a worked example of some of the calculations used at various stages of the brewing process, highlighting how, through the use of 'Units of Measure', we can help to ensure correctness and brew some good beer.
+What follows is my account of using Units of Measure while creating a library of calculations for use in the various stages of brewing beer.  
+I aim to highlight how, through the use of 'Units of Measure', we can help to ensure correctness at compile time and hopefully eliminate potential runtime errors in my brewing calculations.
+
 
 <!-- more -->
 
@@ -50,7 +53,7 @@ For example, we can declare `Units of measure` for some of the measures of volum
 Using these measures is as simple as annotating a float literal.
     
     //Volume in litres
-    let volume = 120<L>
+    let volume = 120.0<L>
 
 After defining some of the measures we need, they can be utilised in a number of ways.
  
@@ -458,7 +461,7 @@ This looks better, and we can see that by being explicit about the type we expec
 
 (**
 However, that is not the end of the story as there is nothing to stop us **not** being explicit about the type we want.  
-We can then pass any unit we like to the function and get a potential unwanted unit back.  
+We can then pass any unit we like to the function and get a potentially unwanted unit value (or a dimensionless value) back.  
 Luckily though, it is highly likely that the result of this function will be used somewhere that is expecting a particular unit, reducing the chance of errors.  
 This approach isn't bullet proof though and it helps to be aware of the pit falls.
 
@@ -468,17 +471,92 @@ If anyone knows of a better approach, please feel free to get in touch.
 
 Using generic measures with types to constrain relationships.
 
+Sometimes we need to create generic types with units of measure.  
+This is a simple task and is done in much the same way as the functions in the previous example.
+
+Lets say that we want to keep track of the various malt we are using in our beer recipe.  
+We could create a simple record type that associates the weight of the grain being used, along with it's potential.  
+We could use different units of measure for the weight and point / weight potential values, so making this type generic is a good fit.
 *)
+
+    type Malt<[<Measure>] 'u> =
+        {Weight:float<'u>; Potential:float<gp/'u>}
+
+    //result
+    type Malt<'u> =
+      {Weight: float<'u>;
+       Potential: float<gp/'u>;}
+(**
+
+By declaring the type as such you make a binding between the two values based on the unit of measure used for the wieght.
+
+*)
+
+    let maltInPound = {Weight=6.2<lb>; Potential=36.0<gp/lb>}
+    //result
+    val maltInPound : Malt<lb> = {Weight = 6.2;
+                                  Potential = 36.0;}
 
 (**
 
+It is also not possible to mix the dimensions for the two values.
+
+     let maltInPound = {Weight=6.2<lb>; Potential=36.0<gp/kg>}
+     //result
+     error FS0001: Type mismatch. Expecting a
+        float<gp/lb>    
+    but given a
+        float<gp/kg>    
+    The unit of measure 'gp/lb' does not match the unit of measure 'gp/kg'
+
+###Multiple generic types
+
+You can also utilise more than one generic unit of measure in your types.  
+I find this particualy useful for representing relations between units. In the world of brewing this can be useful when ensuring weights and volumes line up.  
+
+*)
+    //Over simplified Recipe
+    type Recipe<[<Measure>] 'u, [<Measure>] 'v> =
+        {GrainBill:list<Malt<'u>>; Volume:float<'v>}
+
+    //result
+    type Recipe<'u,'v> =
+      {GrainBill: Malt<'u> list;
+       Volume: float<'v>;}
+
+    let AmericanAle = {GrainBill = [{Weight=6.2<lb>; Potential=36.0<gp/lb>}; {Weight=0.5<lb>; Potential=40.0<gp/lb>}];
+                        Volume = 5.0<usGal>}
+    //result
+    val AmericanAle : Recipe<lb,usGal> =
+      {GrainBill = [{Weight = 6.2;
+                     Potential = 36.0;}; {Weight = 0.5;
+                                          Potential = 40.0;}];
+       Volume = 5.0;}
+(**
+
+As can be seen above, we can utilise such a type to keep the association between weight (`<lb>`) and volume (`<usGal>`) together.  
+We can then use the values from this type in our previous functions and the fsharp compiler will make sure everything is type safe, preventing us from mixing up the units.
+
+We could of course also use explicitly typed versions of the type as inputs to functions, further restricting what types and it's associated units can be used.
+
 ##Units of Measure at runtime and interoperability
 
-1. Units of measure do not exist at runtime and cannot be used by non F# sharp assemblies.
+One key point to take heed of, is that units of measure do not exist at runtime.  
+They are intended for static type checking only and therefore prevent us implementing functionality based on checking units.  
 
+They are also not part of the wider .NET type system and can therefore not be consumed, or used, by any non F# assembly.  
+If exposing units of measure to consumers, the units are simply not visible and will all values will be treated as there underlying, dimensionless type.
 
+##Conclusion
 
-#Conclusion
+I hope you agree that F# Units of Measure are an extremely useful tool for ensuring type safety when implementing calculations or functions where the units matter.  
+For such a simple concept, they can be utilised in numerous ways. I am sure that I have only scratched the surface of their usefulness, but even so, the benefits of using them are immediately apparent.
+
+###Key Benefits
+
+-Prevent mismatches of units at compile time.
+-Help to eliminate runtime errors that could be incredibly subtle and hard to track down.
+-Can help to improve code readability (This can of course swing the other way if not careful).
 
 *)
 
