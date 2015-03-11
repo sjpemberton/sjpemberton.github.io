@@ -8,9 +8,9 @@ open LanguagePrimitives
 
 module BrewCalculations =
 
-    [<Measure>] type sg
-    [<Measure>] type lb
-    [<Measure>] type percentage
+[<Measure>] type sg
+[<Measure>] type lb
+[<Measure>] type percentage
 
 
 (**
@@ -22,10 +22,10 @@ Well through the use of F# Units of Measure (UoM), now you can!
 
 In this post I will explore the various ways of using F# Units of Measure and the benefits they bring.  
 Before I started writing this article, I had not used units of measure before. I therefore thought it would be a good idea to aid the learning process by applying them in a small project.
-To do this, I decided to put UoM to the test by applying them in a real world example; The calculations required to brew some beer.  
+To do this, I decided to put UoM to the test by applying them in a real world example; The calculations required to brew beer.  
 
 What follows is my experiences of using Units of Measure while creating a library of calculations for use in the various stages of brewing beer.  
-I aim to highlight how, through the use of units of measure, we can increase the robustness of our code and hopefully eliminate potential runtime errors in my brewing calculations.
+I aim to highlight how, through the use of units of measure, we can increase the robustness of our code and hopefully eliminate potential runtime errors.
 
 <!-- more -->
 
@@ -36,21 +36,21 @@ By associating a UoM with a quantity value it allows the F# compiler to perform 
 
 To declare a unit of measure you use the `[<Measure>]` attribute, followed by the `type` keyword and the name we want to give the measure.
 
-For example, we can declare units of measure for some of the measures of volume we will need when calculating the ingredients in our beer recipes.
+For example, we can declare units of measure for some of the measures of volume we will need when calculating the ingredients in beer recipes.
 
 *)
 
-    ///Litre (or Liter in the US)
-    [<Measure>] type L
+///Litre (or Liter in the US)
+[<Measure>] type L
 
-    ///Us Gallon
-    [<Measure>] type usGal
+///Us Gallon
+[<Measure>] type usGal
 
 (**
-Using these measures is as simple as annotating a float literal.
+Using a measure is as simple as annotating a float literal.
 *)
-    //Volume in litres
-    let volume = 120.0<L>
+//Volume in litres
+let volume = 120.0<L>
 
 (**
 A value that has a unit of measure associated with it is said to have a *dimension* or be *dimensioned*.  
@@ -79,23 +79,23 @@ One common measurement used in home brewing circles is that of points per gallon
 Firstly, we need to define a measure for gravity points.
 
 *)
-    ///Gravity Point - A Simplified brewing unit for amount of sugar dissolved in solution
-    [<Measure>] type gp
+///Gravity Point - A Simplified brewing unit for amount of sugar dissolved in solution
+[<Measure>] type gp
 
 (**
-Next up, we define the association between gravity points and US gallons.
+Next up, we define the *association* between gravity points and US gallons.
 *)
 
-    [<Measure>] type ppg = gp / usGal
+[<Measure>] type ppg = gp / usGal
 
 (**
-Our ppg measure can now be used in our calculations, which we'll get to in a minute.  
+Our `ppg` measure can now be used in our calculations, which we'll get to in a minute.  
 But first, a few quick points on this type of measure.
 
- - The formulas that represent the measures can be written in various equivalent ways. This sometimes manifests in the results of expressions being inferred differently than we would expect - more on this later.
- - Equivalent formulas are compiled into a common representation and can therefore be substituted freely.
- - You cannot use numeric values in these formulae. However, we can declare conversion constants which we will also explore later.
- - You can use `1` in these formulae. `1` represents a *dimensionless* value. I will touch on dimensionless values when discussing error prevention in the next section.
+- The formulas that represent the measures can be written in various equivalent ways. This sometimes manifests in the results of expressions being inferred differently than we would expect - more on this later.
+- Equivalent formulas are compiled into a common representation and can therefore be substituted freely.
+- You cannot use numeric values in these formulae. However, we can declare conversion constants which we will also explore later.
+- You can use `1` in these formulae. `1` represents a *dimensionless* value. I will touch on dimensionless values when discussing error prevention in the next section.
 
 These points and others are explained in detail on the [MSDN] page for Units of Measure.
 
@@ -104,13 +104,13 @@ These points and others are explained in detail on the [MSDN] page for Units of 
 Units of measure come in extremely handy for preventing us introducing errors into our code by using a value with an incorrect unit in a calculation or function.  
 As an example taken from the world of brewing, we wouldn't want to mix up the units when making calculations about how much grain we need.
 
-Below is an example of a function that can only take values that have the dimensions specified.
+Below is an example of a function that can only take values with the specified dimensions.
 
 *)
 
-    ///Converts a points per gal (gp / usGal) and volume into total gravity points in that volume
-    let TotalGravityPoints (potential:float<gp / usGal>) (vol : float<usGal>) =  
-        potential * vol
+///Converts a points per gal (gp / usGal) and volume into total gravity points in that volume
+let TotalGravityPoints (potential:float<gp / usGal>) (vol : float<usGal>) =  
+    potential * vol
 
 (**
 
@@ -121,7 +121,7 @@ Consider the following example where we attempt to call the function with dimens
 
 *)
 
-    let totalGravPoints = TotalGravityPoints 240.0 5.0
+let totalGravPoints = TotalGravityPoints 240.0 5.0
 
 (**
 Attempting to compile this line of code produces the following error notifying us that we haven't satisfied the type constraints and preventing us from introducing an error into our code.
@@ -129,7 +129,7 @@ Attempting to compile this line of code produces the following error notifying u
     [lang=output]
     error FS0001: This expression was expected to have type
     float<gp/usGal>    
-      but here has type
+        but here has type
     float 
 
 Likewise the compiler will stop us from passing different `UoM` to the function. 
@@ -138,7 +138,7 @@ Suppose we attempted to use a volume in Litres instead of the expected US Gallon
 We receive a similar error.
 
 *)
-    let totalGravPoints = TotalGravityPoints 240.0<gp / usGal> 5.0<L>
+let totalGravPoints = TotalGravityPoints 240.0<gp / usGal> 5.0<L>
 (**
     [lang=output]
     error FS0001: Type mismatch. Expecting a
@@ -153,7 +153,7 @@ For instance, the following would not compile, returning the errors shown.
 
 *)
 
-    let volume = 5.0<usGal> + 5.0<L>
+let volume = 5.0<usGal> + 5.0<L>
 (**
     [lang=output]
     //result
@@ -162,7 +162,7 @@ For instance, the following would not compile, returning the errors shown.
 Likewise attempting to use a dimensionless value would also fail.  
 *)
 
-    let volume = 5.0<usGal> + 5.0
+let volume = 5.0<usGal> + 5.0
 (**
     [lang=output]
     //result
@@ -170,7 +170,7 @@ Likewise attempting to use a dimensionless value would also fail.
 
 A dimensionless value can either be declared simply with no measure, as above, or with the explicit measure of `1` like so:  
 *)
-    let volume = 5.0<usGal> + 5.0<1>
+let volume = 5.0<usGal> + 5.0<1>
 (**
     [lang=output]
     //result
@@ -190,9 +190,9 @@ We have already declared a unit of measure that can be used to demonstrate this,
 A `ppg` value is simply a `gp` value divided by a `usGal` value.
 *)
 
-    let totalGravityPoints = 240.0<gp>
-    let beerVolume = 5.0<usGal>
-    let pointsPerGallon = totalGravityPoints / beerVolume
+let totalGravityPoints = 240.0<gp>
+let beerVolume = 5.0<usGal>
+let pointsPerGallon = totalGravityPoints / beerVolume
 
 (**
 
@@ -208,9 +208,9 @@ The exact same principle works for multiplication too and don't forget, two or m
 Lets take the following function as an example;
 *)
 
-    ///Calculates the maximum potential gravity points for a given weight of grain with the given potential and target volume
-    let MaxPotentialPoints (grainPotential:float<gp/lb>) (grain:float<lb>) (vol:float<usGal>) = 
-        (grainPotential * grain) / vol
+///Calculates the maximum potential gravity points for a given weight of grain with the given potential and target volume
+let MaxPotentialPoints (grainPotential:float<gp/lb>) (grain:float<lb>) (vol:float<usGal>) = 
+    (grainPotential * grain) / vol
 
 (**
 The F# compiler correctly infers that the result of this function is of the type `float<gp/usGal>` (hover over the function above to see this)
@@ -219,22 +219,22 @@ We also know that equivalent measures are interchangeable.
 This means, we could alternatively declare this function as returning a `<ppg>` measure explicitly like so.
 
 *)
-    //Explicit return type
-    let MaxPotentialPoints (grainPotential:float<gp/lb>) (grain:float<lb>) (vol:float<usGal>) :float<ppg> = 
-        (grainPotential * grain) / vol
+//Explicit return type
+let MaxPotentialPoints (grainPotential:float<gp/lb>) (grain:float<lb>) (vol:float<usGal>) :float<ppg> = 
+    (grainPotential * grain) / vol
 
 (**
-The F# type system will allow us to use either of these functions where the alternative dimension is required (ie a `ppg` where expecting a `gp/usGal`).
-I did find however, that in certian situations, it can make code much clearer to be explicit about the return type.
+The F# type system will allow us to use either of these functions where the alternative dimension is required (i.e. a `ppg` where a `gp/usGal` is expected).
+I did find however, that in certain situations, it can make code much clearer to be explicit about the return type.
 
 Consider the following example where we use a `pgp` measure instead of the `gp/lb` for the grainPotential:
 
 *)
-    ///Potential Gravity Points - The number of Gravity points in a lb of a particular malt
-    [<Measure>] type pgp = gp / lb
+///Potential Gravity Points - The number of Gravity points in a lb of a particular malt
+[<Measure>] type pgp = gp / lb
 
-    let MaxPotentialPoints (grainPotential:float<pgp>) (grain:float<lb>) (vol:float<usGal>) = 
-        (grainPotential * grain) / vol
+let MaxPotentialPoints (grainPotential:float<pgp>) (grain:float<lb>) (vol:float<usGal>) = 
+    (grainPotential * grain) / vol
 
 (**
 
@@ -248,13 +248,13 @@ It is pretty clear to see that all three of the above examples are correct and e
 
 We can of course prove this equality in code.
 *)
-    let isEqual = 200.0<lb pgp/usGal> = 200.0<ppg>
+let isEqual = 200.0<lb pgp/usGal> = 200.0<ppg>
 (**
     [lang=output]
     //result
     val isEqual : bool = true
 *)
-    let isEqual = 200.0<lb pgp/usGal> = 200.0<gp/usGal>
+let isEqual = 200.0<lb pgp/usGal> = 200.0<gp/usGal>
 (**
     [lang=output]
     //result
@@ -268,22 +268,22 @@ That covers returning specific measures, but what about when we need to *change*
 Sometimes, we want to be able to quickly convert between two different units of measure.  
 As I mentioned previously, we cannot simply declare a new measure to represent a conversion factor, but we can declare this as a constant value in terms of the measures in question.  
 
-Consider an example of converting a volume of beer from US Gallons to Litres.  
+Consider an example of converting a volume of beer from US Gallons to Litres (Useful when converting from American recipes).  
 To do this we can declare the conversion factor as follows.
 
 *)
-    let litresPerUsGallon = 3.78541<L/usGal>
+let litresPerUsGallon = 3.78541<L/usGal>
 
 (**
-The conversion factor is given a combined measure of `L/UsGal` (or Litres per gallon). This specifies that 1 Us Gallon is 3.78541 Litres.  
+The conversion factor is given a combined measure of `L/UsGal` (or Litres per gallon). This specifies that `1` Us Gallon is `3.78541` Litres.  
 This conversion factor can then be utilised in functions or expressions where needed.
 *)
 
-    let volume = 5.0<usGal>
-    let volumeInLitres = volume * litresPerUsGallon 
+let volume = 5.0<usGal>
+let volumeInLitres = volume * litresPerUsGallon 
 
-    let ToUsGallons (litres:float<L>) = litres / litresPerUsGallon
-    let gallons = ToUsGallons 20.0<L>
+let ToUsGallons (litres:float<L>) = litres / litresPerUsGallon
+let gallons = ToUsGallons 20.0<L>
 (**
 
 The resulting values of the examples above show how the use of the conversion constant allows for completely type safe unit conversions. Pretty cool huh?  
@@ -298,35 +298,35 @@ The resulting values of the examples above show how the use of the conversion co
 At some point when using units of measure, you will undoubtedly need to convert from dimensionless values to ones with measures and vice versa.  
 Say we have a function that works on dimensionless values, but we want it to return a specific measure; We have a couple of options available to us in order to accomplish this task.  
 
-1 - We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.  
+- We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.  
 *)
-    let TotalGravityPoints potential vol =  
-        (potential * vol) * 1.0<gp / usGal> 
+let TotalGravityPoints potential vol =  
+    (potential * vol) * 1.0<gp / usGal> 
 
 (**           
-2 - We can explicitly declare the return type of the function and then use one of the helper functions `LanguagePrimitives.FloatWithMeasure` or `LanguagePrimitives.IntWithMeasure`.
+- We can explicitly declare the return type of the function and then use one of the helper functions `LanguagePrimitives.FloatWithMeasure` or `LanguagePrimitives.IntWithMeasure`.
 *)
 
-    let TotalGravityPoints potential vol : float<gp / usGal> =  
-        LanguagePrimitives.FloatWithMeasure (potential * vol)
+let TotalGravityPoints potential vol : float<gp / usGal> =  
+    LanguagePrimitives.FloatWithMeasure (potential * vol)
 
 (**
-In order to remove a dimension from a value, we either need to cast it to the vlaue type, or calculate out the units you don't want. 
+In order to remove a dimension from a value, we either need to cast it to the value type, or calculate out the units you don't want. 
 *)
-    let cast = float 5.0<L>
+let cast = float 5.0<L>
 (**
     [lang=output]
     //result
     val cast : float = 5.0
 *)
-    let multiplyOut = 5.0<L> / 1.0<L>
+let multiplyOut = 5.0<L> / 1.0<L>
 (**
     [lang=output]
     //result
     val multiplyOut : float = 5.0
 
 The second example above clearly has the advantage of being type safe. 
- Whether you need type safety or not in a situation like this is therefore a key factor in deciding which approach to take.
+Whether you need type safety or not in a situation like this is therefore a key factor in deciding which approach to take.
 
 ##Which approach to choose?
 
@@ -341,9 +341,9 @@ Generally speaking this is completely painless and the fantastic type inference 
 
 Therefore we can create functions that are fully type safe, including the calculations within them, while maintaining readability.  
 *)
-    ///Yeast attenuation - The difference in specific gravity between original gravity and final gravity, as a percentage
-    let YeastAttenuation (originalGravity:float<sg>) (finalGravity:float<sg>) =
-        ((originalGravity - finalGravity) / (originalGravity - 1.0<sg>)) * 100.0<percentage>
+///Yeast attenuation - The difference in specific gravity between original gravity and final gravity, as a percentage
+let YeastAttenuation (originalGravity:float<sg>) (finalGravity:float<sg>) =
+    ((originalGravity - finalGravity) / (originalGravity - 1.0<sg>)) * 100.0<percentage>
 
 (**
 ###The non fully type safe approach
@@ -358,18 +358,18 @@ This is also a good approach when the units being used don't have a direct or ea
 For example, take the following function for converting gravity points to specific gravity.
 *)
 
-    let ToGravity (gravityPoints:float<gp>) =
-        ((float gravityPoints / 1000.0) + 1.0) * 1.0<sg>
+let ToGravity (gravityPoints:float<gp>) =
+    ((float gravityPoints / 1000.0) + 1.0) * 1.0<sg>
 
 (**
 Of course we could apply both techniques in the same situation.  
 For example we could cast some values to float to reduce complexity, while retaining some level of type safety through the other values involved.  
 *)
 
-    ///The estimated gravity of wort created from an amount of grain in lb with the given ppg, at a particular efficiency and for a target volume
-    let EstimateGravity  (vol:float<usGal>) (grain:float<lb>) (grainPotential:float<pgp>) (efficiency:float<percentage>) =
-        ((grainPotential * grain * (float efficiency / 100.0)) / vol) * 1.0<usGal>
-        |> ToGravity
+///The estimated gravity of wort created from an amount of grain in lb with the given ppg, at a particular efficiency and for a target volume
+let EstimateGravity  (vol:float<usGal>) (grain:float<lb>) (grainPotential:float<pgp>) (efficiency:float<percentage>) =
+    ((grainPotential * grain * (float efficiency / 100.0)) / vol) * 1.0<usGal>
+    |> ToGravity
 
 (**
 It really is ultimately down to personal preference which direction you take.
@@ -383,9 +383,9 @@ We can use generics with units of measure in much the same way as we would with 
 We do however need to explicitly declare the use of the generic units. This can be done by using either an underscore `<_>` or the usual letters. (Using letters allows us to enforce equality constraints between multiple generic parameters, while underscores are effectively a wildcard)
 
 *)
-    let AddVolumes (vol1:float<_>) (vol2:float<_>) = vol1 + vol2
-    //alternatively
-    let AddVolumes (vol1:float<'u>) (vol2:float<'u>) = vol1 + vol2
+let AddVolumes (vol1:float<_>) (vol2:float<_>) = vol1 + vol2
+//alternatively
+let AddVolumes (vol1:float<'u>) (vol2:float<'u>) = vol1 + vol2
 
 (**
 It is worth noting that this function can be executed with any unit type including a dimensionless value.  
@@ -397,9 +397,9 @@ Let's look at a more complex example.
 Below is a function that calculates the amount of grain in weight required to brew an amount of beer that has a specific amount of gravity points.
 It is easy to see that such a function could be used to determine the weight of grain in various units.
 *)
-    ///Calculates required Grain in weight from the target gravity points and effective malt potential (in relation to a fixed weight).
-    let GrainRequired (gravityPoints:float<gp>) (effectivePotential:float<gp/'u>) =
-        gravityPoints / effectivePotential
+///Calculates required Grain in weight from the target gravity points and effective malt potential (in relation to a fixed weight).
+let GrainRequired (gravityPoints:float<gp>) (effectivePotential:float<gp/'u>) =
+    gravityPoints / effectivePotential
 
 (**
 The use of generics here associates a fixed unit (the gravity points) with any unit of weight.  
@@ -409,14 +409,14 @@ We can make this better.
 By adding an explicit generic attribute to the function itself, we can further aid the type system in applying our constraint.
 *)
 
-    let GrainRequired<[<Measure>]'u> (gravityPoints:float<gp>) (effectivePotential:float<gp/'u>) =
-        gravityPoints / effectivePotential
+let GrainRequired<[<Measure>]'u> (gravityPoints:float<gp>) (effectivePotential:float<gp/'u>) =
+    gravityPoints / effectivePotential
 
 (**
 This looks better, and we can see that by being explicit about the type we expect in return we can restrict the input as required.
 *)
 
-    let weight = GrainRequired<lb> 180.0<gp> 36.0
+let weight = GrainRequired<lb> 180.0<gp> 36.0
 
 (**
     [lang=output]
@@ -441,24 +441,24 @@ Lets say that we want to keep track of the various malt we are using in our beer
 We could create a simple record type that associates the weight of the grain being used, along with it's potential.  
 We will more than likely want to use different units of measure for the weight and gravity point / weight potential values. Therefore making this type generic is a good fit.
 *)
-    type Malt<[<Measure>] 'u> =
-        {Weight:float<'u>; Potential:float<gp/'u>}
+type Malt<[<Measure>] 'u> = 
+    {Weight:float<'u>; Potential:float<gp/'u>;}
 (**
 
-By declaring the type as such you make a binding between the two values based on the unit of measure used for the wieght.
+By declaring the type as such you make a binding between the two values based on the unit of measure used for the weight.
 
 *)
-    let maltInPound = {Weight=6.2<lb>; Potential=36.0<gp/lb>}
+let maltInPound = { Weight=6.2<lb>; Potential=36.0<gp/lb>; }
 
 (**
     [lang=output]
     //result
     val maltInPound : Malt<lb> = {Weight = 6.2;
-                                  Potential = 36.0;}
+                                    Potential = 36.0;}
 
 It is also not possible to mix the dimensions for the two values.
 *)
-     let maltInPound = {Weight=6.2<lb>; Potential=36.0<gp/kg>}
+let maltInPound = { Weight=6.2<lb>; Potential=36.0<gp/kg>; }
 
 (**
     [lang=output]
@@ -472,19 +472,19 @@ It is also not possible to mix the dimensions for the two values.
 ###Multiple Generic units of Measure
 
 You can also create types with more than one generic unit of measure.  
-I find this particualy useful for representing relations between distinct units of measure. In the world of brewing this can be useful when ensuring weights and volumes line up.  
+I find this particularly useful for representing relations between distinct units of measure. In the world of brewing this can be useful when ensuring weights and volumes line up.  
 
 *)
-    //Over simplified Recipe
-    type Recipe<[<Measure>] 'u, [<Measure>] 'v> =
-        {GrainBill:list<Malt<'u>>; Volume:float<'v>}
+//Over simplified Recipe
+type Recipe<[<Measure>] 'u, [<Measure>] 'v> =
+    {GrainBill:list<Malt<'u>>; Volume:float<'v>}
 
-    let AmericanAle = {GrainBill = [{Weight=6.2<lb>; Potential=36.0<gp/lb>}; {Weight=0.5<lb>; Potential=40.0<gp/lb>}];
-                        Volume = 5.0<usGal>}
+let AmericanAle = {GrainBill = [{Weight=6.2<lb>; Potential=36.0<gp/lb>}; {Weight=0.5<lb>; Potential=40.0<gp/lb>}];
+                    Volume = 5.0<usGal>}
 (**
 
 As can be seen above, we can utilise such a type to keep the association between weight in `lb` and volume in `usGal` together.  
-We can then use the values from this type (or the type itself) iin our brewing functions and the F# compiler will make sure everything is type safe, preventing us from mixing up the units.
+We can then use the values from this type (or the type itself) in our brewing functions and the F# compiler will make sure everything is type safe, preventing us from mixing up the units.
 
 ##Units of Measure at runtime and interoperability
 
@@ -505,8 +505,10 @@ For such a simple concept, they can be utilised in numerous ways and can have qu
 - Help to eliminate runtime errors that could be incredibly subtle and hard to track down.
 - Can help to improve code readability (This can of course swing the other way if not careful).
 
----
-If anyone is interested the library of brewing calculations I created during this process can be found on [GitHub].  
+
+###Examples from this post
+
+If anyone is interested the library of brewing calculations I created during this process can be found on [GitHub]. At the time of writing it is still a work in progress.  
 Any and all comments are welcome.
 *)
 
@@ -521,7 +523,7 @@ Any and all comments are welcome.
 ---
 layout: post
 title: F# Units of Measure - A Worked Example
-date: 10/03/2015
+date: 11/03/2015
 comments: true
 tags: ["fsharp"]
 catagories: ["guides","examples"]

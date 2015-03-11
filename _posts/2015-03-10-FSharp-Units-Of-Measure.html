@@ -1,0 +1,867 @@
+---
+layout: post
+title: F# Units of Measure - A Worked Example
+date: 11/03/2015
+comments: true
+tags: ["fsharp"]
+catagories: ["guides","examples"]
+meta: Utilising FSharp Units of Measure for type safe calculations
+--- 
+
+<h1>F# Units of Measure</h1>
+
+<p>Have you ever wished that you could have type safe calculations throughout your application?<br />
+Well through the use of F# Units of Measure (UoM), now you can!</p>
+
+<p>In this post I will explore the various ways of using F# Units of Measure and the benefits they bring.<br />
+Before I started writing this article, I had not used units of measure before. I therefore thought it would be a good idea to aid the learning process by applying them in a small project.
+To do this, I decided to put UoM to the test by applying them in a real world example; The calculations required to brew beer.</p>
+
+<p>What follows is my experiences of using Units of Measure while creating a library of calculations for use in the various stages of brewing beer.<br />
+I aim to highlight how, through the use of units of measure, we can increase the robustness of our code and hopefully eliminate potential runtime errors.</p>
+
+<!-- more -->
+
+<h2>Units of Measure - An introduction</h2>
+
+<p>Units of measure in F# are a type of metadata that can be associated with floating point or signed integer values.<br />
+By associating a UoM with a quantity value it allows the F# compiler to perform additional type checking on the use of these units, enforcing relationships between units in arithmetic and reducing potential errors.</p>
+
+<p>To declare a unit of measure you use the <code>[&lt;Measure&gt;]</code> attribute, followed by the <code>type</code> keyword and the name we want to give the measure.</p>
+
+<p>For example, we can declare units of measure for some of the measures of volume we will need when calculating the ingredients in beer recipes.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">///Litre (or Liter in the US)</span>
+[&lt;<span onmouseout="hideTip(event, 'fs9', 16)" onmouseover="showTip(event, 'fs9', 16)" class="t">Measure</span>&gt;] <span class="k">type</span> <span onmouseout="hideTip(event, 'fs13', 17)" onmouseover="showTip(event, 'fs13', 17)" class="t">L</span>
+
+<span class="c">///Us Gallon</span>
+[&lt;<span onmouseout="hideTip(event, 'fs9', 18)" onmouseover="showTip(event, 'fs9', 18)" class="t">Measure</span>&gt;] <span class="k">type</span> <span onmouseout="hideTip(event, 'fs14', 19)" onmouseover="showTip(event, 'fs14', 19)" class="t">usGal</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Using a measure is as simple as annotating a float literal.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">//Volume in litres</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs15', 20)" onmouseover="showTip(event, 'fs15', 20)" class="i">volume</span> <span class="o">=</span> <span class="n">120.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 21)" onmouseover="showTip(event, 'fs13', 21)" class="t">L</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>A value that has a unit of measure associated with it is said to have a <em>dimension</em> or be <em>dimensioned</em>.</p>
+
+<p>Units of measure can be utilised in a number of ways.</p>
+
+<ul>
+<li>To constrain the values involved in calculations to particular measures</li>
+<li>To provide type safe conversions between measures</li>
+<li>For defining new units of measure in terms of the original</li>
+<li>In types to create associations between different measures</li>
+</ul>
+
+<p>This is in no way a definitive list. They are just a few of the ways I found measures particularly beneficial during my time exploring there usage.<br />
+If anyone has any other useful applications I would love to hear about them.</p>
+
+<h2>Defining units of measure in terms of others</h2>
+
+<p>Sometimes, it can be a useful technique to define a unit of measure in terms of other previously defined measures.<br />
+Doing so allows us to use the <em>derived</em> measures in place of inferred results of calculations which can increase code clarity.</p>
+
+<p>Let's take an example from the brewing process.</p>
+
+<p>We often need to associate something called gravity points, with a volume of liquid.<br />
+Gravity points are a very simplified definition of the amount of sugar in liquid. Obviously, this liquid could be in any number of units, and it is paramount that we ensure we do not mix measures of volume, for example, during recipe planning.</p>
+
+<p>One common measurement used in home brewing circles is that of points per gallon (or points per pound per gallon - PPG) so let's define a measure for that.<br />
+Firstly, we need to define a measure for gravity points.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">///Gravity Point - A Simplified brewing unit for amount of sugar dissolved in solution</span>
+[&lt;<span onmouseout="hideTip(event, 'fs9', 22)" onmouseover="showTip(event, 'fs9', 22)" class="t">Measure</span>&gt;] <span class="k">type</span> <span onmouseout="hideTip(event, 'fs16', 23)" onmouseover="showTip(event, 'fs16', 23)" class="t">gp</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Next up, we define the <em>association</em> between gravity points and US gallons.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+[&lt;<span onmouseout="hideTip(event, 'fs9', 24)" onmouseover="showTip(event, 'fs9', 24)" class="t">Measure</span>&gt;] <span class="k">type</span> <span onmouseout="hideTip(event, 'fs17', 25)" onmouseover="showTip(event, 'fs17', 25)" class="t">ppg</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs16', 26)" onmouseover="showTip(event, 'fs16', 26)" class="t">gp</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs14', 27)" onmouseover="showTip(event, 'fs14', 27)" class="t">usGal</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Our <code>ppg</code> measure can now be used in our calculations, which we'll get to in a minute.<br />
+But first, a few quick points on this type of measure.</p>
+
+<ul>
+<li>The formulas that represent the measures can be written in various equivalent ways. This sometimes manifests in the results of expressions being inferred differently than we would expect - more on this later.</li>
+<li>Equivalent formulas are compiled into a common representation and can therefore be substituted freely.</li>
+<li>You cannot use numeric values in these formulae. However, we can declare conversion constants which we will also explore later.</li>
+<li>You can use <code>1</code> in these formulae. <code>1</code> represents a <em>dimensionless</em> value. I will touch on dimensionless values when discussing error prevention in the next section.</li>
+</ul>
+
+<p>These points and others are explained in detail on the <a href="https://msdn.microsoft.com/en-us/library/dd233243.aspx">MSDN</a> page for Units of Measure.</p>
+
+<h2>Using Units of Measure for error prevention</h2>
+
+<p>Units of measure come in extremely handy for preventing us introducing errors into our code by using a value with an incorrect unit in a calculation or function.<br />
+As an example taken from the world of brewing, we wouldn't want to mix up the units when making calculations about how much grain we need.</p>
+
+<p>Below is an example of a function that can only take values with the specified dimensions.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">///Converts a points per gal (gp / usGal) and volume into total gravity points in that volume</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 28)" onmouseover="showTip(event, 'fs18', 28)" class="f">TotalGravityPoints</span> (<span onmouseout="hideTip(event, 'fs19', 29)" onmouseover="showTip(event, 'fs19', 29)" class="i">potential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 30)" onmouseover="showTip(event, 'fs20', 30)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 31)" onmouseover="showTip(event, 'fs16', 31)" class="t">gp</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs14', 32)" onmouseover="showTip(event, 'fs14', 32)" class="t">usGal</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs21', 33)" onmouseover="showTip(event, 'fs21', 33)" class="i">vol</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs20', 34)" onmouseover="showTip(event, 'fs20', 34)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 35)" onmouseover="showTip(event, 'fs14', 35)" class="t">usGal</span><span class="o">&gt;</span>) <span class="o">=</span>  
+    <span onmouseout="hideTip(event, 'fs19', 36)" onmouseover="showTip(event, 'fs19', 36)" class="i">potential</span> <span class="o">*</span> <span onmouseout="hideTip(event, 'fs21', 37)" onmouseover="showTip(event, 'fs21', 37)" class="i">vol</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>As you can see, this function is declared with explicit type annotations specifying the dimensions of the parameters.<br />
+The F# compiler will now prevent you from using this function with either dimensionless floats, or floats with the the wrong dimension (and of course, non float values).</p>
+
+<p>Consider the following example where we attempt to call the function with dimensionless values:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs22', 38)" onmouseover="showTip(event, 'fs22', 38)" class="i">totalGravPoints</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 39)" onmouseover="showTip(event, 'fs18', 39)" class="f">TotalGravityPoints</span> <span class="n">240.0</span> <span class="n">5.0</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Attempting to compile this line of code produces the following error notifying us that we haven't satisfied the type constraints and preventing us from introducing an error into our code.</p>
+
+<table class="pre"><tr><td><pre lang="output">error FS0001: This expression was expected to have type
+float&lt;gp/usGal&gt;    
+    but here has type
+float 
+</pre></td></tr></table>
+
+<p>Likewise the compiler will stop us from passing different <code>UoM</code> to the function. 
+Suppose we attempted to use a volume in Litres instead of the expected US Gallons.</p>
+
+<p>We receive a similar error.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs22', 40)" onmouseover="showTip(event, 'fs22', 40)" class="i">totalGravPoints</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 41)" onmouseover="showTip(event, 'fs18', 41)" class="f">TotalGravityPoints</span> <span class="n">240.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 42)" onmouseover="showTip(event, 'fs16', 42)" class="t">gp</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs14', 43)" onmouseover="showTip(event, 'fs14', 43)" class="t">usGal</span><span class="o">&gt;</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 44)" onmouseover="showTip(event, 'fs13', 44)" class="t">L</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">error FS0001: Type mismatch. Expecting a
+    float&lt;usGal&gt;    
+but given a
+    float&lt;L&gt;    
+The unit of measure &#39;usGal&#39; does not match the unit of measure &#39;L&#39;
+</pre></td></tr></table>
+
+<p>This example may be quite contrived, but it highlights the type safety provided by units of measure.
+The F# compiler will also prevent us introducing arithmetic errors such as attempting to add/subtract a different or dimensionless unit from another.<br />
+For instance, the following would not compile, returning the errors shown.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs15', 45)" onmouseover="showTip(event, 'fs15', 45)" class="i">volume</span> <span class="o">=</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 46)" onmouseover="showTip(event, 'fs14', 46)" class="t">usGal</span><span class="o">&gt;</span> <span class="o">+</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 47)" onmouseover="showTip(event, 'fs13', 47)" class="t">L</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+error FS0001: The unit of measure &#39;L&#39; does not match the unit of measure &#39;usGal&#39;
+</pre></td></tr></table>
+
+<p>Likewise attempting to use a dimensionless value would also fail.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs15', 48)" onmouseover="showTip(event, 'fs15', 48)" class="i">volume</span> <span class="o">=</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 49)" onmouseover="showTip(event, 'fs14', 49)" class="t">usGal</span><span class="o">&gt;</span> <span class="o">+</span> <span class="n">5.0</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+error FS0001: The type &#39;float&#39; does not match the type &#39;float&lt;usGal&gt;&#39;
+</pre></td></tr></table>
+
+<p>A dimensionless value can either be declared simply with no measure, as above, or with the explicit measure of <code>1</code> like so:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs15', 50)" onmouseover="showTip(event, 'fs15', 50)" class="i">volume</span> <span class="o">=</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 51)" onmouseover="showTip(event, 'fs14', 51)" class="t">usGal</span><span class="o">&gt;</span> <span class="o">+</span> <span class="n">5.0</span><span class="o">&lt;</span><span class="n">1</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+error FS0001: The type &#39;float&#39; does not match the type &#39;float&lt;usGal&gt;&#39;
+</pre></td></tr></table>
+
+<p>Although we cannot add/subtract different or dimensionless values from an already dimensioned value, we can multiply or divide them.<br />
+Multiplying or dividing by a dimensionless value will result in same measure, however using a different measure in the calculation will result in a different (potentially new) measure.</p>
+
+<p>This brings us nicely to our next section.</p>
+
+<h2>Effects of multiplication and division</h2>
+
+<p>By multiplying or dividing a value that either has a measure already, or is dimensionless, we can create new units of measure.<br />
+The result of this process is effectively to <em>combine</em> two different units of measure (remember, a dimensionless value can be thought of as having a measure of 1).</p>
+
+<p>We have already declared a unit of measure that can be used to demonstrate this, our <code>ppg</code> measure.<br />
+A <code>ppg</code> value is simply a <code>gp</code> value divided by a <code>usGal</code> value.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs23', 52)" onmouseover="showTip(event, 'fs23', 52)" class="i">totalGravityPoints</span> <span class="o">=</span> <span class="n">240.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 53)" onmouseover="showTip(event, 'fs16', 53)" class="t">gp</span><span class="o">&gt;</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs24', 54)" onmouseover="showTip(event, 'fs24', 54)" class="i">beerVolume</span> <span class="o">=</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 55)" onmouseover="showTip(event, 'fs14', 55)" class="t">usGal</span><span class="o">&gt;</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs25', 56)" onmouseover="showTip(event, 'fs25', 56)" class="i">pointsPerGallon</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs23', 57)" onmouseover="showTip(event, 'fs23', 57)" class="i">totalGravityPoints</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs24', 58)" onmouseover="showTip(event, 'fs24', 58)" class="i">beerVolume</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>The value of pointsPerGallon above is just what we would expect.</p>
+
+<table class="pre"><tr><td><pre lang="output">val pointsPerGallon : float&lt;gp/usGal&gt; = 48.0
+</pre></td></tr></table>
+
+<p>The exact same principle works for multiplication too and don't forget, two or more units of measure can be considered equal.</p>
+
+<h2>Type inference and measure equality</h2>
+
+<p>Lets take the following function as an example;</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">///Calculates the maximum potential gravity points for a given weight of grain with the given potential and target volume</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs26', 59)" onmouseover="showTip(event, 'fs26', 59)" class="f">MaxPotentialPoints</span> (<span onmouseout="hideTip(event, 'fs27', 60)" onmouseover="showTip(event, 'fs27', 60)" class="i">grainPotential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 61)" onmouseover="showTip(event, 'fs20', 61)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 62)" onmouseover="showTip(event, 'fs16', 62)" class="t">gp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs11', 63)" onmouseover="showTip(event, 'fs11', 63)" class="t">lb</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs28', 64)" onmouseover="showTip(event, 'fs28', 64)" class="i">grain</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 65)" onmouseover="showTip(event, 'fs20', 65)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 66)" onmouseover="showTip(event, 'fs11', 66)" class="t">lb</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs21', 67)" onmouseover="showTip(event, 'fs21', 67)" class="i">vol</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 68)" onmouseover="showTip(event, 'fs20', 68)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 69)" onmouseover="showTip(event, 'fs14', 69)" class="t">usGal</span><span class="o">&gt;</span>) <span class="o">=</span> 
+    (<span onmouseout="hideTip(event, 'fs27', 70)" onmouseover="showTip(event, 'fs27', 70)" class="i">grainPotential</span> <span class="o">*</span> <span onmouseout="hideTip(event, 'fs28', 71)" onmouseover="showTip(event, 'fs28', 71)" class="i">grain</span>) <span class="o">/</span> <span onmouseout="hideTip(event, 'fs21', 72)" onmouseover="showTip(event, 'fs21', 72)" class="i">vol</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>The F# compiler correctly infers that the result of this function is of the type <code>float&lt;gp/usGal&gt;</code> (hover over the function above to see this)</p>
+
+<p>We also know that equivalent measures are interchangeable.<br />
+This means, we could alternatively declare this function as returning a <code>&lt;ppg&gt;</code> measure explicitly like so.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">//Explicit return type</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs29', 73)" onmouseover="showTip(event, 'fs29', 73)" class="f">MaxPotentialPoints</span> (<span onmouseout="hideTip(event, 'fs27', 74)" onmouseover="showTip(event, 'fs27', 74)" class="i">grainPotential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 75)" onmouseover="showTip(event, 'fs20', 75)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 76)" onmouseover="showTip(event, 'fs16', 76)" class="t">gp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs11', 77)" onmouseover="showTip(event, 'fs11', 77)" class="t">lb</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs28', 78)" onmouseover="showTip(event, 'fs28', 78)" class="i">grain</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 79)" onmouseover="showTip(event, 'fs20', 79)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 80)" onmouseover="showTip(event, 'fs11', 80)" class="t">lb</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs21', 81)" onmouseover="showTip(event, 'fs21', 81)" class="i">vol</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 82)" onmouseover="showTip(event, 'fs20', 82)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 83)" onmouseover="showTip(event, 'fs14', 83)" class="t">usGal</span><span class="o">&gt;</span>) <span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 84)" onmouseover="showTip(event, 'fs20', 84)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs17', 85)" onmouseover="showTip(event, 'fs17', 85)" class="t">ppg</span><span class="o">&gt;</span> <span class="o">=</span> 
+    (<span onmouseout="hideTip(event, 'fs27', 86)" onmouseover="showTip(event, 'fs27', 86)" class="i">grainPotential</span> <span class="o">*</span> <span onmouseout="hideTip(event, 'fs28', 87)" onmouseover="showTip(event, 'fs28', 87)" class="i">grain</span>) <span class="o">/</span> <span onmouseout="hideTip(event, 'fs21', 88)" onmouseover="showTip(event, 'fs21', 88)" class="i">vol</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>The F# type system will allow us to use either of these functions where the alternative dimension is required (i.e. a <code>ppg</code> where a <code>gp/usGal</code> is expected).
+I did find however, that in certain situations, it can make code much clearer to be explicit about the return type.</p>
+
+<p>Consider the following example where we use a <code>pgp</code> measure instead of the <code>gp/lb</code> for the grainPotential:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">///Potential Gravity Points - The number of Gravity points in a lb of a particular malt</span>
+[&lt;<span onmouseout="hideTip(event, 'fs9', 89)" onmouseover="showTip(event, 'fs9', 89)" class="t">Measure</span>&gt;] <span class="k">type</span> <span onmouseout="hideTip(event, 'fs30', 90)" onmouseover="showTip(event, 'fs30', 90)" class="t">pgp</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs16', 91)" onmouseover="showTip(event, 'fs16', 91)" class="t">gp</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs11', 92)" onmouseover="showTip(event, 'fs11', 92)" class="t">lb</span>
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs31', 93)" onmouseover="showTip(event, 'fs31', 93)" class="f">MaxPotentialPoints</span> (<span onmouseout="hideTip(event, 'fs32', 94)" onmouseover="showTip(event, 'fs32', 94)" class="i">grainPotential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 95)" onmouseover="showTip(event, 'fs20', 95)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs30', 96)" onmouseover="showTip(event, 'fs30', 96)" class="t">pgp</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs28', 97)" onmouseover="showTip(event, 'fs28', 97)" class="i">grain</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 98)" onmouseover="showTip(event, 'fs20', 98)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 99)" onmouseover="showTip(event, 'fs11', 99)" class="t">lb</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs21', 100)" onmouseover="showTip(event, 'fs21', 100)" class="i">vol</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 101)" onmouseover="showTip(event, 'fs20', 101)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 102)" onmouseover="showTip(event, 'fs14', 102)" class="t">usGal</span><span class="o">&gt;</span>) <span class="o">=</span> 
+    (<span onmouseout="hideTip(event, 'fs32', 103)" onmouseover="showTip(event, 'fs32', 103)" class="i">grainPotential</span> <span class="o">*</span> <span onmouseout="hideTip(event, 'fs28', 104)" onmouseover="showTip(event, 'fs28', 104)" class="i">grain</span>) <span class="o">/</span> <span onmouseout="hideTip(event, 'fs21', 105)" onmouseover="showTip(event, 'fs21', 105)" class="i">vol</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>If you look at the inferred return type of this function you will see it is <code>float&lt;lb pgp/usGal&gt;</code>.<br />
+While this is perfectly correct, it can be confusing.</p>
+
+<p>We can clearly see that the <code>pgp</code> measure is equivalent to that of <code>gp /lb</code> so why has the inferred return type changed from the first example?</p>
+
+<p>I believe the reasoning is that, although the compiler creates a common representation of the equivalent measures for use at runtime, it doesn't expose this to us through type inference (a possible gotcha with type inference and units of measure perhaps?).<br />
+It is pretty clear to see that all three of the above examples are correct and equivalent. For example <code>lb pgp/usGal</code> becomes <code>(lb * (gp/lb))/usGal</code>, reducing to  <code>gp / usGal</code>.</p>
+
+<p>We can of course prove this equality in code.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs33', 106)" onmouseover="showTip(event, 'fs33', 106)" class="i">isEqual</span> <span class="o">=</span> <span class="n">200.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 107)" onmouseover="showTip(event, 'fs11', 107)" class="t">lb</span> <span onmouseout="hideTip(event, 'fs30', 108)" onmouseover="showTip(event, 'fs30', 108)" class="t">pgp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs14', 109)" onmouseover="showTip(event, 'fs14', 109)" class="t">usGal</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">200.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs17', 110)" onmouseover="showTip(event, 'fs17', 110)" class="t">ppg</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+val isEqual : bool = true</pre></td></tr></table>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs33', 111)" onmouseover="showTip(event, 'fs33', 111)" class="i">isEqual</span> <span class="o">=</span> <span class="n">200.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 112)" onmouseover="showTip(event, 'fs11', 112)" class="t">lb</span> <span onmouseout="hideTip(event, 'fs30', 113)" onmouseover="showTip(event, 'fs30', 113)" class="t">pgp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs14', 114)" onmouseover="showTip(event, 'fs14', 114)" class="t">usGal</span><span class="o">&gt;</span> <span class="o">=</span> <span class="n">200.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 115)" onmouseover="showTip(event, 'fs16', 115)" class="t">gp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs14', 116)" onmouseover="showTip(event, 'fs14', 116)" class="t">usGal</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+val isEqual : bool = true
+</pre></td></tr></table>
+
+<p>That covers returning specific measures, but what about when we need to <em>change</em> the measure associated with a value?</p>
+
+<h2>Conversion between measures</h2>
+
+<p>Sometimes, we want to be able to quickly convert between two different units of measure.<br />
+As I mentioned previously, we cannot simply declare a new measure to represent a conversion factor, but we can declare this as a constant value in terms of the measures in question.</p>
+
+<p>Consider an example of converting a volume of beer from US Gallons to Litres (Useful when converting from American recipes).<br />
+To do this we can declare the conversion factor as follows.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs34', 117)" onmouseover="showTip(event, 'fs34', 117)" class="i">litresPerUsGallon</span> <span class="o">=</span> <span class="n">3.78541</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 118)" onmouseover="showTip(event, 'fs13', 118)" class="t">L</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs14', 119)" onmouseover="showTip(event, 'fs14', 119)" class="t">usGal</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>The conversion factor is given a combined measure of <code>L/UsGal</code> (or Litres per gallon). This specifies that <code>1</code> Us Gallon is <code>3.78541</code> Litres.<br />
+This conversion factor can then be utilised in functions or expressions where needed.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs35', 120)" onmouseover="showTip(event, 'fs35', 120)" class="i">volume</span> <span class="o">=</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 121)" onmouseover="showTip(event, 'fs14', 121)" class="t">usGal</span><span class="o">&gt;</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs36', 122)" onmouseover="showTip(event, 'fs36', 122)" class="i">volumeInLitres</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs35', 123)" onmouseover="showTip(event, 'fs35', 123)" class="i">volume</span> <span class="o">*</span> <span onmouseout="hideTip(event, 'fs34', 124)" onmouseover="showTip(event, 'fs34', 124)" class="i">litresPerUsGallon</span> 
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs37', 125)" onmouseover="showTip(event, 'fs37', 125)" class="f">ToUsGallons</span> (<span onmouseout="hideTip(event, 'fs38', 126)" onmouseover="showTip(event, 'fs38', 126)" class="i">litres</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 127)" onmouseover="showTip(event, 'fs20', 127)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 128)" onmouseover="showTip(event, 'fs13', 128)" class="t">L</span><span class="o">&gt;</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs38', 129)" onmouseover="showTip(event, 'fs38', 129)" class="i">litres</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs34', 130)" onmouseover="showTip(event, 'fs34', 130)" class="i">litresPerUsGallon</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs39', 131)" onmouseover="showTip(event, 'fs39', 131)" class="i">gallons</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs37', 132)" onmouseover="showTip(event, 'fs37', 132)" class="f">ToUsGallons</span> <span class="n">20.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 133)" onmouseover="showTip(event, 'fs13', 133)" class="t">L</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>The resulting values of the examples above show how the use of the conversion constant allows for completely type safe unit conversions. Pretty cool huh?</p>
+
+<table class="pre"><tr><td><pre lang="output">val volumeInLitres : float&lt;L&gt; = 18.92705
+val gallons : float&lt;usGal&gt; = 5.283443537
+</pre></td></tr></table>
+
+<h2>Converting to and from units of measure</h2>
+
+<p>At some point when using units of measure, you will undoubtedly need to convert from dimensionless values to ones with measures and vice versa.<br />
+Say we have a function that works on dimensionless values, but we want it to return a specific measure; We have a couple of options available to us in order to accomplish this task.</p>
+
+<ul>
+<li>We can multiply the resulting unit by 1, where 1 is given the dimension type we want as the result.</li>
+</ul>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs40', 134)" onmouseover="showTip(event, 'fs40', 134)" class="f">TotalGravityPoints</span> <span onmouseout="hideTip(event, 'fs41', 135)" onmouseover="showTip(event, 'fs41', 135)" class="i">potential</span> <span onmouseout="hideTip(event, 'fs42', 136)" onmouseover="showTip(event, 'fs42', 136)" class="i">vol</span> <span class="o">=</span>  
+    (<span onmouseout="hideTip(event, 'fs41', 137)" onmouseover="showTip(event, 'fs41', 137)" class="i">potential</span> <span class="o">*</span> <span onmouseout="hideTip(event, 'fs42', 138)" onmouseover="showTip(event, 'fs42', 138)" class="i">vol</span>) <span class="o">*</span> <span class="n">1.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 139)" onmouseover="showTip(event, 'fs16', 139)" class="t">gp</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs14', 140)" onmouseover="showTip(event, 'fs14', 140)" class="t">usGal</span><span class="o">&gt;</span> 
+</pre>
+</td>
+</tr>
+</table>
+
+<ul>
+<li>We can explicitly declare the return type of the function and then use one of the helper functions <code>LanguagePrimitives.FloatWithMeasure</code> or <code>LanguagePrimitives.IntWithMeasure</code>.</li>
+</ul>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs40', 141)" onmouseover="showTip(event, 'fs40', 141)" class="f">TotalGravityPoints</span> <span onmouseout="hideTip(event, 'fs41', 142)" onmouseover="showTip(event, 'fs41', 142)" class="i">potential</span> <span onmouseout="hideTip(event, 'fs42', 143)" onmouseover="showTip(event, 'fs42', 143)" class="i">vol</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs20', 144)" onmouseover="showTip(event, 'fs20', 144)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 145)" onmouseover="showTip(event, 'fs16', 145)" class="t">gp</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs14', 146)" onmouseover="showTip(event, 'fs14', 146)" class="t">usGal</span><span class="o">&gt;</span> <span class="o">=</span>  
+    <span onmouseout="hideTip(event, 'fs8', 147)" onmouseover="showTip(event, 'fs8', 147)" class="t">LanguagePrimitives</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs43', 148)" onmouseover="showTip(event, 'fs43', 148)" class="f">FloatWithMeasure</span> (<span onmouseout="hideTip(event, 'fs41', 149)" onmouseover="showTip(event, 'fs41', 149)" class="i">potential</span> <span class="o">*</span> <span onmouseout="hideTip(event, 'fs42', 150)" onmouseover="showTip(event, 'fs42', 150)" class="i">vol</span>)
+</pre>
+</td>
+</tr>
+</table>
+
+<p>In order to remove a dimension from a value, we either need to cast it to the value type, or calculate out the units you don't want.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs44', 151)" onmouseover="showTip(event, 'fs44', 151)" class="i">cast</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs20', 152)" onmouseover="showTip(event, 'fs20', 152)" class="f">float</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 153)" onmouseover="showTip(event, 'fs13', 153)" class="t">L</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+val cast : float = 5.0</pre></td></tr></table>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs45', 154)" onmouseover="showTip(event, 'fs45', 154)" class="i">multiplyOut</span> <span class="o">=</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 155)" onmouseover="showTip(event, 'fs13', 155)" class="t">L</span><span class="o">&gt;</span> <span class="o">/</span> <span class="n">1.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs13', 156)" onmouseover="showTip(event, 'fs13', 156)" class="t">L</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+val multiplyOut : float = 5.0
+</pre></td></tr></table>
+
+<p>The second example above clearly has the advantage of being type safe. 
+Whether you need type safety or not in a situation like this is therefore a key factor in deciding which approach to take.</p>
+
+<h2>Which approach to choose?</h2>
+
+<p>We have already seen how you can use conversion constants in order to convert between units of measure.<br />
+However, we can also leverage the previously mentioned, much simpler techniques in order to achieve the same goal with the <em>potential</em> for easier to comprehend code.
+Personally, I have been mixing both techniques, but in certain situations one approach can be more favourable than the other.</p>
+
+<h3>The fully type safe approach</h3>
+
+<p>For the most part I have tried to utilise type safety throughout code that requires units of measure.<br />
+Generally speaking this is completely painless and the fantastic type inference provided by the F# type system eliminates most of the bloat from our code.</p>
+
+<p>Therefore we can create functions that are fully type safe, including the calculations within them, while maintaining readability.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">///Yeast attenuation - The difference in specific gravity between original gravity and final gravity, as a percentage</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs46', 157)" onmouseover="showTip(event, 'fs46', 157)" class="f">YeastAttenuation</span> (<span onmouseout="hideTip(event, 'fs47', 158)" onmouseover="showTip(event, 'fs47', 158)" class="i">originalGravity</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 159)" onmouseover="showTip(event, 'fs20', 159)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs10', 160)" onmouseover="showTip(event, 'fs10', 160)" class="t">sg</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs48', 161)" onmouseover="showTip(event, 'fs48', 161)" class="i">finalGravity</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 162)" onmouseover="showTip(event, 'fs20', 162)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs10', 163)" onmouseover="showTip(event, 'fs10', 163)" class="t">sg</span><span class="o">&gt;</span>) <span class="o">=</span>
+    ((<span onmouseout="hideTip(event, 'fs47', 164)" onmouseover="showTip(event, 'fs47', 164)" class="i">originalGravity</span> <span class="o">-</span> <span onmouseout="hideTip(event, 'fs48', 165)" onmouseover="showTip(event, 'fs48', 165)" class="i">finalGravity</span>) <span class="o">/</span> (<span onmouseout="hideTip(event, 'fs47', 166)" onmouseover="showTip(event, 'fs47', 166)" class="i">originalGravity</span> <span class="o">-</span> <span class="n">1.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs10', 167)" onmouseover="showTip(event, 'fs10', 167)" class="t">sg</span><span class="o">&gt;</span>)) <span class="o">*</span> <span class="n">100.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs12', 168)" onmouseover="showTip(event, 'fs12', 168)" class="t">percentage</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<h3>The non fully type safe approach</h3>
+
+<p>If we don't care for type safety <strong>during</strong> a calculation, then we could choose the casting approach to remove dimensions due to the boost in readability it can provide (This can be subjective).
+Usually, this is when I have a complex calculation contained in a function and I only truly need to restrict the inputs to it.</p>
+
+<p>By opting for casting to remove the dimensions and the multiply by one trick in order to return the result as the unit of measure we want, it <em>can</em> make code clearer than the alternative.<br />
+The inner code would not be type safe, but we know that the passed in values will be checked by the compiler anyway. This can be <em>good enough</em> in some cases.</p>
+
+<p>This is also a good approach when the units being used don't have a direct or easy to express relation, or you don't want to declare a complex unit of measure.<br />
+For example, take the following function for converting gravity points to specific gravity.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs49', 169)" onmouseover="showTip(event, 'fs49', 169)" class="f">ToGravity</span> (<span onmouseout="hideTip(event, 'fs50', 170)" onmouseover="showTip(event, 'fs50', 170)" class="i">gravityPoints</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 171)" onmouseover="showTip(event, 'fs20', 171)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 172)" onmouseover="showTip(event, 'fs16', 172)" class="t">gp</span><span class="o">&gt;</span>) <span class="o">=</span>
+    ((<span onmouseout="hideTip(event, 'fs20', 173)" onmouseover="showTip(event, 'fs20', 173)" class="f">float</span> <span onmouseout="hideTip(event, 'fs50', 174)" onmouseover="showTip(event, 'fs50', 174)" class="i">gravityPoints</span> <span class="o">/</span> <span class="n">1000.0</span>) <span class="o">+</span> <span class="n">1.0</span>) <span class="o">*</span> <span class="n">1.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs10', 175)" onmouseover="showTip(event, 'fs10', 175)" class="t">sg</span><span class="o">&gt;</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>Of course we could apply both techniques in the same situation.<br />
+For example we could cast some values to float to reduce complexity, while retaining some level of type safety through the other values involved.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">///The estimated gravity of wort created from an amount of grain in lb with the given ppg, at a particular efficiency and for a target volume</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs51', 176)" onmouseover="showTip(event, 'fs51', 176)" class="f">EstimateGravity</span>  (<span onmouseout="hideTip(event, 'fs21', 177)" onmouseover="showTip(event, 'fs21', 177)" class="i">vol</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 178)" onmouseover="showTip(event, 'fs20', 178)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 179)" onmouseover="showTip(event, 'fs14', 179)" class="t">usGal</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs28', 180)" onmouseover="showTip(event, 'fs28', 180)" class="i">grain</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 181)" onmouseover="showTip(event, 'fs20', 181)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 182)" onmouseover="showTip(event, 'fs11', 182)" class="t">lb</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs32', 183)" onmouseover="showTip(event, 'fs32', 183)" class="i">grainPotential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 184)" onmouseover="showTip(event, 'fs20', 184)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs30', 185)" onmouseover="showTip(event, 'fs30', 185)" class="t">pgp</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs52', 186)" onmouseover="showTip(event, 'fs52', 186)" class="i">efficiency</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 187)" onmouseover="showTip(event, 'fs20', 187)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs12', 188)" onmouseover="showTip(event, 'fs12', 188)" class="t">percentage</span><span class="o">&gt;</span>) <span class="o">=</span>
+    ((<span onmouseout="hideTip(event, 'fs32', 189)" onmouseover="showTip(event, 'fs32', 189)" class="i">grainPotential</span> <span class="o">*</span> <span onmouseout="hideTip(event, 'fs28', 190)" onmouseover="showTip(event, 'fs28', 190)" class="i">grain</span> <span class="o">*</span> (<span onmouseout="hideTip(event, 'fs20', 191)" onmouseover="showTip(event, 'fs20', 191)" class="f">float</span> <span onmouseout="hideTip(event, 'fs52', 192)" onmouseover="showTip(event, 'fs52', 192)" class="i">efficiency</span> <span class="o">/</span> <span class="n">100.0</span>)) <span class="o">/</span> <span onmouseout="hideTip(event, 'fs21', 193)" onmouseover="showTip(event, 'fs21', 193)" class="i">vol</span>) <span class="o">*</span> <span class="n">1.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 194)" onmouseover="showTip(event, 'fs14', 194)" class="t">usGal</span><span class="o">&gt;</span>
+    <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs49', 195)" onmouseover="showTip(event, 'fs49', 195)" class="f">ToGravity</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>It really is ultimately down to personal preference which direction you take.</p>
+
+<h2>Generics and Units of Measure</h2>
+
+<h3>Generic Measures in Functions</h3>
+
+<p>Sometimes we want to create functions or types that can be used with more than one unit of measure. Enter generics.<br />
+We can use generics with units of measure in much the same way as we would with normal types.<br />
+We do however need to explicitly declare the use of the generic units. This can be done by using either an underscore <code>&lt;_&gt;</code> or the usual letters. (Using letters allows us to enforce equality constraints between multiple generic parameters, while underscores are effectively a wildcard)</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs53', 196)" onmouseover="showTip(event, 'fs53', 196)" class="f">AddVolumes</span> (<span onmouseout="hideTip(event, 'fs54', 197)" onmouseover="showTip(event, 'fs54', 197)" class="i">vol1</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 198)" onmouseover="showTip(event, 'fs20', 198)" class="t">float</span><span class="o">&lt;</span>_<span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs55', 199)" onmouseover="showTip(event, 'fs55', 199)" class="i">vol2</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 200)" onmouseover="showTip(event, 'fs20', 200)" class="t">float</span><span class="o">&lt;</span>_<span class="o">&gt;</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs54', 201)" onmouseover="showTip(event, 'fs54', 201)" class="i">vol1</span> <span class="o">+</span> <span onmouseout="hideTip(event, 'fs55', 202)" onmouseover="showTip(event, 'fs55', 202)" class="i">vol2</span>
+<span class="c">//alternatively</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs53', 203)" onmouseover="showTip(event, 'fs53', 203)" class="f">AddVolumes</span> (<span onmouseout="hideTip(event, 'fs54', 204)" onmouseover="showTip(event, 'fs54', 204)" class="i">vol1</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 205)" onmouseover="showTip(event, 'fs20', 205)" class="t">float</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs55', 206)" onmouseover="showTip(event, 'fs55', 206)" class="i">vol2</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 207)" onmouseover="showTip(event, 'fs20', 207)" class="t">float</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs54', 208)" onmouseover="showTip(event, 'fs54', 208)" class="i">vol1</span> <span class="o">+</span> <span onmouseout="hideTip(event, 'fs55', 209)" onmouseover="showTip(event, 'fs55', 209)" class="i">vol2</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>It is worth noting that this function can be executed with any unit type including a dimensionless value.<br />
+It can therefore be used with plain floats, however type safety is applied in the sense that the two values must have the same dimension.</p>
+
+<p>In simple cases like this, the use of generics gives us everything we need. This is not always the case though...</p>
+
+<p>Let's look at a more complex example.<br />
+Below is a function that calculates the amount of grain in weight required to brew an amount of beer that has a specific amount of gravity points.
+It is easy to see that such a function could be used to determine the weight of grain in various units.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">///Calculates required Grain in weight from the target gravity points and effective malt potential (in relation to a fixed weight).</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs56', 210)" onmouseover="showTip(event, 'fs56', 210)" class="f">GrainRequired</span> (<span onmouseout="hideTip(event, 'fs50', 211)" onmouseover="showTip(event, 'fs50', 211)" class="i">gravityPoints</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 212)" onmouseover="showTip(event, 'fs20', 212)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 213)" onmouseover="showTip(event, 'fs16', 213)" class="t">gp</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs57', 214)" onmouseover="showTip(event, 'fs57', 214)" class="i">effectivePotential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 215)" onmouseover="showTip(event, 'fs20', 215)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 216)" onmouseover="showTip(event, 'fs16', 216)" class="t">gp</span><span class="o">/</span><span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span>) <span class="o">=</span>
+    <span onmouseout="hideTip(event, 'fs50', 217)" onmouseover="showTip(event, 'fs50', 217)" class="i">gravityPoints</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs57', 218)" onmouseover="showTip(event, 'fs57', 218)" class="i">effectivePotential</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>The use of generics here associates a fixed unit (the gravity points) with any unit of weight.<br />
+Unfortunately however, the effectivePotential inferred to have the unit <code>&lt;'u&gt;</code>, losing the link between gravity points and weight unit.</p>
+
+<p>We can make this better. <br />
+By adding an explicit generic attribute to the function itself, we can further aid the type system in applying our constraint.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs58', 219)" onmouseover="showTip(event, 'fs58', 219)" class="f">GrainRequired</span><span class="o">&lt;</span>[&lt;<span onmouseout="hideTip(event, 'fs9', 220)" onmouseover="showTip(event, 'fs9', 220)" class="t">Measure</span>&gt;]<span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span> (<span onmouseout="hideTip(event, 'fs50', 221)" onmouseover="showTip(event, 'fs50', 221)" class="i">gravityPoints</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 222)" onmouseover="showTip(event, 'fs20', 222)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 223)" onmouseover="showTip(event, 'fs16', 223)" class="t">gp</span><span class="o">&gt;</span>) (<span onmouseout="hideTip(event, 'fs59', 224)" onmouseover="showTip(event, 'fs59', 224)" class="i">effectivePotential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 225)" onmouseover="showTip(event, 'fs20', 225)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 226)" onmouseover="showTip(event, 'fs16', 226)" class="t">gp</span><span class="o">/</span><span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span>) <span class="o">=</span>
+    <span onmouseout="hideTip(event, 'fs50', 227)" onmouseover="showTip(event, 'fs50', 227)" class="i">gravityPoints</span> <span class="o">/</span> <span onmouseout="hideTip(event, 'fs59', 228)" onmouseover="showTip(event, 'fs59', 228)" class="i">effectivePotential</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<p>This looks better, and we can see that by being explicit about the type we expect in return we can restrict the input as required.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs60', 229)" onmouseover="showTip(event, 'fs60', 229)" class="i">weight</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs58', 230)" onmouseover="showTip(event, 'fs58', 230)" class="f">GrainRequired</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 231)" onmouseover="showTip(event, 'fs11', 231)" class="t">lb</span><span class="o">&gt;</span> <span class="n">180.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 232)" onmouseover="showTip(event, 'fs16', 232)" class="t">gp</span><span class="o">&gt;</span> <span class="n">36.0</span>
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+error FS0001: This expression was expected to have type
+    float&lt;gp/lb&gt;    
+but here has type
+    float
+</pre></td></tr></table>
+
+<p>However, that is not the end of the story as there is nothing to stop us <strong>not</strong> being explicit about the type we want.<br />
+We can then pass any unit we like to the function and get a potentially unwanted unit value (or a dimensionless value) back.<br />
+Luckily though, it is highly likely that the result of this function will be used somewhere that is expecting a particular unit, reducing the chance of errors.<br />
+This approach isn't bullet proof however and it helps to be aware of the pit falls.</p>
+
+<p>If anyone knows of a better approach, please feel free to get in touch.</p>
+
+<h3>Generic Measure in Types</h3>
+
+<p>One possible use for using generic measures in types is to enforce constraints on relationships between different values.</p>
+
+<p>Lets say that we want to keep track of the various malt we are using in our beer recipe.<br />
+We could create a simple record type that associates the weight of the grain being used, along with it's potential.<br />
+We will more than likely want to use different units of measure for the weight and gravity point / weight potential values. Therefore making this type generic is a good fit.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs61', 233)" onmouseover="showTip(event, 'fs61', 233)" class="t">Malt</span><span class="o">&lt;</span>[&lt;<span onmouseout="hideTip(event, 'fs9', 234)" onmouseover="showTip(event, 'fs9', 234)" class="t">Measure</span>&gt;] <span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span> <span class="o">=</span> 
+    {<span onmouseout="hideTip(event, 'fs62', 235)" onmouseover="showTip(event, 'fs62', 235)" class="i">Weight</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 236)" onmouseover="showTip(event, 'fs20', 236)" class="t">float</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs63', 237)" onmouseover="showTip(event, 'fs63', 237)" class="i">Potential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 238)" onmouseover="showTip(event, 'fs20', 238)" class="t">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 239)" onmouseover="showTip(event, 'fs16', 239)" class="t">gp</span><span class="o">/</span><span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span>;}
+</pre>
+</td>
+</tr>
+</table>
+
+<p>By declaring the type as such you make a binding between the two values based on the unit of measure used for the weight.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs64', 240)" onmouseover="showTip(event, 'fs64', 240)" class="i">maltInPound</span> <span class="o">=</span> { <span class="i">Weight</span><span class="o">=</span><span class="n">6.2</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 241)" onmouseover="showTip(event, 'fs11', 241)" class="t">lb</span><span class="o">&gt;</span>; <span class="i">Potential</span><span class="o">=</span><span class="n">36.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 242)" onmouseover="showTip(event, 'fs16', 242)" class="t">gp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs11', 243)" onmouseover="showTip(event, 'fs11', 243)" class="t">lb</span><span class="o">&gt;</span>; }
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+val maltInPound : Malt&lt;lb&gt; = {Weight = 6.2;
+                                Potential = 36.0;}
+</pre></td></tr></table>
+
+<p>It is also not possible to mix the dimensions for the two values.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs64', 244)" onmouseover="showTip(event, 'fs64', 244)" class="i">maltInPound</span> <span class="o">=</span> { <span class="i">Weight</span><span class="o">=</span><span class="n">6.2</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 245)" onmouseover="showTip(event, 'fs11', 245)" class="t">lb</span><span class="o">&gt;</span>; <span class="i">Potential</span><span class="o">=</span><span class="n">36.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 246)" onmouseover="showTip(event, 'fs16', 246)" class="t">gp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs65', 247)" onmouseover="showTip(event, 'fs65', 247)" class="t">kg</span><span class="o">&gt;</span>; }
+</pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//result
+error FS0001: Type mismatch. Expecting a
+    float&lt;gp/lb&gt;    
+but given a
+    float&lt;gp/kg&gt;    
+The unit of measure &#39;gp/lb&#39; does not match the unit of measure &#39;gp/kg&#39;
+</pre></td></tr></table>
+
+<h3>Multiple Generic units of Measure</h3>
+
+<p>You can also create types with more than one generic unit of measure.<br />
+I find this particularly useful for representing relations between distinct units of measure. In the world of brewing this can be useful when ensuring weights and volumes line up.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">//Over simplified Recipe</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs66', 248)" onmouseover="showTip(event, 'fs66', 248)" class="t">Recipe</span><span class="o">&lt;</span>[&lt;<span onmouseout="hideTip(event, 'fs9', 249)" onmouseover="showTip(event, 'fs9', 249)" class="t">Measure</span>&gt;] <span class="o">&#39;</span><span class="i">u</span>, [&lt;<span onmouseout="hideTip(event, 'fs9', 250)" onmouseover="showTip(event, 'fs9', 250)" class="t">Measure</span>&gt;] <span class="o">&#39;</span><span class="i">v</span><span class="o">&gt;</span> <span class="o">=</span>
+    {<span onmouseout="hideTip(event, 'fs67', 251)" onmouseover="showTip(event, 'fs67', 251)" class="i">GrainBill</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs68', 252)" onmouseover="showTip(event, 'fs68', 252)" class="t">list</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs61', 253)" onmouseover="showTip(event, 'fs61', 253)" class="t">Malt</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">u</span><span class="o">&gt;</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs69', 254)" onmouseover="showTip(event, 'fs69', 254)" class="i">Volume</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 255)" onmouseover="showTip(event, 'fs20', 255)" class="t">float</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">v</span><span class="o">&gt;</span>}
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs70', 256)" onmouseover="showTip(event, 'fs70', 256)" class="i">AmericanAle</span> <span class="o">=</span> {<span class="i">GrainBill</span> <span class="o">=</span> [{<span class="i">Weight</span><span class="o">=</span><span class="n">6.2</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 257)" onmouseover="showTip(event, 'fs11', 257)" class="t">lb</span><span class="o">&gt;</span>; <span class="i">Potential</span><span class="o">=</span><span class="n">36.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 258)" onmouseover="showTip(event, 'fs16', 258)" class="t">gp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs11', 259)" onmouseover="showTip(event, 'fs11', 259)" class="t">lb</span><span class="o">&gt;</span>}; {<span class="i">Weight</span><span class="o">=</span><span class="n">0.5</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs11', 260)" onmouseover="showTip(event, 'fs11', 260)" class="t">lb</span><span class="o">&gt;</span>; <span class="i">Potential</span><span class="o">=</span><span class="n">40.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs16', 261)" onmouseover="showTip(event, 'fs16', 261)" class="t">gp</span><span class="o">/</span><span onmouseout="hideTip(event, 'fs11', 262)" onmouseover="showTip(event, 'fs11', 262)" class="t">lb</span><span class="o">&gt;</span>}];
+                    <span class="i">Volume</span> <span class="o">=</span> <span class="n">5.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs14', 263)" onmouseover="showTip(event, 'fs14', 263)" class="t">usGal</span><span class="o">&gt;</span>}
+</pre>
+</td>
+</tr>
+</table>
+
+<p>As can be seen above, we can utilise such a type to keep the association between weight in <code>lb</code> and volume in <code>usGal</code> together.<br />
+We can then use the values from this type (or the type itself) in our brewing functions and the F# compiler will make sure everything is type safe, preventing us from mixing up the units.</p>
+
+<h2>Units of Measure at runtime and interoperability</h2>
+
+<p>One key point to take heed of, is that units of measure do not exist at runtime.<br />
+They are intended for static type checking only and therefore prevent us implementing functionality based on checking units.</p>
+
+<p>They are also not part of the wider .NET type system and can therefore not be consumed, or used, by any non F# assembly.<br />
+If exposing units of measure to consumers, the units are simply not visible and all values will be treated as there underlying, dimensionless type.</p>
+
+<h2>Conclusion</h2>
+
+<p>I hope you agree that F# Units of Measure are an extremely useful tool for ensuring type safety when implementing calculations or functions where the units matter.<br />
+For such a simple concept, they can be utilised in numerous ways and can have quite a dramatic impact on error prevention. I'm sure that I've only scratched the surface of their usefulness, but even so, the benefits of using them are immediately apparent.</p>
+
+<h3>Key Benefits</h3>
+
+<ul>
+<li>Prevent mismatches of units at compile time.</li>
+<li>Help to eliminate runtime errors that could be incredibly subtle and hard to track down.</li>
+<li>Can help to improve code readability (This can of course swing the other way if not careful).</li>
+</ul>
+
+<h3>Examples from this post</h3>
+
+<p>If anyone is interested the library of brewing calculations I created during this process can be found on <a href="https://github.com/sjpemberton/BrewCalc">GitHub</a>. At the time of writing it is still a work in progress.<br />
+Any and all comments are welcome.</p>
+
+
+<div class="tip" id="fs1">module BrewCalculations<br /><br />from BrewCalculations</div>
+<div class="tip" id="fs2">namespace Microsoft</div>
+<div class="tip" id="fs3">namespace Microsoft.FSharp</div>
+<div class="tip" id="fs4">namespace Microsoft.FSharp.Data</div>
+<div class="tip" id="fs5">namespace Microsoft.FSharp.Data.UnitSystems</div>
+<div class="tip" id="fs6">namespace Microsoft.FSharp.Data.UnitSystems.SI</div>
+<div class="tip" id="fs7">namespace Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols</div>
+<div class="tip" id="fs8">module LanguagePrimitives<br /><br />from Microsoft.FSharp.Core</div>
+<div class="tip" id="fs9">Multiple items<br />type MeasureAttribute =<br />&#160;&#160;inherit Attribute<br />&#160;&#160;new : unit -&gt; MeasureAttribute<br /><br />Full name: Microsoft.FSharp.Core.MeasureAttribute<br /><br />--------------------<br />new : unit -&gt; MeasureAttribute</div>
+<div class="tip" id="fs10">[&lt;Measure&gt;]<br />type sg<br /><br />Full name: BrewCalculations.BrewCalculations.sg</div>
+<div class="tip" id="fs11">[&lt;Measure&gt;]<br />type lb<br /><br />Full name: BrewCalculations.BrewCalculations.lb</div>
+<div class="tip" id="fs12">[&lt;Measure&gt;]<br />type percentage<br /><br />Full name: BrewCalculations.BrewCalculations.percentage</div>
+<div class="tip" id="fs13">[&lt;Measure&gt;]<br />type L<br /><br />Full name: BrewCalculations.BrewCalculations.L<br /><em><br /><br />Litre (or Liter in the US)</em></div>
+<div class="tip" id="fs14">[&lt;Measure&gt;]<br />type usGal<br /><br />Full name: BrewCalculations.BrewCalculations.usGal<br /><em><br /><br />Us Gallon</em></div>
+<div class="tip" id="fs15">val volume : float&lt;L&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.volume</div>
+<div class="tip" id="fs16">[&lt;Measure&gt;]<br />type gp<br /><br />Full name: BrewCalculations.BrewCalculations.gp<br /><em><br /><br />Gravity Point - A Simplified brewing unit for amount of sugar dissolved in solution</em></div>
+<div class="tip" id="fs17">[&lt;Measure&gt;]<br />type ppg = gp/usGal<br /><br />Full name: BrewCalculations.BrewCalculations.ppg</div>
+<div class="tip" id="fs18">val TotalGravityPoints : potential:float&lt;gp/usGal&gt; -&gt; vol:float&lt;usGal&gt; -&gt; float&lt;gp&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.TotalGravityPoints<br /><em><br /><br />Converts a points per gal (gp / usGal) and volume into total gravity points in that volume</em></div>
+<div class="tip" id="fs19">val potential : float&lt;gp/usGal&gt;</div>
+<div class="tip" id="fs20">Multiple items<br />val float : value:&#39;T -&gt; float (requires member op_Explicit)<br /><br />Full name: Microsoft.FSharp.Core.Operators.float<br /><br />--------------------<br />type float = System.Double<br /><br />Full name: Microsoft.FSharp.Core.float<br /><br />--------------------<br />type float&lt;&#39;Measure&gt; = float<br /><br />Full name: Microsoft.FSharp.Core.float&lt;_&gt;</div>
+<div class="tip" id="fs21">val vol : float&lt;usGal&gt;</div>
+<div class="tip" id="fs22">val totalGravPoints : float&lt;gp&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.totalGravPoints</div>
+<div class="tip" id="fs23">val totalGravityPoints : float&lt;gp&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.totalGravityPoints</div>
+<div class="tip" id="fs24">val beerVolume : float&lt;usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.beerVolume</div>
+<div class="tip" id="fs25">val pointsPerGallon : float&lt;gp/usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.pointsPerGallon</div>
+<div class="tip" id="fs26">val MaxPotentialPoints : grainPotential:float&lt;gp/lb&gt; -&gt; grain:float&lt;lb&gt; -&gt; vol:float&lt;usGal&gt; -&gt; float&lt;gp/usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.MaxPotentialPoints<br /><em><br /><br />Calculates the maximum potential gravity points for a given weight of grain with the given potential and target volume</em></div>
+<div class="tip" id="fs27">val grainPotential : float&lt;gp/lb&gt;</div>
+<div class="tip" id="fs28">val grain : float&lt;lb&gt;</div>
+<div class="tip" id="fs29">val MaxPotentialPoints : grainPotential:float&lt;gp/lb&gt; -&gt; grain:float&lt;lb&gt; -&gt; vol:float&lt;usGal&gt; -&gt; float&lt;ppg&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.MaxPotentialPoints</div>
+<div class="tip" id="fs30">[&lt;Measure&gt;]<br />type pgp = gp/lb<br /><br />Full name: BrewCalculations.BrewCalculations.pgp<br /><em><br /><br />Potential Gravity Points - The number of Gravity points in a lb of a particular malt</em></div>
+<div class="tip" id="fs31">val MaxPotentialPoints : grainPotential:float&lt;pgp&gt; -&gt; grain:float&lt;lb&gt; -&gt; vol:float&lt;usGal&gt; -&gt; float&lt;lb pgp/usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.MaxPotentialPoints</div>
+<div class="tip" id="fs32">val grainPotential : float&lt;pgp&gt;</div>
+<div class="tip" id="fs33">val isEqual : bool<br /><br />Full name: BrewCalculations.BrewCalculations.isEqual</div>
+<div class="tip" id="fs34">val litresPerUsGallon : float&lt;L/usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.litresPerUsGallon</div>
+<div class="tip" id="fs35">val volume : float&lt;usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.volume</div>
+<div class="tip" id="fs36">val volumeInLitres : float&lt;L&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.volumeInLitres</div>
+<div class="tip" id="fs37">val ToUsGallons : litres:float&lt;L&gt; -&gt; float&lt;usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.ToUsGallons</div>
+<div class="tip" id="fs38">val litres : float&lt;L&gt;</div>
+<div class="tip" id="fs39">val gallons : float&lt;usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.gallons</div>
+<div class="tip" id="fs40">val TotalGravityPoints : potential:float -&gt; vol:float -&gt; float&lt;gp/usGal&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.TotalGravityPoints</div>
+<div class="tip" id="fs41">val potential : float</div>
+<div class="tip" id="fs42">val vol : float</div>
+<div class="tip" id="fs43">val FloatWithMeasure : float -&gt; float&lt;&#39;Measure&gt;<br /><br />Full name: Microsoft.FSharp.Core.LanguagePrimitives.FloatWithMeasure</div>
+<div class="tip" id="fs44">val cast : float<br /><br />Full name: BrewCalculations.BrewCalculations.cast</div>
+<div class="tip" id="fs45">val multiplyOut : float<br /><br />Full name: BrewCalculations.BrewCalculations.multiplyOut</div>
+<div class="tip" id="fs46">val YeastAttenuation : originalGravity:float&lt;sg&gt; -&gt; finalGravity:float&lt;sg&gt; -&gt; float&lt;percentage&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.YeastAttenuation<br /><em><br /><br />Yeast attenuation - The difference in specific gravity between original gravity and final gravity, as a percentage</em></div>
+<div class="tip" id="fs47">val originalGravity : float&lt;sg&gt;</div>
+<div class="tip" id="fs48">val finalGravity : float&lt;sg&gt;</div>
+<div class="tip" id="fs49">val ToGravity : gravityPoints:float&lt;gp&gt; -&gt; float&lt;sg&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.ToGravity</div>
+<div class="tip" id="fs50">val gravityPoints : float&lt;gp&gt;</div>
+<div class="tip" id="fs51">val EstimateGravity : vol:float&lt;usGal&gt; -&gt; grain:float&lt;lb&gt; -&gt; grainPotential:float&lt;pgp&gt; -&gt; efficiency:float&lt;percentage&gt; -&gt; float&lt;sg&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.EstimateGravity<br /><em><br /><br />The estimated gravity of wort created from an amount of grain in lb with the given ppg, at a particular efficiency and for a target volume</em></div>
+<div class="tip" id="fs52">val efficiency : float&lt;percentage&gt;</div>
+<div class="tip" id="fs53">val AddVolumes : vol1:float&lt;&#39;u&gt; -&gt; vol2:float&lt;&#39;u&gt; -&gt; float&lt;&#39;u&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.AddVolumes</div>
+<div class="tip" id="fs54">val vol1 : float&lt;&#39;u&gt;</div>
+<div class="tip" id="fs55">val vol2 : float&lt;&#39;u&gt;</div>
+<div class="tip" id="fs56">val GrainRequired : gravityPoints:float&lt;gp&gt; -&gt; effectivePotential:float&lt;&#39;u&gt; -&gt; float&lt;gp/&#39;u&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.GrainRequired<br /><em><br /><br />Calculates required Grain in weight from the target gravity points and effective malt potential (in relation to a fixed weight).</em></div>
+<div class="tip" id="fs57">val effectivePotential : float&lt;&#39;u&gt;</div>
+<div class="tip" id="fs58">val GrainRequired : gravityPoints:float&lt;gp&gt; -&gt; effectivePotential:float&lt;gp/&#39;u&gt; -&gt; float&lt;&#39;u&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.GrainRequired</div>
+<div class="tip" id="fs59">val effectivePotential : float&lt;gp/&#39;u&gt;</div>
+<div class="tip" id="fs60">val weight : float&lt;lb&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.weight</div>
+<div class="tip" id="fs61">type Malt&lt;&#39;u&gt; =<br />&#160;&#160;{Weight: float&lt;&#39;u&gt;;<br />&#160;&#160;&#160;Potential: float&lt;gp/&#39;u&gt;;}<br /><br />Full name: BrewCalculations.BrewCalculations.Malt&lt;_&gt;</div>
+<div class="tip" id="fs62">Malt.Weight: float&lt;&#39;u&gt;</div>
+<div class="tip" id="fs63">Malt.Potential: float&lt;gp/&#39;u&gt;</div>
+<div class="tip" id="fs64">val maltInPound : Malt&lt;lb&gt;<br /><br />Full name: BrewCalculations.BrewCalculations.maltInPound</div>
+<div class="tip" id="fs65">[&lt;Measure&gt;]<br />type kg = Data.UnitSystems.SI.UnitNames.kilogram<br /><br />Full name: Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols.kg</div>
+<div class="tip" id="fs66">type Recipe&lt;&#39;u,&#39;v&gt; =<br />&#160;&#160;{GrainBill: Malt&lt;&#39;u&gt; list;<br />&#160;&#160;&#160;Volume: float&lt;&#39;v&gt;;}<br /><br />Full name: BrewCalculations.BrewCalculations.Recipe&lt;_,_&gt;</div>
+<div class="tip" id="fs67">Recipe.GrainBill: Malt&lt;&#39;u&gt; list</div>
+<div class="tip" id="fs68">type &#39;T list = List&lt;&#39;T&gt;<br /><br />Full name: Microsoft.FSharp.Collections.list&lt;_&gt;</div>
+<div class="tip" id="fs69">Recipe.Volume: float&lt;&#39;v&gt;</div>
+<div class="tip" id="fs70">val AmericanAle : Recipe&lt;lb,usGal&gt;</div>
+<div class="tip" id="fs71">[&lt;Measure&gt;]<br />type A = Data.UnitSystems.SI.UnitNames.ampere<br /><br />Full name: Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols.A</div>
