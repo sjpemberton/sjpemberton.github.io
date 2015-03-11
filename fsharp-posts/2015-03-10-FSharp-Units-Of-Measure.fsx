@@ -376,9 +376,12 @@ It really is ultimately down to personal preference which direction you take.
 
 ##Generics and Units of Measure
 
+Sometimes we want to create functions or types that can be used with more than one unit of measure. 
+Enter generics. 
+
 ###Generic Measures in Functions
 
-Sometimes we want to create functions or types that can be used with more than one unit of measure. Enter generics.  
+ 
 We can use generics with units of measure in much the same way as we would with normal types.  
 We do however need to explicitly declare the use of the generic units. This can be done by using either an underscore `<_>` or the usual letters. (Using letters allows us to enforce equality constraints between multiple generic parameters, while underscores are effectively a wildcard)
 
