@@ -24,7 +24,7 @@ In this post I will explore the various ways of using F# Units of Measure and th
 Before I started writing this article, I had not used units of measure before. I therefore thought it would be a good idea to aid the learning process by applying them in a small project.
 To do this, I decided to put UoM to the test by applying them in a real world example; The calculations required to brew beer.  
 
-What follows is my experiences of using Units of Measure while creating a library of calculations for use in the various stages of brewing beer.  
+What follows is a thorough walkthrough of using Units of Measure based upon my experiences while implementing a library of calculations for use in the various stages of brewing beer.  
 I aim to highlight how, through the use of units of measure, we can increase the robustness of our code and hopefully eliminate potential runtime errors.
 
 <!-- more -->
