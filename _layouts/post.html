@@ -31,7 +31,7 @@
 		<div class="share-links">
 			<span>Share this post via: </span> 
 			<a href="mailto:?subject={{page.title}}&body={{ site.baseurl }}{{ post.url }}">Email</a>,
-			<a href="https://twitter.com/intent/tweet?url={{ site.baseurl }}{{ post.url }}&text={{page.title}}&via=SJPemberton0">Twitter</a>,
+			<a href="https://twitter.com/intent/tweet?url={{ site.baseurl }}{{ post.url }}&text={{page.title | replace: '#', '%23'}}&via=SJPemberton0">Twitter</a>,
 			<a href="https://facebook.com/sharer.php?u={{ site.baseurl }}{{ post.url }}">Facebook</a>,
 			<a href="https://plus.google.com/share?url={{ site.baseurl }}{{ post.url }}">Google+</a>
 		</div>
