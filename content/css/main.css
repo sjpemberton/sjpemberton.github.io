@@ -33,6 +33,7 @@ h1 {
 
 ul {
 	padding-left: 40px;
+    margin:10px 0 20px 0;
 }
 
 p {
@@ -119,6 +120,7 @@ ul.posts li {
 
 nav ul{
 	padding:0;
+    margin:0;
 	}
 #header nav {
     width: 100%;

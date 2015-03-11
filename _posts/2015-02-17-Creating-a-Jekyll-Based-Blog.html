@@ -175,7 +175,7 @@ In order to fully utilise the type checking and give me the ability to quickly e
 </pre>
 </td>
 <td class="snippet"><pre class="fssnip">
-<span class="k">let</span> <span class="i">printDesc</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="i">printfn</span> <span class="s">&quot;ooh look, what lovely tooltips!&quot;</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs1', 1)" onmouseover="showTip(event, 'fs1', 1)" class="f">printDesc</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs2', 2)" onmouseover="showTip(event, 'fs2', 2)" class="f">printfn</span> <span class="s">&quot;ooh look, what lovely tooltips!&quot;</span>
 </pre>
 </td>
 </tr>
@@ -224,4 +224,5 @@ This allows us to show Liquid examples like so:</p>
 Happy blogging.</p>
 
 
-<div class="tip" id="fs1">val printfn : format:Printf.TextWriterFormat&lt;&#39;T&gt; -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Core.ExtraTopLevelOperators.printfn</div>
+<div class="tip" id="fs1">val printDesc : (unit -&gt; unit)</div>
+<div class="tip" id="fs2">val printfn : format:Printf.TextWriterFormat&lt;&#39;T&gt; -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Core.ExtraTopLevelOperators.printfn</div>

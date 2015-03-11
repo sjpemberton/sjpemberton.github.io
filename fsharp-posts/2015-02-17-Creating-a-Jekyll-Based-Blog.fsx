@@ -1,12 +1,3 @@
-(*** raw ***)
----
-layout: post
-title: A Blog Is Born
-date: 17/02/2015
-tags: ["fsharp","general"]
-meta: Creating a Jekyll powered blog on GHitHub, with added FSharp formatting goodness.
----
-
 (**
 
 #Creating a blog
@@ -228,3 +219,12 @@ Happy blogging.
 [this post by Colin Bull]: http://www.colinbull.net/2014/11/04/Blogging-with-FSharp/ 
 
 *)
+
+(*** hide ***)
+---
+layout: post
+title: A Blog Is Born
+date: 17/02/2015
+tags: ["fsharp","general"]
+meta: Creating a Jekyll powered blog on GHitHub, with added FSharp formatting goodness.
+---
