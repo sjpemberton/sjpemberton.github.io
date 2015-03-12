@@ -1,12 +1,10 @@
 
 
 (*** hide ***)
-namespace BrewCalculations
+module BrewCalculations 
 
 open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
 open LanguagePrimitives
-
-module BrewCalculations =
 
 [<Measure>] type sg
 [<Measure>] type lb
