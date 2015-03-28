@@ -5,6 +5,7 @@ module FsWPF
 #r """..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.dll"""
 #r """..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.TypeProvider.dll"""
 #r """..\packages\FSharp.ViewModule.Core\lib\net45\FSharp.ViewModule.Core.Wpf.dll"""
+#r """..\packages\BrewCalc\BrewCalculations.dll"""
 #r "PresentationFramework.dll"
 #r "PresentationCore.dll"
 #r "System.Xaml.dll"
@@ -32,6 +33,8 @@ I'm learning as I go here so intend to start off with `FsXaml` (as it has the le
 I expect that there will be **a lot** of content here so I plan on breaking this up into numerous posts. 
  
 Therefore this post should be considered part 1 of an ongoing series based on WPF and F#.
+
+<!-- more -->
 
 ##FsXaml - Providing types from XAML
 
@@ -126,9 +129,192 @@ type RecipeViewModel() as this =
 
 (**
 This will give us all we currently need to start creating our UI.  
-The ViewModelBase class provides an INotifyPropertyChanged implementation and some dependency and validation trackers/helpers to cut down on boiler plate code.  
+The ViewModelBase class provides an INotifyPropertyChanged implementation, a command factory, and some dependency and validation trackers/helpers to cut down on boiler plate code.  
+
+Let's take a look at adding a view over some data and a simple command to add new records using the functionality provided by the base class.
+
+###Commands
+
+First I'll define a record type to represent our data.
+*)
+open Units
+
+type grain = {Name:string; Weight:float<g>; Potential:float<pgp>; Colour:float<EBC> }
+
+(**
+Next up, I add observable collection and expose it as a member on our View Model
+*)
+
+(***hide***)
+module viewModel2 =
+(***)
+open System.Collections.ObjectModel
+
+type RecipeViewModel() as this = 
+    inherit ViewModelBase()
+
+    let grain = ObservableCollection<grain>()
+    member x.Grain with get() = grain
 
 
+(**
+Finally we can add a command to add a new grain addition to our recipe.  
+Doing so couldn't be more simple. We execute the Factory function that corresponds to the type of command we want, passing in the required function(s).
+
+For now, I will give the command a simple function to return a static value. Obviously we will need to make this more dynamic shortly.
+*)
+
+(***hide***)
+module viewModel3 =
+open Units
+(***)
+
+open System.Collections.ObjectModel
+
+type RecipeViewModel() as this = 
+    inherit ViewModelBase()
+
+    let grain = ObservableCollection<grain>()
+    let addMaltCommand = 
+        this.Factory.CommandSync(fun param -> 
+            grain.Add { Name = "Maris Otter"
+                        Weight = 0.0<g>
+                        Potential = 37.0<pgp>
+                        Colour = 4.0<EBC> })
+
+    member x.Grain with get() = grain
+    member x.AddMaltCommand = addMaltCommand
+
+(**
+The final piece of the puzzle is to update the XAML view to bind or new property and command to the appropriate elements.
+
+{% highlight xml %}
+<!--Repeated code removed for brevity-->
+<Grid>
+    <Grid.RowDefinitions>
+        <RowDefinition Height="32"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="32" />
+    </Grid.RowDefinitions>
+    <TextBox Name="RecipeName" Text="Enter Recipe Name Here..." Grid.Row="0"  FontSize="16"/>
+    <DataGrid Name="GrainBill" Grid.Row="1" Margin="3" ItemsSource="{Binding Grain}" >
+    </DataGrid>
+    <Button Grid.Row="2" FontSize="16" Command="{Binding AddMaltCommand}" >Add Grain</Button>
+</Grid>
+{% endhighlight %}
+
+You can see the usual mark-up above to bind the observable collection to the items source property of the `DataGrid` and also the command to the button.  
+
+The command gets fired as we expect and adds the default item representation to the grid.  
+We can, of course, alter this view and add some extra functionality.
+
+##Validation
+
+What we need is the ability for the user to alter the weight of the selected grain directly in the grid.  
+To do this we can simply make the Weight property mutable, but as I want to restrict what properties are exposed I will specify the columns myself in the view's XAML.  
+
+This is all well and good, but what do we do about validation?
+
+For this we can leverage the validation functions included with `Fsharp.Viewmodule`, and for that I need to abstract out my Grain record into a separate view model.
+*)
+
+open FSharp.ViewModule
+open FSharp.ViewModule.Validation
+
+type GrainViewModel(name:string, potential:float<pgp>, colour:float<EBC>) as this = 
+    inherit ViewModelBase()
+
+    //Create a notifying property from the Backing store factory
+    let weight = this.Factory.Backing(<@ this.Weight @>, 0.001<g>, greaterThan (fun a -> 0.0<g>))
+    
+    member val Name = name
+    member x.Weight with get() = weight.Value and set(value) = weight.Value <- value
+    member x.Potential:float<pgp> = potential
+    member x.Colour:float<EBC> = colour
+
+(**
+The above is all standard stuff.  
+A view model over our Grain data with the single mutable field for the weight as required.  
+
+The backing store for the Weight property is created using a factory method, again provided `Fsharp.ViewModule`.  
+This function takes (amongst other arguments) a validation function.  In my case I have simply chosen the `greaterThan` function available.  
+
+The validation function is fully composable with the other functions supplied by `Fsharp.ViewModule` and in addition, we can create *custom* validations through the use of a helper function.  
+This composability allows us to create any validation we require in a neat, functional format.
+
+All we then need to do is update the DataGrid in our view's XAML:
+
+{% highlight xml %}
+<DataGrid Name="GrainBill" Grid.Row="1" Margin="3" ItemsSource="{Binding Grain}" AutoGenerateColumns="false">
+    <DataGrid.Columns>
+        <DataGridTextColumn Binding="{Binding Name}" Header="Name" Width="*"/>
+        <DataGridTextColumn Binding="{Binding Weight, Mode=TwoWay}" Header="Weight" Width="*"/>
+    </DataGrid.Columns>
+</DataGrid>
+{% endhighlight %}
+
+And update the original view model to incorporate the new one:
+*)
+
+(***hide***)
+module viewModel4 =
+open Units
+(***)
+type RecipeViewModel() as this = 
+    inherit ViewModelBase()
+    let grain = ObservableCollection<GrainViewModel>()
+    let addMaltCommand = 
+        this.Factory.CommandSync
+            (fun param -> 
+            grain.Add(GrainViewModel(name = "Maris Otter", Weight = 0.001<g>, potential = 37.0<pgp>, colour = 4.0<EBC>)))
+
+    member x.AddMaltCommand = addMaltCommand
+    member x.Grain = grain
+
+(**
+Entering a value less than 0 then causes validation to fail.  
+The default error display is to highlight the field and add an exclamation to the row header. This is what we can see here:
+
+![Failed Validation](/content/images/post-images/WPF-GridValidity.png)
+
+Of course, we could handle this better, but that is a topic for another post.
+
+That covers the basics of using F# to create a WPF application using the tow libraries. 
+
+In case anyone is not using the `F# Empty Windows App` project template, below is the XAML required for the main window, followed by the app start class.
+
+{% highlight xml %}
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:Views;assembly=BrewLab"
+    xmlns:fsxaml="http://github.com/fsprojects/FsXaml"
+    Title="Brewers Lab" Height="600" Width="800">
+    <Grid Name="MainGrid">  
+        <local:RecipeView />
+    </Grid>
+</Window>
+{% endhighlight %}
+
+*)
+
+open System
+open FsXaml
+
+type App = XAML<"App.xaml">
+
+[<STAThread>]
+[<EntryPoint>]
+let main argv =
+    App().Root.Run()
+
+(**
+I'm going to leave part one here as it covers all the basic features of the brilliant libraries FsXaml and FSharp.ViewModule.  
+We could quite happily create a full application with what we have here, but I expect we will need to dig a little deeper in some scenarios.
+
+The next post in this series will no doubt be based on a much more refined application and aim to highlight some of the more complex areas of WPF development in regards to F#
+
+Meanwhile, you can follow the progress via my GitHub project here: [BrewLab]
 *)
 
 (** 
@@ -137,6 +323,7 @@ The ViewModelBase class provides an INotifyPropertyChanged implementation and so
 [FSharp.ViewModule]:https://github.com/fsprojects/FSharp.ViewModule
 [FSharp.Desktop.UI]:https://github.com/fsprojects/FSharp.Desktop.UI
 [Paket]: http://fsprojects.github.io/Paket/
+[BrewLab]: https://github.com/sjpemberton/BrewLab
 
 *)
 
