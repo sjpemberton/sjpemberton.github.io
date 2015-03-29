@@ -1,0 +1,489 @@
+---
+meta: Exploring the use of FSharp and WPF to create applications
+series-post-number: 1
+series: F# and WPF
+catagories: ["guides","examples"]
+tags: ["fsharp","WPF"]
+comments: true
+date: 29/03/2015
+title: F# WPF and the XAML type provider - An exploration
+layout: post
+---
+<h1>Utilising the FsXaml type provider for WPF development in F#</h1>
+
+<p>Coming from a C# background with quite a bit of experience in WPF, I decided it was high time I took a stab at creating a WPF app from the ground up in F#.<br />
+F# and UI development can seem like an unnatural fit due to the functional first nature of the language.<br />
+However, the support for OOP features should allow me to tackle any problem I run into whilst still gaining the benefits of the F# language.</p>
+
+<p>Luckily, the hard work around integration has already been tackled.</p>
+
+<ul>
+<li>The <a href="https://github.com/fsprojects/FsXaml">FsXaml</a> type provider handles XAML - F# code compatibility allowing us to develop applications in the same way as we could in C#.<br />
+It also provides helpful additions such as an EventToCommand implementation.</li>
+<li>The <a href="https://github.com/fsprojects/FSharp.ViewModule">FSharp.ViewModule</a> library helps with generating MVVM ViewModels from F# modules and provides a base implementation for ease of development.</li>
+<li>A visual studio template (F# Empty Windows App) already exists for a quick start.</li>
+</ul>
+
+<p>Alternatively the <a href="https://github.com/fsprojects/FSharp.Desktop.UI">FSharp.Desktop.UI</a> project takes a slightly different approach but provides many useful structures such as binding expressions.<br />
+Of course, as the F# community is so awesome, the projects can be used together and an example of such is included in the <code>FsXaml</code> demo collection.</p>
+
+<p>I'm learning as I go here so intend to start off with <code>FsXaml</code> and <code>FSharp.ViewModule</code> (as they have the least dependencies) and see how far I get building a full application from the ground up.<br />
+For the application, I am taking my brewing calculations from <a href="http://stevenpemberton.net/blog/2015/03/11/FSharp-Units-Of-Measure/">my previous post</a> and will be creating a UI to utilise them.</p>
+
+<p>I expect that there will be <strong>a lot</strong> of content so I plan on breaking this up into numerous posts.</p>
+
+<p>Therefore this post should be considered part 1 of an ongoing series based on WPF and F#.</p>
+
+<!-- more -->
+
+<h2>FsXaml - Providing types from XAML</h2>
+
+<p>FsXaml includes a type provider to generate F# types from our XAML files.<br />
+Using FsXaml is as simple as this:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs2', 7)" onmouseover="showTip(event, 'fs2', 7)" class="i">System</span>
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs5', 8)" onmouseover="showTip(event, 'fs5', 8)" class="i">FsXaml</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs6', 9)" onmouseover="showTip(event, 'fs6', 9)" class="i">RecipeView</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs7', 10)" onmouseover="showTip(event, 'fs7', 10)" class="i">XAML</span><span class="o">&lt;</span><span class="s">&quot;</span><span class="s">.</span><span class="s">.</span><span class="s">\</span><span class="s">paket</span><span class="s">-</span><span class="s">files</span><span class="s">\</span><span class="s">sjpemberton</span><span class="s">\</span><span class="s">BrewLab</span><span class="s">\</span><span class="s">BrewLab</span><span class="s">\</span><span class="s">RecipeView</span><span class="s">.</span><span class="s">xaml</span><span class="s">&quot;</span>, <span class="k">true</span><span class="o">&gt;</span></pre>
+</td>
+</tr>
+</table>
+
+<p>The first parameter is the relative path to my XAML file. (Which was referenced from my repository using <a href="http://fsprojects.github.io/Paket/">Paket</a> - An awesome feature)<br />
+The second parameter is a boolean flag used for exposing named properties (This can be seen in use later on).</p>
+
+<p>The FsXaml Type provider does it's work and generates us a type for use in our application.<br />
+This type can be used wherever we need to directly reference the elements declared in our XAML file and as such provides a way of adding 'code behind' to our views.</p>
+
+<p>I may not need to add code behind to my views, but it is nice to have the option and is extremely useful when we need to add some view specific code.
+Let's look at how it's done:</p>
+
+<h3>Code Behind</h3>
+
+<p>Extending from the code example above, we can create a 'controller' utilising one of the base classes provided by FsXaml and specify the type of the view it associated with.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs8', 11)" onmouseover="showTip(event, 'fs8', 11)" class="i">RecipeViewController</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs9', 12)" onmouseover="showTip(event, 'fs9', 12)" class="i">UserControlViewController</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs6', 13)" onmouseover="showTip(event, 'fs6', 13)" class="i">RecipeView</span><span class="o">&gt;</span>()</pre>
+</td>
+</tr>
+</table>
+
+<p>Next, we add some logic that would be explicitly used by this view.<br />
+As a contrived example (I don't know if I'll need any view specific logic yet!), let's just highlight some text in a <code>TextBox</code> on a focus event.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="c">//Naive and not robust selection method </span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs10', 14)" onmouseover="showTip(event, 'fs10', 14)" class="i">highlightText</span> (<span onmouseout="hideTip(event, 'fs11', 15)" onmouseover="showTip(event, 'fs11', 15)" class="i">e</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs12', 16)" onmouseover="showTip(event, 'fs12', 16)" class="i">RoutedEventArgs</span>) <span class="o">=</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs13', 17)" onmouseover="showTip(event, 'fs13', 17)" class="i">tb</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs11', 18)" onmouseover="showTip(event, 'fs11', 18)" class="i">e</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs14', 19)" onmouseover="showTip(event, 'fs14', 19)" class="i">OriginalSource</span> <span class="o">:?&gt;</span> <span onmouseout="hideTip(event, 'fs15', 20)" onmouseover="showTip(event, 'fs15', 20)" class="i">TextBox</span>
+        <span onmouseout="hideTip(event, 'fs13', 21)" onmouseover="showTip(event, 'fs13', 21)" class="i">tb</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs16', 22)" onmouseover="showTip(event, 'fs16', 22)" class="i">SelectAll</span>()
+
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs17', 23)" onmouseover="showTip(event, 'fs17', 23)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 24)" onmouseover="showTip(event, 'fs18', 24)" class="i">OnLoaded</span> <span onmouseout="hideTip(event, 'fs19', 25)" onmouseover="showTip(event, 'fs19', 25)" class="i">view</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs19', 26)" onmouseover="showTip(event, 'fs19', 26)" class="i">view</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs20', 27)" onmouseover="showTip(event, 'fs20', 27)" class="i">RecipeName</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs21', 28)" onmouseover="showTip(event, 'fs21', 28)" class="i">GotMouseCapture</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs22', 29)" onmouseover="showTip(event, 'fs22', 29)" class="i">Add</span> <span onmouseout="hideTip(event, 'fs10', 30)" onmouseover="showTip(event, 'fs10', 30)" class="i">highlightText</span></pre>
+</td>
+</tr>
+</table>
+
+<p>This is direct, code behind, in the RecipeViewController.<br />
+All made possible by the FsXaml type provider.</p>
+
+<p>You can see that the <code>TextBox</code> the event is attached to is called RecipeName. This is taken from the XAML by exposing the Name attribute given to the element (remember that boolean flag from earlier?).</p>
+
+<p>At this point, the XAML looks like so:</p>
+
+<p>{% highlight xml %}
+<UserControl
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fsxaml="clr-namespace:FsXaml;assembly=FsXaml.Wpf"
+        xmlns:local="clr-namespace:Views;assembly=BrewLab"         
+        xmlns:viewModels="clr-namespace:ViewModels;assembly=BrewLab"         
+        MinHeight="220" MinWidth="300" Height="Auto"
+        fsxaml:ViewController.Custom="{x:Type local:RecipeViewController}">
+    <UserControl.DataContext>
+        <viewModels:RecipeViewModel/>
+    </UserControl.DataContext>
+    <Grid>
+        <TextBox Name="RecipeName" Text="Enter Recipe Name Here..." />
+    </Grid>
+</UserControl>
+{% endhighlight %}</p>
+
+<p>You can see in the above excerpt that the view controller is associated with the XAML file by the use of an attached property.</p>
+
+<p>{% highlight xml %}
+fsxaml:ViewController.Custom="{x:Type local:RecipeViewController}"
+{% endhighlight %}</p>
+
+<p>This handles the instantiation of our view controller when the XAML is loaded, giving us a nice clean association in a way we are familiar with from C# (Through the use of partial classes).</p>
+
+<p>The data context is set to my view model (which we'll get to shortly) and then the TextBox is declared.<br />
+You can see that the TextBox is given the name which we saw the FsXaml type provider correctly expose for us to use in our code behind.</p>
+
+<p><em>NB: Also of note is that we need to set our XAML files to build as resource for them to function correctly.</em></p>
+
+<p>So, let's move on to the next step and investigate what FSharp.ViewModule provides to aid in creating our view models.</p>
+
+<h2>View Models</h2>
+
+<p>To create a view model which will house all of our business logic for the view, we turn to <code>Fsharp.ViewModule</code>.</p>
+
+<p>The library provides us with various base classes that provide the usual features that we would likely end up implementing ourselves in a view model base class.</p>
+
+<p>To start, we can declare our Recipe View Model straight from the base like so:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs23', 31)" onmouseover="showTip(event, 'fs23', 31)" class="i">FSharp</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs24', 32)" onmouseover="showTip(event, 'fs24', 32)" class="i">ViewModule</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs25', 33)" onmouseover="showTip(event, 'fs25', 33)" class="i">RecipeViewModel</span>() <span class="k">as</span> <span onmouseout="hideTip(event, 'fs25', 34)" onmouseover="showTip(event, 'fs25', 34)" class="i">this</span> <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs25', 35)" onmouseover="showTip(event, 'fs25', 35)" class="i">ViewModelBase</span>()</pre>
+</td>
+</tr>
+</table>
+
+<p>This will give us everything we need to start creating our UI.<br />
+The <code>ViewModelBase</code> class provides an <code>INotifyPropertyChanged</code> implementation, a command factory, and some dependency and validation trackers/helpers to cut down on boiler plate code.</p>
+
+<p>Let's take a look at adding a view over some data and a simple command to add new records using the functionality provided by the base class.</p>
+
+<h3>Commands</h3>
+
+<p>First let's define a record type to represent our data.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs25', 36)" onmouseover="showTip(event, 'fs25', 36)" class="i">Units</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs26', 37)" onmouseover="showTip(event, 'fs26', 37)" class="i">grain</span> <span class="o">=</span> {<span onmouseout="hideTip(event, 'fs27', 38)" onmouseover="showTip(event, 'fs27', 38)" class="i">Name</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs28', 39)" onmouseover="showTip(event, 'fs28', 39)" class="i">string</span>; <span onmouseout="hideTip(event, 'fs29', 40)" onmouseover="showTip(event, 'fs29', 40)" class="i">Weight</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs30', 41)" onmouseover="showTip(event, 'fs30', 41)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs31', 42)" onmouseover="showTip(event, 'fs31', 42)" class="i">g</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs32', 43)" onmouseover="showTip(event, 'fs32', 43)" class="i">Potential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs30', 44)" onmouseover="showTip(event, 'fs30', 44)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs33', 45)" onmouseover="showTip(event, 'fs33', 45)" class="i">pgp</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs34', 46)" onmouseover="showTip(event, 'fs34', 46)" class="i">Colour</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs30', 47)" onmouseover="showTip(event, 'fs30', 47)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs35', 48)" onmouseover="showTip(event, 'fs35', 48)" class="i">EBC</span><span class="o">&gt;</span> }</pre>
+</td>
+</tr>
+</table>
+
+<p>Next up, we can add an observable collection of our newly created record type and expose it as a member on our View Model.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs2', 50)" onmouseover="showTip(event, 'fs2', 50)" class="i">System</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs37', 51)" onmouseover="showTip(event, 'fs37', 51)" class="i">Collections</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs38', 52)" onmouseover="showTip(event, 'fs38', 52)" class="i">ObjectModel</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs25', 53)" onmouseover="showTip(event, 'fs25', 53)" class="i">RecipeViewModel</span>() <span class="k">as</span> <span onmouseout="hideTip(event, 'fs25', 54)" onmouseover="showTip(event, 'fs25', 54)" class="i">this</span> <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs25', 55)" onmouseover="showTip(event, 'fs25', 55)" class="i">ViewModelBase</span>()
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs25', 56)" onmouseover="showTip(event, 'fs25', 56)" class="i">grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 57)" onmouseover="showTip(event, 'fs25', 57)" class="i">ObservableCollection</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 58)" onmouseover="showTip(event, 'fs25', 58)" class="i">grain</span><span class="o">&gt;</span>()
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs39', 59)" onmouseover="showTip(event, 'fs39', 59)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 60)" onmouseover="showTip(event, 'fs25', 60)" class="i">Grain</span> <span class="k">with</span> <span onmouseout="hideTip(event, 'fs25', 61)" onmouseover="showTip(event, 'fs25', 61)" class="i">get</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 62)" onmouseover="showTip(event, 'fs25', 62)" class="i">grain</span></pre>
+</td>
+</tr>
+</table>
+
+<p>Finally, we can add a command to handle a new grain addition to our recipe.<br />
+Doing so couldn't be more simple. We execute the Factory function that corresponds to the type of command we want, passing in the required parameter(s).</p>
+
+<p>For now, I will give the command a simple function to return a static value.<br />
+Obviously we will need to make this more dynamic going forward; Likely by allowing the user to select from a dropdown list of available grain.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs2', 65)" onmouseover="showTip(event, 'fs2', 65)" class="i">System</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs37', 66)" onmouseover="showTip(event, 'fs37', 66)" class="i">Collections</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs38', 67)" onmouseover="showTip(event, 'fs38', 67)" class="i">ObjectModel</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs25', 68)" onmouseover="showTip(event, 'fs25', 68)" class="i">RecipeViewModel</span>() <span class="k">as</span> <span onmouseout="hideTip(event, 'fs25', 69)" onmouseover="showTip(event, 'fs25', 69)" class="i">this</span> <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs25', 70)" onmouseover="showTip(event, 'fs25', 70)" class="i">ViewModelBase</span>()
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs25', 71)" onmouseover="showTip(event, 'fs25', 71)" class="i">grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 72)" onmouseover="showTip(event, 'fs25', 72)" class="i">ObservableCollection</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 73)" onmouseover="showTip(event, 'fs25', 73)" class="i">grain</span><span class="o">&gt;</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs25', 74)" onmouseover="showTip(event, 'fs25', 74)" class="i">addMaltCommand</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs25', 75)" onmouseover="showTip(event, 'fs25', 75)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 76)" onmouseover="showTip(event, 'fs25', 76)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 77)" onmouseover="showTip(event, 'fs25', 77)" class="i">CommandSync</span>(<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs25', 78)" onmouseover="showTip(event, 'fs25', 78)" class="i">param</span> <span class="k">-&gt;</span> 
+            <span onmouseout="hideTip(event, 'fs25', 79)" onmouseover="showTip(event, 'fs25', 79)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 80)" onmouseover="showTip(event, 'fs25', 80)" class="i">Add</span> { <span onmouseout="hideTip(event, 'fs25', 81)" onmouseover="showTip(event, 'fs25', 81)" class="i">Name</span> <span class="o">=</span> <span class="s">&quot;</span><span class="s">Maris</span><span class="s"> </span><span class="s">Otter</span><span class="s">&quot;</span>
+                        <span onmouseout="hideTip(event, 'fs25', 82)" onmouseover="showTip(event, 'fs25', 82)" class="i">Weight</span> <span class="o">=</span> <span class="n">0.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 83)" onmouseover="showTip(event, 'fs25', 83)" class="i">g</span><span class="o">&gt;</span>
+                        <span onmouseout="hideTip(event, 'fs25', 84)" onmouseover="showTip(event, 'fs25', 84)" class="i">Potential</span> <span class="o">=</span> <span class="n">37.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 85)" onmouseover="showTip(event, 'fs25', 85)" class="i">pgp</span><span class="o">&gt;</span>
+                        <span onmouseout="hideTip(event, 'fs25', 86)" onmouseover="showTip(event, 'fs25', 86)" class="i">Colour</span> <span class="o">=</span> <span class="n">4.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 87)" onmouseover="showTip(event, 'fs25', 87)" class="i">EBC</span><span class="o">&gt;</span> })
+
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs39', 88)" onmouseover="showTip(event, 'fs39', 88)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 89)" onmouseover="showTip(event, 'fs25', 89)" class="i">Grain</span> <span class="k">with</span> <span onmouseout="hideTip(event, 'fs25', 90)" onmouseover="showTip(event, 'fs25', 90)" class="i">get</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 91)" onmouseover="showTip(event, 'fs25', 91)" class="i">grain</span>
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs39', 92)" onmouseover="showTip(event, 'fs39', 92)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 93)" onmouseover="showTip(event, 'fs25', 93)" class="i">AddMaltCommand</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 94)" onmouseover="showTip(event, 'fs25', 94)" class="i">addMaltCommand</span></pre>
+</td>
+</tr>
+</table>
+
+<p>The final piece of the puzzle is to update the XAML view to bind our new property and command to the appropriate elements.</p>
+
+<p>{% highlight xml %}
+<!--Repeated code removed for brevity-->
+<Grid>
+    <Grid.RowDefinitions>
+        <RowDefinition Height="32"/>
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="32" />
+    </Grid.RowDefinitions>
+    <TextBox Name="RecipeName" Text="Enter Recipe Name Here..." Grid.Row="0"  FontSize="16"/>
+    <DataGrid Name="GrainBill" Grid.Row="1" Margin="3" ItemsSource="{Binding Grain}" >
+    </DataGrid>
+    <Button Grid.Row="2" FontSize="16" Command="{Binding AddMaltCommand}" >Add Grain</Button>
+</Grid>
+{% endhighlight %}</p>
+
+<p>You can see the familiar mark-up above to bind the observable collection to the items source property of the <code>DataGrid</code> and also the command to the button.</p>
+
+<p>The command gets fired as expected and adds the default item representation to the grid. Success!<br />
+We can, of course, alter this view and add some extra functionality like the ability to adjust the weight of grain.</p>
+
+<h2>Mutability and Validation</h2>
+
+<p>What we need is the ability for the user to alter the weight of the selected grain directly in the grid.<br />
+To do this we can simply make the Weight property mutable, but as I want to restrict what properties are exposed I will also specify the columns myself in the view's XAML.</p>
+
+<p>This idea is all well and good, but what do we do about validation?</p>
+
+<p>For this we can leverage the validation functions included with <code>Fsharp.Viewmodule</code>, and for that I need to abstract out my Grain record into a separate view model.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs25', 95)" onmouseover="showTip(event, 'fs25', 95)" class="i">FSharp</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs24', 96)" onmouseover="showTip(event, 'fs24', 96)" class="i">ViewModule</span>
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs23', 97)" onmouseover="showTip(event, 'fs23', 97)" class="i">FSharp</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs24', 98)" onmouseover="showTip(event, 'fs24', 98)" class="i">ViewModule</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs42', 99)" onmouseover="showTip(event, 'fs42', 99)" class="i">Validation</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs25', 100)" onmouseover="showTip(event, 'fs25', 100)" class="i">GrainViewModel</span>(<span onmouseout="hideTip(event, 'fs25', 101)" onmouseover="showTip(event, 'fs25', 101)" class="i">name</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs25', 102)" onmouseover="showTip(event, 'fs25', 102)" class="i">string</span>, <span onmouseout="hideTip(event, 'fs25', 103)" onmouseover="showTip(event, 'fs25', 103)" class="i">potential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs25', 104)" onmouseover="showTip(event, 'fs25', 104)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 105)" onmouseover="showTip(event, 'fs25', 105)" class="i">pgp</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs25', 106)" onmouseover="showTip(event, 'fs25', 106)" class="i">colour</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs25', 107)" onmouseover="showTip(event, 'fs25', 107)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 108)" onmouseover="showTip(event, 'fs25', 108)" class="i">EBC</span><span class="o">&gt;</span>) <span class="k">as</span> <span onmouseout="hideTip(event, 'fs25', 109)" onmouseover="showTip(event, 'fs25', 109)" class="i">this</span> <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs25', 110)" onmouseover="showTip(event, 'fs25', 110)" class="i">ViewModelBase</span>()
+
+    <span class="c">//Create a notifying property from the Backing store factory</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs25', 111)" onmouseover="showTip(event, 'fs25', 111)" class="i">weight</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 112)" onmouseover="showTip(event, 'fs25', 112)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 113)" onmouseover="showTip(event, 'fs25', 113)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 114)" onmouseover="showTip(event, 'fs25', 114)" class="i">Backing</span>(&lt;@ <span onmouseout="hideTip(event, 'fs25', 115)" onmouseover="showTip(event, 'fs25', 115)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 116)" onmouseover="showTip(event, 'fs25', 116)" class="i">Weight</span> @&gt;, <span class="n">0.1</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 117)" onmouseover="showTip(event, 'fs25', 117)" class="i">g</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs25', 118)" onmouseover="showTip(event, 'fs25', 118)" class="i">greaterThan</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs25', 119)" onmouseover="showTip(event, 'fs25', 119)" class="i">a</span> <span class="k">-&gt;</span> <span class="n">0.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 120)" onmouseover="showTip(event, 'fs25', 120)" class="i">g</span><span class="o">&gt;</span>))
+    
+    <span class="k">member</span> <span class="k">val</span> <span onmouseout="hideTip(event, 'fs25', 121)" onmouseover="showTip(event, 'fs25', 121)" class="i">Name</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 122)" onmouseover="showTip(event, 'fs25', 122)" class="i">name</span>
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs43', 123)" onmouseover="showTip(event, 'fs43', 123)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 124)" onmouseover="showTip(event, 'fs25', 124)" class="i">Weight</span> <span class="k">with</span> <span onmouseout="hideTip(event, 'fs25', 125)" onmouseover="showTip(event, 'fs25', 125)" class="i">get</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 126)" onmouseover="showTip(event, 'fs25', 126)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 127)" onmouseover="showTip(event, 'fs25', 127)" class="i">Value</span> <span class="k">and</span> <span onmouseout="hideTip(event, 'fs25', 128)" onmouseover="showTip(event, 'fs25', 128)" class="i">set</span>(<span onmouseout="hideTip(event, 'fs25', 129)" onmouseover="showTip(event, 'fs25', 129)" class="i">value</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 130)" onmouseover="showTip(event, 'fs25', 130)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 131)" onmouseover="showTip(event, 'fs25', 131)" class="i">Value</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs25', 132)" onmouseover="showTip(event, 'fs25', 132)" class="i">value</span>
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs43', 133)" onmouseover="showTip(event, 'fs43', 133)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 134)" onmouseover="showTip(event, 'fs25', 134)" class="i">Potential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs25', 135)" onmouseover="showTip(event, 'fs25', 135)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 136)" onmouseover="showTip(event, 'fs25', 136)" class="i">pgp</span><span class="o">&gt;</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 137)" onmouseover="showTip(event, 'fs25', 137)" class="i">potential</span>
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs43', 138)" onmouseover="showTip(event, 'fs43', 138)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 139)" onmouseover="showTip(event, 'fs25', 139)" class="i">Colour</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs25', 140)" onmouseover="showTip(event, 'fs25', 140)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 141)" onmouseover="showTip(event, 'fs25', 141)" class="i">EBC</span><span class="o">&gt;</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 142)" onmouseover="showTip(event, 'fs25', 142)" class="i">colour</span></pre>
+</td>
+</tr>
+</table>
+
+<p>The above is all standard stuff.<br />
+A view model over our Grain data which includes a single mutable field for the weight as required.</p>
+
+<p>The backing store for the Weight property is created using a factory method, again provided by Fsharp.ViewModule.<br />
+This function takes (amongst other arguments) a validation function.  In my case I have simply chosen the <code>greaterThan</code> function available.</p>
+
+<p>The validation function is fully composable with the other functions supplied by Fsharp.ViewModule and in addition, we can create <em>custom</em> validations through the use of a helper function.<br />
+This composability allows us to create any validation we require in a neat, functional format.</p>
+
+<p>All we then need to do is update the DataGrid in our view's XAML:</p>
+
+<p>{% highlight xml %}
+<DataGrid Name="GrainBill" Grid.Row="1" Margin="3" ItemsSource="{Binding Grain}" AutoGenerateColumns="false">
+    <DataGrid.Columns>
+        <DataGridTextColumn Binding="{Binding Name}" Header="Name" Width="*"/>
+        <DataGridTextColumn Binding="{Binding Weight, Mode=TwoWay}" Header="Weight" Width="*"/>
+    </DataGrid.Columns>
+</DataGrid>
+{% endhighlight %}</p>
+
+<p>And update the original view model to incorporate the new one:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs25', 145)" onmouseover="showTip(event, 'fs25', 145)" class="i">RecipeViewModel</span>() <span class="k">as</span> <span onmouseout="hideTip(event, 'fs25', 146)" onmouseover="showTip(event, 'fs25', 146)" class="i">this</span> <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs25', 147)" onmouseover="showTip(event, 'fs25', 147)" class="i">ViewModelBase</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs25', 148)" onmouseover="showTip(event, 'fs25', 148)" class="i">grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 149)" onmouseover="showTip(event, 'fs25', 149)" class="i">ObservableCollection</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 150)" onmouseover="showTip(event, 'fs25', 150)" class="i">GrainViewModel</span><span class="o">&gt;</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs25', 151)" onmouseover="showTip(event, 'fs25', 151)" class="i">addMaltCommand</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs25', 152)" onmouseover="showTip(event, 'fs25', 152)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 153)" onmouseover="showTip(event, 'fs25', 153)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 154)" onmouseover="showTip(event, 'fs25', 154)" class="i">CommandSync</span>
+            (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs25', 155)" onmouseover="showTip(event, 'fs25', 155)" class="i">param</span> <span class="k">-&gt;</span> 
+            <span onmouseout="hideTip(event, 'fs25', 156)" onmouseover="showTip(event, 'fs25', 156)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 157)" onmouseover="showTip(event, 'fs25', 157)" class="i">Add</span>(<span onmouseout="hideTip(event, 'fs25', 158)" onmouseover="showTip(event, 'fs25', 158)" class="i">GrainViewModel</span>(<span onmouseout="hideTip(event, 'fs25', 159)" onmouseover="showTip(event, 'fs25', 159)" class="i">name</span> <span class="o">=</span> <span class="s">&quot;</span><span class="s">Maris</span><span class="s"> </span><span class="s">Otter</span><span class="s">&quot;</span>, <span onmouseout="hideTip(event, 'fs25', 160)" onmouseover="showTip(event, 'fs25', 160)" class="i">Weight</span> <span class="o">=</span> <span class="n">0.1</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 161)" onmouseover="showTip(event, 'fs25', 161)" class="i">g</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs25', 162)" onmouseover="showTip(event, 'fs25', 162)" class="i">potential</span> <span class="o">=</span> <span class="n">37.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 163)" onmouseover="showTip(event, 'fs25', 163)" class="i">pgp</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs25', 164)" onmouseover="showTip(event, 'fs25', 164)" class="i">colour</span> <span class="o">=</span> <span class="n">4.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs25', 165)" onmouseover="showTip(event, 'fs25', 165)" class="i">EBC</span><span class="o">&gt;</span>)))
+
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs39', 166)" onmouseover="showTip(event, 'fs39', 166)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 167)" onmouseover="showTip(event, 'fs25', 167)" class="i">AddMaltCommand</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 168)" onmouseover="showTip(event, 'fs25', 168)" class="i">addMaltCommand</span>
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs39', 169)" onmouseover="showTip(event, 'fs39', 169)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs25', 170)" onmouseover="showTip(event, 'fs25', 170)" class="i">Grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs25', 171)" onmouseover="showTip(event, 'fs25', 171)" class="i">grain</span></pre>
+</td>
+</tr>
+</table>
+
+<p>Entering a value less than or equal to <code>0</code> will now cause the validation to fail.<br />
+The default error display is to highlight the field and add an exclamation to the row header. This is what we can see here:</p>
+
+<p><img src="/content/images/post-images/WPF-GridValidity.png" alt="Failed Validation" /></p>
+
+<p>Of course, we could handle this better and the base class provided gives us some useful data collections to help, but that is a topic for another post in the series.</p>
+
+<h2>Running the Application</h2>
+
+<p>That covers the basics of using F# to create a WPF application using the FsXaml and FSharp.ViewModule libraries.</p>
+
+<p>In case anyone is not using the 'F# Empty Windows App' project template, below is the XAML required for the main window, followed by the app start class.<br />
+Implementing both of these will allow us to launch our application correctly.</p>
+
+<p>{% highlight xml %}
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="clr-namespace:Views;assembly=BrewLab"
+    xmlns:fsxaml="http://github.com/fsprojects/FsXaml"
+    Title="Brewers Lab" Height="600" Width="800">
+    <Grid Name="MainGrid"><br />
+        <local:RecipeView />
+    </Grid>
+</Window>
+{% endhighlight %}</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+<span class="l">9: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs25', 172)" onmouseover="showTip(event, 'fs25', 172)" class="i">System</span>
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs5', 173)" onmouseover="showTip(event, 'fs5', 173)" class="i">FsXaml</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs45', 174)" onmouseover="showTip(event, 'fs45', 174)" class="i">App</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs7', 175)" onmouseover="showTip(event, 'fs7', 175)" class="i">XAML</span><span class="o">&lt;</span><span class="s">&quot;</span><span class="s">.</span><span class="s">.</span><span class="s">\</span><span class="s">paket</span><span class="s">-</span><span class="s">files</span><span class="s">\</span><span class="s">sjpemberton</span><span class="s">\</span><span class="s">BrewLab</span><span class="s">\</span><span class="s">BrewLab</span><span class="s">\</span><span class="s">App</span><span class="s">.</span><span class="s">xaml</span><span class="s">&quot;</span><span class="o">&gt;</span>
+
+[&lt;<span onmouseout="hideTip(event, 'fs46', 176)" onmouseover="showTip(event, 'fs46', 176)" class="i">STAThread</span>&gt;]
+[&lt;<span onmouseout="hideTip(event, 'fs47', 177)" onmouseover="showTip(event, 'fs47', 177)" class="i">EntryPoint</span>&gt;]
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs48', 178)" onmouseover="showTip(event, 'fs48', 178)" class="i">main</span> <span onmouseout="hideTip(event, 'fs49', 179)" onmouseover="showTip(event, 'fs49', 179)" class="i">argv</span> <span class="o">=</span>
+    <span onmouseout="hideTip(event, 'fs45', 180)" onmouseover="showTip(event, 'fs45', 180)" class="i">App</span>()<span class="o">.</span><span class="i">Root</span><span class="o">.</span><span class="i">Run</span>()</pre>
+</td>
+</tr>
+</table>
+
+<p>I'm going to leave part one here as it covers all the basic features of the brilliant libraries FsXaml and FSharp.ViewModule.<br />
+We could quite happily create a full application with what we have here, but I expect we will need to dig a little deeper in some scenarios as we get into more complex areas of WPF.</p>
+
+<p>The next post in this series will no doubt be based on a much more refined application (as I aim to actively develop it) and will highlight the areas that I found needed special, or noteworthy treatment to implement in F#.</p>
+
+<p>Meanwhile, you can follow the progress via my GitHub project here: <a href="https://github.com/sjpemberton/BrewLab">BrewLab</a></p>
+
+<div class="tip" id="fs1">module FsWPF</div>
+<div class="tip" id="fs2">namespace System</div>
+<div class="tip" id="fs3">namespace System.Windows</div>
+<div class="tip" id="fs4">namespace System.Windows.Controls</div>
+<div class="tip" id="fs5">namespace FsXaml</div>
+<div class="tip" id="fs6">Multiple items<br />type RecipeView =<br />&#160;&#160;inherit XamlContainer<br />&#160;&#160;new : unit -&gt; RecipeView + 1 overload<br />&#160;&#160;member Accessor : XamlFileAccessor<br />&#160;&#160;member ActualHeight : float<br />&#160;&#160;member ActualWidth : float<br />&#160;&#160;member AllowDrop : bool with get, set<br />&#160;&#160;member AncestorChangeInProgress : bool with get, set<br />&#160;&#160;member Animatable_IsResourceInvalidationNecessary : bool with get, set<br />&#160;&#160;member AreAnyTouchesCaptured : bool<br />&#160;&#160;member AreAnyTouchesCapturedWithin : bool<br />&#160;&#160;...<br /><br />Full name: FsWPF.RecipeView<br /><br />--------------------<br />RecipeView() : RecipeView<br />RecipeView(existingElement: FrameworkElement) : RecipeView</div>
+<div class="tip" id="fs7">type XAML<br /><br />Full name: FsXaml.XAML</div>
+<div class="tip" id="fs8">Multiple items<br />type RecipeViewController =<br />&#160;&#160;inherit UserControlViewController&lt;RecipeView&gt;<br />&#160;&#160;new : unit -&gt; RecipeViewController<br />&#160;&#160;override OnLoaded : view:RecipeView -&gt; unit<br /><br />Full name: FsWPF.RecipeViewController<br /><br />--------------------<br />new : unit -&gt; RecipeViewController</div>
+<div class="tip" id="fs9">Multiple items<br />type UserControlViewController&lt;&#39;T (requires &#39;T :&gt; XamlContainer)&gt; =<br />&#160;&#160;inherit ViewControllerBase&lt;&#39;T,UserControl&gt;<br />&#160;&#160;new : unit -&gt; UserControlViewController&lt;&#39;T&gt;<br /><br />Full name: FsXaml.UserControlViewController&lt;_&gt;<br /><br />--------------------<br />new : unit -&gt; UserControlViewController&lt;&#39;T&gt;</div>
+<div class="tip" id="fs10">val highlightText : (RoutedEventArgs -&gt; unit)</div>
+<div class="tip" id="fs11">val e : RoutedEventArgs</div>
+<div class="tip" id="fs12">Multiple items<br />type RoutedEventArgs =<br />&#160;&#160;inherit EventArgs<br />&#160;&#160;new : unit -&gt; RoutedEventArgs + 2 overloads<br />&#160;&#160;member Handled : bool with get, set<br />&#160;&#160;member OriginalSource : obj<br />&#160;&#160;member RoutedEvent : RoutedEvent with get, set<br />&#160;&#160;member Source : obj with get, set<br /><br />Full name: System.Windows.RoutedEventArgs<br /><br />--------------------<br />RoutedEventArgs() : unit<br />RoutedEventArgs(routedEvent: RoutedEvent) : unit<br />RoutedEventArgs(routedEvent: RoutedEvent, source: obj) : unit</div>
+<div class="tip" id="fs13">val tb : TextBox</div>
+<div class="tip" id="fs14">property RoutedEventArgs.OriginalSource: obj</div>
+<div class="tip" id="fs15">Multiple items<br />type TextBox =<br />&#160;&#160;inherit TextBoxBase<br />&#160;&#160;new : unit -&gt; TextBox<br />&#160;&#160;member CaretIndex : int with get, set<br />&#160;&#160;member CharacterCasing : CharacterCasing with get, set<br />&#160;&#160;member Clear : unit -&gt; unit<br />&#160;&#160;member GetCharacterIndexFromLineIndex : lineIndex:int -&gt; int<br />&#160;&#160;member GetCharacterIndexFromPoint : point:Point * snapToText:bool -&gt; int<br />&#160;&#160;member GetFirstVisibleLineIndex : unit -&gt; int<br />&#160;&#160;member GetLastVisibleLineIndex : unit -&gt; int<br />&#160;&#160;member GetLineIndexFromCharacterIndex : charIndex:int -&gt; int<br />&#160;&#160;member GetLineLength : lineIndex:int -&gt; int<br />&#160;&#160;...<br /><br />Full name: System.Windows.Controls.TextBox<br /><br />--------------------<br />TextBox() : unit</div>
+<div class="tip" id="fs16">Primitives.TextBoxBase.SelectAll() : unit</div>
+<div class="tip" id="fs17">val this : RecipeViewController</div>
+<div class="tip" id="fs18">override RecipeViewController.OnLoaded : view:RecipeView -&gt; unit<br /><br />Full name: FsWPF.RecipeViewController.OnLoaded</div>
+<div class="tip" id="fs19">val view : RecipeView</div>
+<div class="tip" id="fs20">property RecipeView.RecipeName: TextBox<br /><em><br /><br />Gets the RecipeName element</em></div>
+<div class="tip" id="fs21">event UIElement.GotMouseCapture: IEvent&lt;Input.MouseEventHandler,Input.MouseEventArgs&gt;</div>
+<div class="tip" id="fs22">member IObservable.Add : callback:(&#39;T -&gt; unit) -&gt; unit</div>
+<div class="tip" id="fs23">namespace FSharp</div>
+<div class="tip" id="fs24">namespace FSharp.ViewModule</div>
+<div class="tip" id="fs25"></div>
+<div class="tip" id="fs26">type grain =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Weight: float&lt;g&gt;;<br />&#160;&#160;&#160;Potential: float&lt;pgp&gt;;<br />&#160;&#160;&#160;Colour: float&lt;EBC&gt;;}<br /><br />Full name: FsWPF.grain</div>
+<div class="tip" id="fs27">grain.Name: string</div>
+<div class="tip" id="fs28">Multiple items<br />val string : value:&#39;T -&gt; string<br /><br />Full name: Microsoft.FSharp.Core.Operators.string<br /><br />--------------------<br />type string = String<br /><br />Full name: Microsoft.FSharp.Core.string</div>
+<div class="tip" id="fs29">grain.Weight: float&lt;g&gt;</div>
+<div class="tip" id="fs30">Multiple items<br />val float : value:&#39;T -&gt; float (requires member op_Explicit)<br /><br />Full name: Microsoft.FSharp.Core.Operators.float<br /><br />--------------------<br />type float = Double<br /><br />Full name: Microsoft.FSharp.Core.float<br /><br />--------------------<br />type float&lt;&#39;Measure&gt; = float<br /><br />Full name: Microsoft.FSharp.Core.float&lt;_&gt;</div>
+<div class="tip" id="fs31">[&lt;Measure&gt;]<br />type g<br /><br />Full name: Units.g</div>
+<div class="tip" id="fs32">grain.Potential: float&lt;pgp&gt;</div>
+<div class="tip" id="fs33">[&lt;Measure&gt;]<br />type pgp = gp/lb<br /><br />Full name: Units.pgp</div>
+<div class="tip" id="fs34">grain.Colour: float&lt;EBC&gt;</div>
+<div class="tip" id="fs35">[&lt;Measure&gt;]<br />type EBC<br /><br />Full name: Units.EBC</div>
+<div class="tip" id="fs36">module viewModel2<br /><br />from FsWPF</div>
+<div class="tip" id="fs37">namespace System.Collections</div>
+<div class="tip" id="fs38">namespace System.Collections.ObjectModel</div>
+<div class="tip" id="fs39">val x : RecipeViewModel</div>
+<div class="tip" id="fs40">module viewModel3<br /><br />from FsWPF.viewModel2</div>
+<div class="tip" id="fs41">namespace Units</div>
+<div class="tip" id="fs42">namespace FSharp.ViewModule.Validation</div>
+<div class="tip" id="fs43">val x : GrainViewModel</div>
+<div class="tip" id="fs44">module viewModel4<br /><br />from FsWPF.viewModel2.viewModel3</div>
+<div class="tip" id="fs45">Multiple items<br />type App =<br />&#160;&#160;inherit XamlAppFactory<br />&#160;&#160;new : unit -&gt; App + 1 overload<br />&#160;&#160;member Accessor : XamlResourceAccessor<br />&#160;&#160;member Root : Application<br /><br />Full name: FsWPF.viewModel2.viewModel3.viewModel4.App<br /><br />--------------------<br />App() : App<br />App(existingElement: Application) : App</div>
+<div class="tip" id="fs46">Multiple items<br />type STAThreadAttribute =<br />&#160;&#160;inherit Attribute<br />&#160;&#160;new : unit -&gt; STAThreadAttribute<br /><br />Full name: System.STAThreadAttribute<br /><br />--------------------<br />STAThreadAttribute() : unit</div>
+<div class="tip" id="fs47">Multiple items<br />type EntryPointAttribute =<br />&#160;&#160;inherit Attribute<br />&#160;&#160;new : unit -&gt; EntryPointAttribute<br /><br />Full name: Microsoft.FSharp.Core.EntryPointAttribute<br /><br />--------------------<br />new : unit -&gt; EntryPointAttribute</div>
+<div class="tip" id="fs48">val main : argv:string [] -&gt; int<br /><br />Full name: FsWPF.viewModel2.viewModel3.viewModel4.main</div>
+<div class="tip" id="fs49">val argv : string []</div>
+
