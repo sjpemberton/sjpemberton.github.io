@@ -185,6 +185,8 @@ Even though my design is currently simple, I opted for the latter approach as it
 1. The main Recipe VM can subscribe once to the aggregator service. (As opposed to multiple VMs)
 2. Completely distinct parts of the app can force the Recipe View to be updated. These parts range from the obvious ingredient VMs to the not so obvious Equipment setup and settings sections.
 
+Of course, this could be implemented using agents. however, I see no need to introduce this level of complexity (I know, they're not really complex) as the App doesn't  really fit the use case.  
+It is a simple, synchronous change based application and therefore does not need the benefits provided by Agents. These better suite, parallel, asynchronous, multi threaded/concurrent applications.
 *)
 
 (*** hide ***)
