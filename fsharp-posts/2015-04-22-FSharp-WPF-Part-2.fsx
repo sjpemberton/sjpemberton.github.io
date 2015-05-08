@@ -13,6 +13,25 @@ module FsWPF
 
 open System.Windows
 open System.Windows.Controls
+open FSharp.ViewModule
+open FSharp.ViewModule.Validation
+open System.Collections.ObjectModel
+open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
+open Calculations
+open Units
+
+
+type GrainViewModel(name:string, potential:float<pgp>, colour:float<EBC>) as this = 
+    inherit ViewModelBase()
+
+    //Create a notifying property from the Backing store factory
+    let weight = this.Factory.Backing(<@ this.Weight @>, 0.1<g>, greaterThan (fun a -> 0.0<g>))
+    
+    member val Name = name
+    member x.Weight with get() = weight.Value and set(value) = weight.Value <- value
+    member x.Potential:float<pgp> = potential
+    member x.Colour:float<EBC> = colour
+
 
 (**
 #F# and WPF part two - functional models, decoupled views.
@@ -29,7 +48,7 @@ functions for business logic (clear and concise, making the domain simple to mod
 ##Extending the View Models
 
 The first step was to make a clearer separation of the model/domain and the view via the use of the existing ViewModels. 
-At the end of the last post, I had already refactored the direct use of the Grain record by the view model by creating a `GrainViewModel`. To recap, this is shown below:
+At the end of the last post, I had already re-factored the direct use of the Grain record by the view model by creating a `GrainViewModel`. To recap, this is shown below:
 *)
 
 (*** hide ***)
@@ -60,20 +79,20 @@ Of course, if we don't, we are invalidating our ViewModel not the View, this wou
 Secondly it allows us to model the entire domain, business logic and all, entirely separate of any UI elements.  
 This is the biggest benefit as it means we can utilise the power of F# as a domain modelling tool while ensuring that our representation is as robust as possible.  
 
-At the end of the day it should be completely possible to test the model (The domain and the logic related to it) and the ViewModels (The User driven *manipulation* of the model. That is, the user actions that cause a reaction within the domain.) 
+All being well it should be completely possible to test the model (The domain and the logic related to it) and the ViewModels (The User driven *interaction* with the model. That is, the user actions that cause a reaction within the domain.) 
 
 The first step then, was to extend the GrainViewModel to wrap a *snapshot* of our Grain model and expose mutable properties that can later be used to re-build/update the model.
 
 At this point it is worth stating that the purpose of the View Models is as follows:
-- To wrap a snapshot of a model. This can then be ustilised to provide functionality such as dirty checking or undo etc.
+- To wrap a snapshot (or 2) of a model. These can then be utilised to provide functionality such as dirty checking or undo etc.
 - To hold the state of the application. The VMs will hold all current state which will only be propagated to the persistent storage at a save point. 
 - To interact with the business logic (domain) in order to handle updates to the model.
 
-This means the VMs *utilise* the domain modules to handle any business logic. In other words the View models are just a pass through to the actual doamin, which is all modelled in F# goodness. 
+This means the VMs *utilise* the domain modules to handle any business logic. In other words the View models are just a pass through to the actual domain, which is all modelled in F# goodness. 
 
 
 First up, I introduced a new base class for my view models.  
-I must admit, I didn't particualy like this approach, but I did not want to duplicate code for updating the wrapped snapshot of the model in my VMs. I also couldn't parameterise the update logic, 
+I must admit, I didn't particularly like this approach due to adding an extra layer of inheritance, but I did not want to duplicate code for updating the wrapped snapshot of the model in my VMs. I also couldn't parameterise the update logic, 
 as this logic is specific to the view models themselves. (This is the case because the View Models know which parts of the UI require updating in specific scenarios, reducing the load on the UI)
 
 This new base class is as follows:
@@ -84,58 +103,66 @@ This new base class is as follows:
 type LabViewModel<'t>(model:'t) as this = 
     inherit ViewModelBase()
 
-    ///Mutable cache of the current model snapshot - used for dirty checking etc
     let mutable model = model
 
-    abstract member UpdateModel: 't ->'t
-
-    member x.GetModel() = 
-        let newModel = this.UpdateModel model
-        model <- newModel
-        newModel
+    abstract GetUpdatedModel : unit -> 't
+    member x.UpdateModel() = model <- this.GetUpdatedModel()
 
 (**
 I then derived my view models from this class.
 *)
 
-open Units
-open FSharp.ViewModule
-open FSharp.ViewModule.Validation
-open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
-open System
+(***hide***)
+module gvm1 =
 
-type GrainViewModel(addition) as this = 
-    inherit LabViewModel<GrainAddition<kg>>(addition)
+    open Units
+    open FSharp.ViewModule
+    open FSharp.ViewModule.Validation
+    open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
+    open System
 
-    let weight = this.Factory.Backing(<@ this.Weight @>, 0.001<kg>, greaterThan (fun a -> 0.000<kg>))
-    let name = this.Factory.Backing(<@ this.Name @>, addition.Grain.Name)
-    let potential = this.Factory.Backing(<@ this.Potential @>, addition.Grain.Potential)
-    let colour = this.Factory.Backing(<@ this.Colour @>, addition.Grain.Colour)
+(***)
 
-    let switchGrainCommand = 
-        this.Factory.CommandSyncParam(fun (param:obj) ->
-            match param with 
-            | :? Tuple<obj, bool> as t->
-                let grain = t.Item1 :?> grain<kg> //Need to stop this being a tuple
-                this.Name <- grain.Name
-                this.Potential <- grain.Potential
-                this.Colour <- grain.Colour
-            | _ -> ignore())
+(*** define: final-sample ***)
+    [<AutoOpen>]
+    module Ingredients =
 
-    override x.UpdateModel(model) = 
-        { model with Weight = weight.Value }
+        type HopType =
+        |Pellet
+        |Leaf
+        |Extract
 
-    member x.Name with get() = name.Value and private set(v) = name.Value <- v
-    member x.Potential with get() = potential.Value and private set(v) = potential.Value <- v
-    member x.Colour with get() = colour.Value and private set(v) = colour.Value <- v
-    
-    member x.Weight 
-        with get () = weight.Value
-        and set (value) = weight.Value <- value
+        type hop<[<Measure>] 'w> = {Name:string; Alpha:float<percentage>;}
+        type HopAddition<[<Measure>] 'w>  = { Hop:hop<'w>; Weight:float<'w>; Time:float<minute>; Type:HopType}
+        type adjunct<[<Measure>] 'w> = {Name:string; Weight:float<'w>; Description:string }
+        type grain<[<Measure>] 'w> = {Name:string; Potential:float<gp/'w>; Colour:float<EBC>;}
+        type GrainAddition<[<Measure>] 'w>  = {Grain: grain<'w>; Weight:float<'w>}
+        type yeast<[<Measure>] 't> = {Name:string; Attenuation:float<percentage>; TempRange: float<'t>*float<'t> }
+        type water = {Name:string;} //chemical profile
 
-    member x.SwitchGrainCommand = switchGrainCommand
+        type Ingredient =
+        | Hop of HopAddition<g>
+        | Adjunct of adjunct<g>
+        | Grain of GrainAddition<kg>
+
+(***)
+
+    type GrainViewModel(addition) as this = 
+        inherit LabViewModel<GrainAddition<kg>>(addition)
+
+        let weight = this.Factory.Backing(<@ this.Weight @>, 0.001<kg>, greaterThan (fun a -> 0.000<kg>))
+        let grain = this.Factory.Backing(<@ this.Grain @>, addition.Grain)
+
+        override x.GetUpdatedModel() = 
+            { Grain = grain.Value; Weight = weight.Value }
+
+        member x.Grain with get() = grain.Value and set(v) = grain.Value <- v
+        member x.Weight with get () = weight.Value and set (value) = weight.Value <- value
 
 (**
+
+As you can see, this grain view model is as minimal as currently possible, only exposing mutable values defaulted from the immutable model given to it and any abstract members it must implement.
+This keeps the ViewModel types as dumb as possible, and ensures they are merely an interaction gateway to the domain.
 *)
 
 (**
