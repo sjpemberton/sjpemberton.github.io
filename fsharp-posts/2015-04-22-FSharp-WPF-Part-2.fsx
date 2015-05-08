@@ -45,6 +45,50 @@ The aim was to have a complete, robust domain model, implemented using F# module
 All in all, A pretty stereotypical MVVM implementation but with the added benefits of the F# language. Specifically, Immutability by default (no unforeseen side effects!), 
 functions for business logic (clear and concise, making the domain simple to model) and unique features like Units of measure, pattern matching and active patterns which all help to reduce complexity and clarify the solution.
 
+
+##Implementing the Domain
+
+The Domain for my application can be completely moddeled in a functional manner, ensuring we get all the benifits from the F# language.
+This means we can create a few simple, immutable types to represnet our data and then implement all the required domain logic via native functions.
+
+As an example, below is my representation of the key Ingredients required when creating a beer recipe.
+As you can see I have kept the base record types generic, but have then supplied a Discriminated union constraining the ingredients to Metric values for now (The default for the application).
+
+Also shown below is one of the functions associated with the Ingredients, CalculateIBUs. I have included this here as it is closely related to the HopAddition record type.  
+It does however require inputs from the Recipe itself and could therefore be moved into a seperate module.
+*)
+
+module Ingredients =
+
+    type HopType =
+    |Pellet
+    |Leaf
+    |Extract
+
+    type hop<[<Measure>] 'w> = {Name:string; Alpha:float<percentage>;}
+    type grain<[<Measure>] 'w> = {Name:string; Potential:float<gp/'w>; Colour:float<EBC>;}
+
+    type HopAddition<[<Measure>] 'w>  = { Hop:hop<'w>; Weight:float<'w>; Time:float<minute>; Type:HopType}
+    type GrainAddition<[<Measure>] 'w>  = {Grain: grain<'w>; Weight:float<'w>}
+
+    type yeast<[<Measure>] 't> = {Name:string; Attenuation:float<percentage>; TempRange: float<'t>*float<'t> }
+
+    type Ingredient =
+    | Hop of HopAddition<g>
+    | Grain of GrainAddition<kg>
+    | Yeast of yeast<degC>
+
+    let CalculateIBUs hopAddition sg vol =
+        let utilisation = EstimateHopUtilisation sg (float hopAddition.Time)
+        EstimateIBUs utilisation hopAddition.Hop.Alpha hopAddition.Weight vol
+
+
+(**
+
+The models and domain definition shall appear early on in the project stack, insuring it can be used by the view models defined afterwards.
+Although a topic that can polarise peoples opinions, I find that the Linear Dependency enforced by F# is a massive benefit in this case and WPF development as a whole (and most others).  
+More on this later.
+
 ##Extending the View Models
 
 The first step was to make a clearer separation of the model/domain and the view via the use of the existing ViewModels. 
@@ -93,7 +137,7 @@ This means the VMs *utilise* the domain modules to handle any business logic. In
 
 First up, I introduced a new base class for my view models.  
 I must admit, I didn't particularly like this approach due to adding an extra layer of inheritance, but I did not want to duplicate code for updating the wrapped snapshot of the model in my VMs. I also couldn't parameterise the update logic, 
-as this logic is specific to the view models themselves. (This is the case because the View Models know which parts of the UI require updating in specific scenarios, reducing the load on the UI)
+as this logic is specific to the view models themselves. (This is the case because the only the View Models know which parts of the UI require updating in specific scenarios, reducing the load on the UI)
 
 This new base class is as follows:
 
@@ -123,30 +167,6 @@ module gvm1 =
 
 (***)
 
-(*** define: final-sample ***)
-    [<AutoOpen>]
-    module Ingredients =
-
-        type HopType =
-        |Pellet
-        |Leaf
-        |Extract
-
-        type hop<[<Measure>] 'w> = {Name:string; Alpha:float<percentage>;}
-        type HopAddition<[<Measure>] 'w>  = { Hop:hop<'w>; Weight:float<'w>; Time:float<minute>; Type:HopType}
-        type adjunct<[<Measure>] 'w> = {Name:string; Weight:float<'w>; Description:string }
-        type grain<[<Measure>] 'w> = {Name:string; Potential:float<gp/'w>; Colour:float<EBC>;}
-        type GrainAddition<[<Measure>] 'w>  = {Grain: grain<'w>; Weight:float<'w>}
-        type yeast<[<Measure>] 't> = {Name:string; Attenuation:float<percentage>; TempRange: float<'t>*float<'t> }
-        type water = {Name:string;} //chemical profile
-
-        type Ingredient =
-        | Hop of HopAddition<g>
-        | Adjunct of adjunct<g>
-        | Grain of GrainAddition<kg>
-
-(***)
-
     type GrainViewModel(addition) as this = 
         inherit LabViewModel<GrainAddition<kg>>(addition)
 
@@ -161,11 +181,14 @@ module gvm1 =
 
 (**
 
-As you can see, this grain view model is as minimal as currently possible, only exposing mutable values defaulted from the immutable model given to it and any abstract members it must implement.
-This keeps the ViewModel types as dumb as possible, and ensures they are merely an interaction gateway to the domain.
+As you can see, this grain view model is as minimal as currently possible, simply exposing mutable values from the immutable model, and implementing any abstract members as required.
+This keeps the View Model types as dumb as possible and ensures they are merely used to interact with the domain.
 *)
 
 (**
+
+##View Model Communication, Events and resposability
+
 We need to handle the link between various VMs and the fact that the view needs to be updated when the various parts of the model change.
 
 To do this, we can go a few different directions.
@@ -201,12 +224,15 @@ This can then be subscribed to like so from the recipe VM.
     this.Factory.CommandSync(fun param ->
         let gvm = GrainViewModel({Grain = this.Grains.[0]; Weight = 0.0<kg>})
         gvm.EventStream.Subscribe handleRefresh |> ignore
-        this.Grain.Add(gvm) //Default to first in list - Could be empty instead?
+        this.Grain.Add(gvm)
         this.RefreshParts)
 
 (**
+This has the benefit of clarity of intent, but the downside of not being able to remove the event binding.
+
 Alternatively, we can use a more decoupled approach.  
 To achieve this we can use a simple publish/subscriber based module. This allows multiple publishes and subscribers to easily react to changes within our view models.  
+We can also utilise the INotifyProperty changed events to remove boilerplate.
 
 Even though my design is currently simple, I opted for the latter approach as it will give me a few benefits. 
 1. The main Recipe VM can subscribe once to the aggregator service. (As opposed to multiple VMs)
@@ -214,6 +240,24 @@ Even though my design is currently simple, I opted for the latter approach as it
 
 Of course, this could be implemented using agents. however, I see no need to introduce this level of complexity (I know, they're not really complex) as the App doesn't  really fit the use case.  
 It is a simple, synchronous change based application and therefore does not need the benefits provided by Agents. These better suite, parallel, asynchronous, multi threaded/concurrent applications.
+
+I plan on re-visiting this area in a future post in the series as it can be quite a large topic.
+
+##Views - The easy part
+
+###Value Converters
+
+##Thoughts on WPF development with F#
+
+###Linear Dependency
+
+###Multi-Paradigm
+
+###Functional Benefits
+
+###Concise Code
+
+
 *)
 
 (*** hide ***)
