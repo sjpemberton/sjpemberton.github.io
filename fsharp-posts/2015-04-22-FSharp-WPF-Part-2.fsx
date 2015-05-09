@@ -11,6 +11,7 @@ module FsWPF
 #r "System.Xaml.dll"
 #r "WindowsBase.dll"
 
+open System
 open System.Windows
 open System.Windows.Controls
 open FSharp.ViewModule
@@ -39,23 +40,23 @@ type GrainViewModel(name:string, potential:float<pgp>, colour:float<EBC>) as thi
 This post is the second in my F# and WPF series.  
 It expands upon the basic use of F# for application development with WPF, using the XAML type provider from the previous post in the series.  
 
-The main focus for this stage of the development of my BrewLab application was to create a clear separation between the functional representation of the domain (The models and their related business logic), and the more imperative, OO style used for the ViewModels.  
-The aim was to have a complete, robust domain model, implemented using F# modules, records and functions. These would then be utilised by the corresponding ViewModels, separating the concerns of the domain with the visual representation of it.  
+The main focus for this stage of the development of my BrewLab application was to create a clear separation between the functional representation of the domain (The models and their related business logic), and the more imperative, OO style used for the View Models (VMs).  
+The aim was to have a complete, robust domain model, implemented using F# modules, records and functions. These would then be utilised by the corresponding View Models, separating the concerns of the domain with the visual representation of it.  
 
 All in all, A pretty stereotypical MVVM implementation but with the added benefits of the F# language. Specifically, Immutability by default (no unforeseen side effects!), 
 functions for business logic (clear and concise, making the domain simple to model) and unique features like Units of measure, pattern matching and active patterns which all help to reduce complexity and clarify the solution.
 
 
-##Implementing the Domain
+##Implementing the Domain Model
 
-The Domain for my application can be completely moddeled in a functional manner, ensuring we get all the benifits from the F# language.
-This means we can create a few simple, immutable types to represnet our data and then implement all the required domain logic via native functions.
+The Domain for the application can be completely modelled in a functional manner. Thus ensuring we gain all the benefits from the F# language.
+This Allows us to create a few, simple, immutable, types to represent our data and then implement all the required domain logic via native functions.
 
 As an example, below is my representation of the key Ingredients required when creating a beer recipe.
-As you can see I have kept the base record types generic, but have then supplied a Discriminated union constraining the ingredients to Metric values for now (The default for the application).
+As you can see I have kept the base record types generic, but have, in addition, supplied a Discriminated Union constraining the ingredients to Metric values for now (The default for the application).
 
-Also shown below is one of the functions associated with the Ingredients, CalculateIBUs. I have included this here as it is closely related to the HopAddition record type.  
-It does however require inputs from the Recipe itself and could therefore be moved into a seperate module.
+Also shown below is one of the functions associated with the Ingredients, CalculateIBUs. I have included this here as it is closely related to the HopAddition record type and is a good example of how simple our domain logic becomes.  
+It does however require inputs from the Recipe itself and would therefore most likely end up being moved into a encompassing module.
 *)
 
 module Ingredients =
@@ -86,13 +87,16 @@ module Ingredients =
 (**
 
 The models and domain definition shall appear early on in the project stack, insuring it can be used by the view models defined afterwards.
-Although a topic that can polarise peoples opinions, I find that the Linear Dependency enforced by F# is a massive benefit in this case and WPF development as a whole (and most others).  
-More on this later.
+Although a topic that can polarise peoples opinions, I find that the Linear Dependency enforced by F# is a massive benefit in this case and WPF development as a whole (as is the case in most other areas).  
+More on this later...
 
 ##Extending the View Models
 
-The first step was to make a clearer separation of the model/domain and the view via the use of the existing ViewModels. 
-At the end of the last post, I had already re-factored the direct use of the Grain record by the view model by creating a `GrainViewModel`. To recap, this is shown below:
+After I had produced the domain model to support the initial planned functionality, (Which can be viewed on GitHub if interested) it was time to focus on the view models.
+
+The first step was to make use of the existing View Models; Expanding on them in order to achieve a clearer separation of the model/domain and the view. 
+As an example of the aims; At the end of the last post, I had already re-factored the direct use of the Grain record within the RecipeViewModel, by creating, and using, a `GrainViewModel` instead.  
+To recap, this is shown below:
 *)
 
 (*** hide ***)
@@ -121,7 +125,7 @@ The benefits of this are two fold, the View no longer cares what the model looks
 Of course, if we don't, we are invalidating our ViewModel not the View, this would be picked up in testing (Via unit testing the VMs).
 
 Secondly it allows us to model the entire domain, business logic and all, entirely separate of any UI elements.  
-This is the biggest benefit as it means we can utilise the power of F# as a domain modelling tool while ensuring that our representation is as robust as possible.  
+This is the biggest benefit as it means we can utilise the power of F# as a domain modeling tool while ensuring that our representation is as robust as possible.  
 
 All being well it should be completely possible to test the model (The domain and the logic related to it) and the ViewModels (The User driven *interaction* with the model. That is, the user actions that cause a reaction within the domain.) 
 
@@ -133,7 +137,6 @@ At this point it is worth stating that the purpose of the View Models is as foll
 - To interact with the business logic (domain) in order to handle updates to the model.
 
 This means the VMs *utilise* the domain modules to handle any business logic. In other words the View models are just a pass through to the actual domain, which is all modelled in F# goodness. 
-
 
 First up, I introduced a new base class for my view models.  
 I must admit, I didn't particularly like this approach due to adding an extra layer of inheritance, but I did not want to duplicate code for updating the wrapped snapshot of the model in my VMs. I also couldn't parameterise the update logic, 
@@ -153,7 +156,8 @@ type LabViewModel<'t>(model:'t) as this =
     member x.UpdateModel() = model <- this.GetUpdatedModel()
 
 (**
-I then derived my view models from this class.
+I then derived subsequent view models from this class.  
+This helps avoid code repetition and is, in my opinion, a valid reason to add the extra level of inheritance.
 *)
 
 (***hide***)
@@ -164,6 +168,7 @@ module gvm1 =
     open FSharp.ViewModule.Validation
     open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
     open System
+    open Ingredients
 
 (***)
 
@@ -181,73 +186,390 @@ module gvm1 =
 
 (**
 
-As you can see, this grain view model is as minimal as currently possible, simply exposing mutable values from the immutable model, and implementing any abstract members as required.
-This keeps the View Model types as dumb as possible and ensures they are merely used to interact with the domain.
+As you can see, the grain view model is as minimal as possible, simply exposing mutable values from the immutable model, and implementing any abstract members as required.
+Following this approach keeps the view model types as dumb as possible and ensures they are merely used to provide access to the domain model in a controlled way.
 *)
 
 (**
 
-##View Model Communication, Events and resposability
+##View Model Communication, Events and Responsibility
 
-We need to handle the link between various VMs and the fact that the view needs to be updated when the various parts of the model change.
+Inherent in all WPF applications is the need for the various parts to communicate with each other, usually for the purpose of informing each other of changes to data.
+As such, we need to handle the link between various VMs and the fact that the views related to these VMs needs to be updated when the various parts of the model change.  
 
-To do this, we can go a few different directions.
+To achieve this, we could go in a few different directions.
 
-1. Use a simple eventing system and fire events when a model part is changed. For example a GrainChange event will cause the recipe VM to refresh it's snapshot of the recipe (by pulling from the current state of the other VMs).  
-This has the benefit of being quick to implement, but it also directly ties the VMs together.
+1. Implement a simple event stream per view model, bind to it from the other view models that want to be notified, and fire events when a model part is changed. 
+For example a GrainChange event will cause the recipe VM to refresh its snapshot of the recipe (by pulling from the current state of the other VMs).  
+This has the benefit of being quick to implement, but it also directly ties the VMs together and could introduce circular dependencies. No body wants that!
 
-2. Use a message based approach where the various VMs can subscribe to a service and update themselves as required. 
+2. Use a message based approach where the various VMs can subscribe to a service, allowing them to send and receive updates as required.
+
+3. A mix of the above, with the addition of direct communication between immediately related VMs where one of them holds the *responsibility* for the update.  
+For example, my hop view model could rely on the recipe view model that *owns* it to trigger an update of its IBU property when a related value changes, such as recipe volume or estimated gravity.
 
 
 The simple event based approach is as easy as adding an additional property and member to our grain model and then triggering the event when we update any fields.
 
 *)
 
-type GrainViewModel(addition) as this = 
-    inherit LabViewModel<GrainAddition<kg>>(addition)
+(***hide***)
+module gvm2 =
 
-    let eventStream = Event<ViewModelEvent>()
-    let weight = this.Factory.Backing(<@ this.Weight @>, 0.001<kg>, greaterThan (fun a -> 0.000<kg>))
+    open Units
+    open FSharp.ViewModule
+    open FSharp.ViewModule.Validation
+    open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
+    open System
+    open Ingredients
+
+(***)
+
+    type LabEvent = 
+    | GrainChanged
+    | HopChanged
+
+    type GrainViewModel(addition) as this = 
+        inherit LabViewModel<GrainAddition<kg>>(addition)
+
+        let eventStream = Event<LabEvent>()
+        let weight = this.Factory.Backing(<@ this.Weight @>, 0.001<kg>, greaterThan (fun a -> 0.000<kg>))
   
-    member this.EventStream = eventStream.Publish :> IObservable<ViewModelEvent>
-    member x.Weight 
-        with get () = weight.Value
-        and set (value) = 
-            weight.Value <- value
-            eventStream.Trigger ViewModelEvent.Update
-
+        member this.EventStream = eventStream.Publish :> IObservable<LabEvent>
+        member x.Weight 
+            with get () = weight.Value
+            and set (value) = 
+                weight.Value <- value
+                eventStream.Trigger GrainChanged
 (**
-This can then be subscribed to like so from the recipe VM.
-*)
 
- let addMaltCommand = 
-    this.Factory.CommandSync(fun param ->
-        let gvm = GrainViewModel({Grain = this.Grains.[0]; Weight = 0.0<kg>})
-        gvm.EventStream.Subscribe handleRefresh |> ignore
-        this.Grain.Add(gvm)
-        this.RefreshParts)
-
-(**
-This has the benefit of clarity of intent, but the downside of not being able to remove the event binding.
+This approach has the benefit of clarity of intent, but at the same time requires the subscribing view models to have direct access to the source of the event.
 
 Alternatively, we can use a more decoupled approach.  
-To achieve this we can use a simple publish/subscriber based module. This allows multiple publishes and subscribers to easily react to changes within our view models.  
-We can also utilise the INotifyProperty changed events to remove boilerplate.
+To achieve this we can use a simple publish/subscriber based model.  
+This allows multiple publishers and subscribers to easily react to changes within our view models, regardless of whether they directly know about them or not.  
+We can also utilise the INotifyProperty changed events provided by Fsharp.View.Module in order to remove boilerplate code.
 
-Even though my design is currently simple, I opted for the latter approach as it will give me a few benefits. 
-1. The main Recipe VM can subscribe once to the aggregator service. (As opposed to multiple VMs)
-2. Completely distinct parts of the app can force the Recipe View to be updated. These parts range from the obvious ingredient VMs to the not so obvious Equipment setup and settings sections.
+Even though my design is currently simple, I chose not to go down the route outlined in point 1 above as I do not like the resulting close coupling of the view models.
+The approach suggested in point 2 provides us with a few benefits. 
 
-Of course, this could be implemented using agents. however, I see no need to introduce this level of complexity (I know, they're not really complex) as the App doesn't  really fit the use case.  
-It is a simple, synchronous change based application and therefore does not need the benefits provided by Agents. These better suite, parallel, asynchronous, multi threaded/concurrent applications.
+1. The main Recipe VM can subscribe once to an event aggregator service in order to receive updates. (As opposed to multiple VMs)
+2. Completely distinct parts of the app can cause others to be updated. These parts range from the obvious ingredient VMs to the not so obvious Equipment setup and settings sections. 
+All of which could have widespread effects on the wider application.
+
+For the purposes of this application, I have chosen to implement option three. I mixture of the two approaches above.
+To do so, I rely on the view models that have the responsibility for causing the updates, to propagate them on to the other view models.  
+This can happen in two ways.
+- Via direct communication (This is only an option if the update source is the sole owner of the target. For example only the Recipe VM should be able to tell the hop VMs that the gravity has changed).
+- Via the decoupled event service.
+
+We can implement an incredibly simple event service as follows:
+
+*)
+
+module Events =
+
+    open System
+
+    type LabEvent = 
+        | GravityChange
+        | VolumeChange
+        | HopChange
+        | FermentableChange
+        | EquipmentChange
+        | UnitsChanged
+
+    type RecipeEvent private() = 
+        let event = Event<LabEvent>()
+    
+        static let mutable instance = Lazy.Create((fun x -> new RecipeEvent()))
+        static member Instance with get() = instance.Value
+
+        member this.Event = event.Publish
+        member this.Subscribe o = this.Event.Subscribe o
+        member this.Trigger o = event.Trigger o
+
+(**
+
+I chose to make this a singleton so as to avoid the possibility of VMs subscribing/publishing to different event service handlers.
+
+To make the use of this service as easy as possible for the view models, I added a `BindEvents` member to the base class and also made use of the INotifyPropertyChanged event to broadcast any updates.  
+The `BindEvent` method simply binds a callback to *any* event, passing the IObservable through a parameterised function providing custom binding logic. Finally, it adds the disposable event handle to a list on the VM base that is cleared up in its own Dispose method.
+
+Below we can see the new method/backing collection (added to the base class) to support events and their handles, as well as the use of this method to subscribe the VMs own INotifyPropertyChanged event to a notifying event that propagates the event to the afore mentioned service.  
+Also of note is the new parameter added to the constructor in order to specify what kind of LabEvent to map the change events to.
+
+*)
+
+(***hide***)
+module lvm2 = 
+    open Events
+    open System
+    open System.ComponentModel
+
+(***)
+
+    [<AbstractClass>]
+    type LabViewModel<'t>(model : 't, eType: LabEvent) as this = 
+        inherit ViewModelBase()
+        let mutable model = model
+        let mutable eventHandles = List.empty
+
+        let NotifyChange e =
+            this.UpdateModel()
+            RecipeEvent.Instance.Trigger(e)
+
+        //Map the prop change notification to a recipe change event and inform everybody
+        do this.BindEvent((this :> INotifyPropertyChanged).PropertyChanged |> Observable.map (fun e -> eType), (fun o -> o), NotifyChange)
+
+        interface IDisposable with
+            member x.Dispose() = eventHandles |> List.iter (fun d -> d.Dispose())
+
+        abstract GetUpdatedModel : unit -> 't
+        member x.UpdateModel() = model <- this.GetUpdatedModel()
+
+        member x.BindEvent(event, subscribe, callback) = 
+            eventHandles <- (event 
+                             |> subscribe 
+                             |> Observable.subscribe callback)
+                             :: eventHandles
+
+(**
+
+The ease of binding to the global event service can be seen below.
+
+*)
+(***hide***)
+module gvm3 =
+
+    open Units
+    open FSharp.ViewModule
+    open FSharp.ViewModule.Validation
+    open Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols
+    open System
+    open Ingredients
+    open lvm2
+
+(***)
+
+    let subscribe source = 
+            source
+            |> Observable.filter (function Events.LabEvent.UnitsChanged -> true | _ -> false)
+
+    let OnLabEvent e =  ()
+
+    type GrainViewModel (addition) as this = 
+        inherit LabViewModel<GrainAddition<kg>>(addition, Events.LabEvent.FermentableChange)
+
+        let weight = this.Factory.Backing(<@ this.Weight @>, 0.001<kg>, greaterThan (fun a -> 0.000<kg>))
+        let grain = this.Factory.Backing(<@ this.Grain @>, addition.Grain)
+
+        do base.BindEvent(Events.RecipeEvent.Instance.Event, subscribe, OnLabEvent)
+
+        override x.GetUpdatedModel() = 
+            { Grain = grain.Value; Weight = weight.Value }
+
+        member x.Grain with get() = grain.Value and set(v) = grain.Value <- v
+        member x.Weight with get () = weight.Value and set (value) = weight.Value <- value
+
+(**
+
+Of course, we could implement this using agents. however, I see no need to introduce this level of complexity (I know, they're not really that complex) as the App doesn't really fit the use case.  
+It is a simple, synchronous, single user based application and therefore does not need the benefits provided by Agents. These better suite, parallel, asynchronous, multi threaded/concurrent applications.
 
 I plan on re-visiting this area in a future post in the series as it can be quite a large topic.
 
 ##Views - The easy part
 
+In all this model and view model development, the views are the most simple parts to update.  
+All that is needed to utilise the new VM changes is to add some extra elements to the view. For completeness, I have included a snapshot of the Recipe view.  
+
+{% highlight xml %}
+<UserControl
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:fsxaml="clr-namespace:FsXaml;assembly=FsXaml.Wpf"
+    xmlns:local="clr-namespace:Views;assembly=BrewLab"   
+    xmlns:converters="clr-namespace:Converters;assembly=BrewLab"   
+    xmlns:viewModels="clr-namespace:ViewModels;assembly=BrewLab"
+    xmlns:i="clr-namespace:System.Windows.Interactivity;assembly=System.Windows.Interactivity" 
+    MinHeight="300" MinWidth="600" Height="Auto"
+    fsxaml:ViewController.Custom="{x:Type local:RecipeViewController}">
+
+    <UserControl.Resources>
+        <converters:DiscriminatedUnionText x:Key="DUConverter"/>
+    </UserControl.Resources>
+
+    <Grid Background="White">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <TextBox Name="RecipeName" Text="Enter Recipe Name Here..." Grid.Row="0"  FontSize="16"/>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="32" />
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="32" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Fermentables" Grid.Row="0"  FontSize="14"/>
+                <DataGrid Name="GrainBill" Grid.Row="1" Margin="3" ItemsSource="{Binding Grain}" AutoGenerateColumns="false">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Name" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox Grid.Row="2" FontSize="16" Text="Add Grain" ItemsSource="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:RecipeView}, Path=DataContext.Grains, Mode=OneWay}" SelectedItem="{Binding Grain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Name="GrainDropDown">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}" Width="{Binding ElementName=GrainDropDown, Path=ActualWidth}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn IsReadOnly="True" Binding="{Binding Grain.Potential, StringFormat=N2}" Header="Potential" Width="*"/>
+                        <DataGridTextColumn IsReadOnly="True" Binding="{Binding Grain.Colour}" Header="Colour (EBC)" Width="*"/>
+                        <DataGridTextColumn Binding="{Binding Weight, Mode=TwoWay}" Header="Weight" Width="*"/>
+                        <DataGridTemplateColumn>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Name="RemoveGrainButton"  Width="28" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center" Background="OrangeRed" 
+                                            CommandParameter="{Binding}"
+                                            Command="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:RecipeView}, Path=DataContext.RemoveMaltCommand}" Visibility="Hidden" Content="X" ></Button>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Path=IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                                            <Setter Property="Visibility" TargetName="RemoveGrainButton" Value="Visible"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Name="AddGrain" FontSize="14" Command="{Binding AddMaltCommand}">Add Fermentable</Button>
+                    <TextBlock FontSize="14" Grid.Column="1" Text="{Binding Gravity, StringFormat=N3}"/>
+                </Grid>
+            </Grid>
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="32" />
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="32" />
+                </Grid.RowDefinitions>
+                <TextBlock Text="Hop Additions" Grid.Row="0"  FontSize="14"/>
+                <DataGrid Name="HopAdditions" Grid.Row="1" Margin="3"  ItemsSource="{Binding HopAdditions}" AutoGenerateColumns="false">
+                    <DataGrid.Columns>
+                        <DataGridTemplateColumn Header="Name" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox Grid.Row="2" FontSize="16" Text="Select Hop" ItemsSource="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:RecipeView}, Path=DataContext.Hops, Mode=OneWay}" SelectedItem="{Binding Hop, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Name="HopDropDown">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Name}" Width="{Binding ElementName=HopDropDown, Path=ActualWidth}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn IsReadOnly="True" Binding="{Binding Hop.Alpha}" Header="Alpha (%)" Width="*"/>
+                        <DataGridTemplateColumn Header="Type" Width="*">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <ComboBox Grid.Row="2" FontSize="16" Text="Select Hop Type" ItemsSource="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:RecipeView}, Path=DataContext.HopTypes, Mode=OneWay}" SelectedItem="{Binding Type, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Name="HopTypeDropDown">
+                                        <ComboBox.ItemTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{Binding Converter={StaticResource DUConverter}}" Width="{Binding ElementName=HopTypeDropDown, Path=ActualWidth}" />
+                                            </DataTemplate>
+                                        </ComboBox.ItemTemplate>
+                                    </ComboBox>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                        <DataGridTextColumn Binding="{Binding Weight, Mode=TwoWay}" Header="Weight" Width="*"/>
+                        <DataGridTextColumn Binding="{Binding Time, Mode=TwoWay}" Header="Time" Width="*"/>
+                        <DataGridTextColumn IsReadOnly="True" Binding="{Binding IBU, StringFormat=N2}" Header="IBU" Width="*"/>
+                        <DataGridTemplateColumn>
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Name="RemoveHopButton"  Width="28" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center" Background="OrangeRed" 
+                                            CommandParameter="{Binding}"
+                                            Command="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:RecipeView}, Path=DataContext.RemoveHopCommand}" Visibility="Hidden" Content="X" ></Button>
+                                    <DataTemplate.Triggers>
+                                        <DataTrigger Binding="{Binding Path=IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                                            <Setter Property="Visibility" TargetName="RemoveHopButton" Value="Visible"/>
+                                        </DataTrigger>
+                                    </DataTemplate.Triggers>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
+                    </DataGrid.Columns>
+                </DataGrid>
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Button Name="AddHop" FontSize="14" Command="{Binding AddHopCommand}">Add Hop</Button>
+                </Grid>
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>
+
+The view is extremely basic at this point. There are now two grids, one for hops, one for grain.  
+I have also added new columns to the grids as needed and provided a dropdown to switch the grain/hop respectively. Also of note is the use of a Discriminated Union directly as the options for the hop type dropdown.
+
+To do this we need to use a value converter.
+
 ###Value Converters
 
+The use of value converters is a common thing in WPF and as such I expect to need to implement many during the course of developing this app.  
+So far, I have needed to create one F# specific converter; To convert Discriminated Unions into string representations of their names.
+
+This value converter consists of some simple reflection calls in order to deduce the name of the DU passed to it.
+
+*)
+
+open Microsoft.FSharp.Reflection
+
+type DiscriminatedUnionText() =
+
+    let DuToString value uniontype =
+        match FSharpValue.GetUnionFields(value, uniontype) with
+        | case, _ -> case.Name
+
+    interface System.Windows.Data.IValueConverter with
+        override this.Convert(value, targetType, parameter, culture) =
+            DuToString value (value.GetType())
+            |> box
+            
+        override this.ConvertBack(value, targetType, parameter, culture) =
+            raise(NotImplementedException())
+
+(**
+
+We will keep any converters created bundled together with the view implementation as they are entirely view logic.  
+In my case, I will include them within the same, separate project for the view.  
+
+As the App grows larger, I will need to think about its structure.  
+This is a new venture for me as it is the first WPF project I have undertaken purely in F#. I therefore plan to discuss this in the next post. 
+
+
 ##Thoughts on WPF development with F#
+
+At this point I thought it apt to share my thoughts on the development process in WPF with F#
 
 ###Linear Dependency
 
