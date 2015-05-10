@@ -125,7 +125,7 @@ The benefits of this are two fold, the View no longer cares what the model looks
 Of course, if we don't, we are invalidating our ViewModel not the View, this would be picked up in testing (Via unit testing the VMs).
 
 Secondly it allows us to model the entire domain, business logic and all, entirely separate of any UI elements.  
-This is the biggest benefit as it means we can utilise the power of F# as a domain modeling tool while ensuring that our representation is as robust as possible.  
+This is the biggest benefit as it means we can utilise the power of F# as a domain modelling tool while ensuring that our representation is as robust as possible.  
 
 All being well it should be completely possible to test the model (The domain and the logic related to it) and the ViewModels (The User driven *interaction* with the model. That is, the user actions that cause a reaction within the domain.) 
 
@@ -569,16 +569,70 @@ This is a new venture for me as it is the first WPF project I have undertaken pu
 
 ##Thoughts on WPF development with F#
 
-At this point I thought it apt to share my thoughts on the development process in WPF with F#
+At this point I thought it would be apt to share my thoughts on the development process in WPF with F#
+
+Instead of a pros and cons style list I decided to focus on the features of F# that most influence the implementation of a WPF application.  
+This is also because I don't see there being any cons anymore, thanks to the XAML Type provider etc. I am just as comfortable writing F# WPF apps as C#.
 
 ###Linear Dependency
 
+I briefly touched on this earlier and would like to expand on my points.  
+I whole heartedly believe that linear dependency is beneficial to a WPF project.  
+The fact that it removes the possibility of introducing pesky cyclic dependencies causes you to really think about what you are doing with your types.
+
+It does prevent some common code styles that I often see used in C# being implemented (such as passing a reference to the parent object to a child, unless using a common interface), 
+but for the most part, where I see them used, they are clearly rash decisions to take a short cut in development and the implementation would be better done another way.
+
+I find that F# prevents this; It makes the developer think.  
+Not just about types and their usage but about the application as a whole. This is especially apparent when organising application layers and designing the domain.
+
+All of this makes creating 'Spaghetti Code' much more difficult.  
+This has the massive benefit that your apps are therefore more easy to follow; You can clearly see the intent from the implementation.  
+
+As a result, the code base is generally smaller, bugs are less numerous and technical debt is vastly reduced. 
+
 ###Multi-Paradigm
 
-###Functional Benefits
+For me, the multi-paradigm approach has great benefits to WPF development.  
+We can keep the usual, class based, object oriented code (Albeit a shell of what we would see if using C#) that we are used to for our view models.  
+This makes dealing with interaction with XAML a simple task and provides us with the ability to utilise the many OO implementations of features that already exist. (Observable collections and any of the XAML framework classes spring to mind)  
+
+Of course, we strip the F# classes back to the bones and turn to a functional approach when dealing with the domain model.  
+This gives us the best of both worlds (in my opinion). A simple, class based approach to handling interaction with XAML and the UI, and a functional, robust, domain model and 'business' logic.
+
+I'm sure there are other approaches, but currently, in my experience (this application) why fret over being pure?  
+Use the language features that exist where they best fit.
+
+###Functional/F# Specific Benefits
+
+Obviously, there are numerous benefits that a functional style brings to the table and I'm sure I don't need to go into great detail here.  
+Therefore, I'll simply list the ones that have stood out the most so far during my WPF dev time.
+
+- Robust type system for domain modelling.
+- Immutability by default and controlled mutability.
+- First class events.
+- Pattern matching - Error prevention.
 
 ###Concise Code
 
+An additional benefit brought by the F# language is conciseness.  
+It is clear to see that F# is a 'write less, do more' language. Although this could be considered a very well planned side affect, it really does make a difference.  
+
+In WPF development, this quickly becomes noticeable when your View Models are as small as 20 lines of code, while still packing all the functionality required.
+The inherent simplicity of F# code also allows for rapid refactoring. This really hit me during my experiments with first class events and allowed me to make massive changes to the infrastructure with minimal time and effort.
+
+##Summing Up
+
+That's all for this post.  
+I will now be concentrating on fleshing out functionality of the app and finally adding some styling!
+
+Up in the next post in the series I will be focusing on three areas.
+
+- Revisiting the Event implementation and view model communication.
+- How to structure an F# WPF solution.
+- Testing the application.
+
+Meanwhile, all my progress is visible on GitHub as usual.
 
 *)
 
@@ -586,7 +640,7 @@ At this point I thought it apt to share my thoughts on the development process i
 ---
 layout: post
 title: F# and WPF part two - functional models, decoupled views.
-date: 23/04/2015
+date: 11/05/2015
 comments: true
 tags: ["fsharp","WPF"]
 catagories: ["guides","examples"]
