@@ -1,0 +1,877 @@
+---
+meta: Exploring the use of FSharp and WPF to create applications
+series-post-number: 2
+series: F# and WPF
+catagories: ["guides","examples"]
+tags: ["fsharp","WPF"]
+comments: true
+date: 11/05/2015
+title: F# and WPF part two - functional models, decoupled views.
+layout: post
+---
+<h1>Examples and thoughts on WPF development with F#</h1>
+
+<p>This post is the second in my F# and WPF series.<br />
+It expands upon the basic use of F# for application development with WPF, using the <a href="https://github.com/fsprojects/FsXaml">XAML type provider</a> from <a href="http://stevenpemberton.net/blog/2015/03/29/FSharp-WPF-and-the-XAML-type-provider/">the previous post in the series</a>, by focusing on the overall design and how the use of F# effects decisions made during this process.</p>
+
+<p>The main focus during this stage of development for my BrewLab application was to create a clear separation between the functional representation of the domain (The models and their related business logic), and the more imperative, OO style used for the View Models (VMs).</p>
+
+<p>The aim was to build a complete, robust domain model, using F# modules, records and functions. that would, in turn, be utilised by the corresponding View Models. Separating the concerns of the domain with the visual representation of it.</p>
+
+<p>All in all, a pretty stereotypical MVVM implementation but with the added benefits of the F# language. Specifically, Immutability by default (no unforeseen side effects!), 
+functions for business logic (clear and concise, making the domain simple to model) and unique features like <a href="http://stevenpemberton.net/blog/2015/03/11/FSharp-Units-Of-Measure/">units of measure</a>, pattern matching and active patterns which all help to reduce complexity and clarify the solution.</p>
+
+<!-- more -->
+
+<p>When developing any application I like to take a domain driven approach (although, I'm rarely that strict on my own personal process!).<br />
+Therefore, I made the logical choice of implementing the part of the domain I wished to model first, before deciding how the views (and therefore the VMs) would utilise it.</p>
+
+<h2>The Domain Model</h2>
+
+<p>The Domain for the application can be completely modelled in a functional manner. Thus ensuring we gain all the benefits from the F# language.<br />
+This Allows us to create a few, simple, immutable types to represent our data and then implement all the required domain logic via native functions.</p>
+
+<p>As an example, below is my representation of the key ingredients required when creating a beer recipe.
+As you can see, I have kept the base record types generic, but have, in addition, supplied a Discriminated Union constraining the ingredients to Metric values for now (The default for the application).</p>
+
+<p>Also shown below are two of the functions associated with the ingredients, <code>CalculateIBUs</code> and <code>CalculateGravity</code>. I have included these here as they are closely related to the <code>HopAddition</code> and <code>GrainAddition</code> record types.</p>
+
+<p>These two functions are a good example of how simple our domain logic becomes.<br />
+The idea is for these simple functions to be called by the view models. This will help during testing as we should be able to fully test/validate the model first, and then verify that our view models satisfy the user based interaction with it.</p>
+
+<p><em>Note: Both of these functions require inputs from the Recipe itself and would therefore should (and do) exist in a <code>Recipe</code> module, rather than the Ingredients module.</em></p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+<span class="l">20: </span>
+<span class="l">21: </span>
+<span class="l">22: </span>
+<span class="l">23: </span>
+<span class="l">24: </span>
+<span class="l">25: </span>
+<span class="l">26: </span>
+<span class="l">27: </span>
+<span class="l">28: </span>
+<span class="l">29: </span>
+<span class="l">30: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">module</span> <span onmouseout="hideTip(event, 'fs18', 67)" onmouseover="showTip(event, 'fs18', 67)" class="i">Ingredients</span> <span class="o">=</span>
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs20', 68)" onmouseover="showTip(event, 'fs20', 68)" class="i">HopType</span> <span class="o">=</span>
+    |<span onmouseout="hideTip(event, 'fs21', 69)" onmouseover="showTip(event, 'fs21', 69)" class="i">Pellet</span>
+    |<span onmouseout="hideTip(event, 'fs22', 70)" onmouseover="showTip(event, 'fs22', 70)" class="i">Leaf</span>
+    |<span onmouseout="hideTip(event, 'fs23', 71)" onmouseover="showTip(event, 'fs23', 71)" class="i">Extract</span>
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs24', 72)" onmouseover="showTip(event, 'fs24', 72)" class="i">hop</span><span class="o">&lt;</span>[&lt;<span onmouseout="hideTip(event, 'fs25', 73)" onmouseover="showTip(event, 'fs25', 73)" class="i">Measure</span>&gt;] <span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span> <span class="o">=</span> {<span onmouseout="hideTip(event, 'fs26', 74)" onmouseover="showTip(event, 'fs26', 74)" class="i">Name</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs27', 75)" onmouseover="showTip(event, 'fs27', 75)" class="i">string</span>; <span onmouseout="hideTip(event, 'fs28', 76)" onmouseover="showTip(event, 'fs28', 76)" class="i">Alpha</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs29', 77)" onmouseover="showTip(event, 'fs29', 77)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs30', 78)" onmouseover="showTip(event, 'fs30', 78)" class="i">percentage</span><span class="o">&gt;</span>;}
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs31', 79)" onmouseover="showTip(event, 'fs31', 79)" class="i">grain</span><span class="o">&lt;</span>[&lt;<span onmouseout="hideTip(event, 'fs25', 80)" onmouseover="showTip(event, 'fs25', 80)" class="i">Measure</span>&gt;] <span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span> <span class="o">=</span> {<span onmouseout="hideTip(event, 'fs32', 81)" onmouseover="showTip(event, 'fs32', 81)" class="i">Name</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs27', 82)" onmouseover="showTip(event, 'fs27', 82)" class="i">string</span>; <span onmouseout="hideTip(event, 'fs33', 83)" onmouseover="showTip(event, 'fs33', 83)" class="i">Potential</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs29', 84)" onmouseover="showTip(event, 'fs29', 84)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs34', 85)" onmouseover="showTip(event, 'fs34', 85)" class="i">gp</span><span class="o">/</span><span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs35', 86)" onmouseover="showTip(event, 'fs35', 86)" class="i">Colour</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs29', 87)" onmouseover="showTip(event, 'fs29', 87)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs36', 88)" onmouseover="showTip(event, 'fs36', 88)" class="i">EBC</span><span class="o">&gt;</span>;}
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs37', 89)" onmouseover="showTip(event, 'fs37', 89)" class="i">HopAddition</span><span class="o">&lt;</span>[&lt;<span onmouseout="hideTip(event, 'fs25', 90)" onmouseover="showTip(event, 'fs25', 90)" class="i">Measure</span>&gt;] <span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span>  <span class="o">=</span> { <span onmouseout="hideTip(event, 'fs38', 91)" onmouseover="showTip(event, 'fs38', 91)" class="i">Hop</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs24', 92)" onmouseover="showTip(event, 'fs24', 92)" class="i">hop</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs39', 93)" onmouseover="showTip(event, 'fs39', 93)" class="i">Weight</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs29', 94)" onmouseover="showTip(event, 'fs29', 94)" class="i">float</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs40', 95)" onmouseover="showTip(event, 'fs40', 95)" class="i">Time</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs29', 96)" onmouseover="showTip(event, 'fs29', 96)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs41', 97)" onmouseover="showTip(event, 'fs41', 97)" class="i">minute</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs42', 98)" onmouseover="showTip(event, 'fs42', 98)" class="i">Type</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs20', 99)" onmouseover="showTip(event, 'fs20', 99)" class="i">HopType</span>}
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs43', 100)" onmouseover="showTip(event, 'fs43', 100)" class="i">GrainAddition</span><span class="o">&lt;</span>[&lt;<span onmouseout="hideTip(event, 'fs25', 101)" onmouseover="showTip(event, 'fs25', 101)" class="i">Measure</span>&gt;] <span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span>  <span class="o">=</span> {<span onmouseout="hideTip(event, 'fs44', 102)" onmouseover="showTip(event, 'fs44', 102)" class="i">Grain</span><span class="o">:</span> <span onmouseout="hideTip(event, 'fs31', 103)" onmouseover="showTip(event, 'fs31', 103)" class="i">grain</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs45', 104)" onmouseover="showTip(event, 'fs45', 104)" class="i">Weight</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs29', 105)" onmouseover="showTip(event, 'fs29', 105)" class="i">float</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">w</span><span class="o">&gt;</span>}
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs46', 106)" onmouseover="showTip(event, 'fs46', 106)" class="i">yeast</span><span class="o">&lt;</span>[&lt;<span onmouseout="hideTip(event, 'fs25', 107)" onmouseover="showTip(event, 'fs25', 107)" class="i">Measure</span>&gt;] <span class="o">&#39;</span><span class="i">t</span><span class="o">&gt;</span> <span class="o">=</span> {<span onmouseout="hideTip(event, 'fs47', 108)" onmouseover="showTip(event, 'fs47', 108)" class="i">Name</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs27', 109)" onmouseover="showTip(event, 'fs27', 109)" class="i">string</span>; <span onmouseout="hideTip(event, 'fs48', 110)" onmouseover="showTip(event, 'fs48', 110)" class="i">Attenuation</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs29', 111)" onmouseover="showTip(event, 'fs29', 111)" class="i">float</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs30', 112)" onmouseover="showTip(event, 'fs30', 112)" class="i">percentage</span><span class="o">&gt;</span>; <span onmouseout="hideTip(event, 'fs49', 113)" onmouseover="showTip(event, 'fs49', 113)" class="i">TempRange</span><span class="o">:</span> <span onmouseout="hideTip(event, 'fs29', 114)" onmouseover="showTip(event, 'fs29', 114)" class="i">float</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">t</span><span class="o">&gt;</span><span class="o">*</span><span onmouseout="hideTip(event, 'fs29', 115)" onmouseover="showTip(event, 'fs29', 115)" class="i">float</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">t</span><span class="o">&gt;</span> }
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs50', 116)" onmouseover="showTip(event, 'fs50', 116)" class="i">Ingredient</span> <span class="o">=</span>
+    | <span onmouseout="hideTip(event, 'fs51', 117)" onmouseover="showTip(event, 'fs51', 117)" class="i">Hop</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs37', 118)" onmouseover="showTip(event, 'fs37', 118)" class="i">HopAddition</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs52', 119)" onmouseover="showTip(event, 'fs52', 119)" class="i">g</span><span class="o">&gt;</span>
+    | <span onmouseout="hideTip(event, 'fs53', 120)" onmouseover="showTip(event, 'fs53', 120)" class="i">Grain</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs43', 121)" onmouseover="showTip(event, 'fs43', 121)" class="i">GrainAddition</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs54', 122)" onmouseover="showTip(event, 'fs54', 122)" class="i">kg</span><span class="o">&gt;</span>
+    | <span onmouseout="hideTip(event, 'fs55', 123)" onmouseover="showTip(event, 'fs55', 123)" class="i">Yeast</span> <span class="k">of</span> <span onmouseout="hideTip(event, 'fs46', 124)" onmouseover="showTip(event, 'fs46', 124)" class="i">yeast</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs56', 125)" onmouseover="showTip(event, 'fs56', 125)" class="i">degC</span><span class="o">&gt;</span>
+
+
+    <span class="c">//Recipe functions</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs57', 126)" onmouseover="showTip(event, 'fs57', 126)" class="i">CalculateIBUs</span> <span onmouseout="hideTip(event, 'fs58', 127)" onmouseover="showTip(event, 'fs58', 127)" class="i">hopAddition</span> <span onmouseout="hideTip(event, 'fs59', 128)" onmouseover="showTip(event, 'fs59', 128)" class="i">sg</span> <span onmouseout="hideTip(event, 'fs60', 129)" onmouseover="showTip(event, 'fs60', 129)" class="i">vol</span> <span class="o">=</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs61', 130)" onmouseover="showTip(event, 'fs61', 130)" class="i">utilisation</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs62', 131)" onmouseover="showTip(event, 'fs62', 131)" class="i">EstimateHopUtilisation</span> <span onmouseout="hideTip(event, 'fs59', 132)" onmouseover="showTip(event, 'fs59', 132)" class="i">sg</span> (<span onmouseout="hideTip(event, 'fs29', 133)" onmouseover="showTip(event, 'fs29', 133)" class="i">float</span> <span onmouseout="hideTip(event, 'fs58', 134)" onmouseover="showTip(event, 'fs58', 134)" class="i">hopAddition</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs40', 135)" onmouseover="showTip(event, 'fs40', 135)" class="i">Time</span>)
+        <span onmouseout="hideTip(event, 'fs63', 136)" onmouseover="showTip(event, 'fs63', 136)" class="i">EstimateIBUs</span> <span onmouseout="hideTip(event, 'fs61', 137)" onmouseover="showTip(event, 'fs61', 137)" class="i">utilisation</span> <span onmouseout="hideTip(event, 'fs58', 138)" onmouseover="showTip(event, 'fs58', 138)" class="i">hopAddition</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs64', 139)" onmouseover="showTip(event, 'fs64', 139)" class="i">Hop</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs28', 140)" onmouseover="showTip(event, 'fs28', 140)" class="i">Alpha</span> <span onmouseout="hideTip(event, 'fs58', 141)" onmouseover="showTip(event, 'fs58', 141)" class="i">hopAddition</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs65', 142)" onmouseover="showTip(event, 'fs65', 142)" class="i">Weight</span> <span onmouseout="hideTip(event, 'fs60', 143)" onmouseover="showTip(event, 'fs60', 143)" class="i">vol</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs66', 144)" onmouseover="showTip(event, 'fs66', 144)" class="i">CalculateGravity</span> <span onmouseout="hideTip(event, 'fs67', 145)" onmouseover="showTip(event, 'fs67', 145)" class="i">volume</span> <span onmouseout="hideTip(event, 'fs68', 146)" onmouseover="showTip(event, 'fs68', 146)" class="i">efficiency</span> <span onmouseout="hideTip(event, 'fs69', 147)" onmouseover="showTip(event, 'fs69', 147)" class="i">grain</span> <span class="o">=</span>
+        <span onmouseout="hideTip(event, 'fs69', 148)" onmouseover="showTip(event, 'fs69', 148)" class="i">grain</span> 
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs70', 149)" onmouseover="showTip(event, 'fs70', 149)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs71', 150)" onmouseover="showTip(event, 'fs71', 150)" class="i">fold</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs72', 151)" onmouseover="showTip(event, 'fs72', 151)" class="i">acc</span> <span onmouseout="hideTip(event, 'fs73', 152)" onmouseover="showTip(event, 'fs73', 152)" class="i">g</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs72', 153)" onmouseover="showTip(event, 'fs72', 153)" class="i">acc</span> <span class="o">+</span> <span onmouseout="hideTip(event, 'fs74', 154)" onmouseover="showTip(event, 'fs74', 154)" class="i">EstimateGravityPoints</span> <span onmouseout="hideTip(event, 'fs73', 155)" onmouseover="showTip(event, 'fs73', 155)" class="i">g</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs75', 156)" onmouseover="showTip(event, 'fs75', 156)" class="i">Weight</span> <span onmouseout="hideTip(event, 'fs73', 157)" onmouseover="showTip(event, 'fs73', 157)" class="i">g</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs76', 158)" onmouseover="showTip(event, 'fs76', 158)" class="i">Grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs77', 159)" onmouseover="showTip(event, 'fs77', 159)" class="i">Potential</span> <span onmouseout="hideTip(event, 'fs67', 160)" onmouseover="showTip(event, 'fs67', 160)" class="i">volume</span> <span onmouseout="hideTip(event, 'fs68', 161)" onmouseover="showTip(event, 'fs68', 161)" class="i">efficiency</span>) <span class="n">0.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs34', 162)" onmouseover="showTip(event, 'fs34', 162)" class="i">gp</span><span class="o">&gt;</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs78', 163)" onmouseover="showTip(event, 'fs78', 163)" class="i">ToGravity</span></pre>
+</td>
+</tr>
+</table>
+
+<p>Currently the app only handles changes to gravity and bitterness when adding/removing grain or hops. 
+As the domain is currently incredibly simple, I won't go into any more detail of the model in this post in order to cover the other aspects of WPF development.</p>
+
+<p>The models and domain definition shall appear high up the dependency chain, insuring they can be used by the view models defined afterwards.<br />
+Although a topic that can polarise peoples opinions, I find that the 'Dependency Order' enforced by the F# compiler is a massive benefit in both this case, and WPF development as a whole (as is the case in most other areas).<br />
+More on this later...</p>
+
+<h2>Extending the View Models</h2>
+
+<p>After I had produced the stripped down domain model to support the initial planned functionality, (Which can be viewed on GitHub if interested) it was time to focus on the view models.</p>
+
+<p>The first step was to make use of the existing View Models; Expanding them in order to achieve a clearer separation of the model/domain and the view.<br />
+As an example of the aims; At the end of the last post, I had already re-factored the direct use of the <code>Grain</code> record within the <code>RecipeViewModel</code>, by creating, and using, a <code>GrainViewModel</code> instead.<br />
+To recap, this is shown below:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs18', 177)" onmouseover="showTip(event, 'fs18', 177)" class="i">RecipeViewModel</span>() <span class="k">as</span> <span onmouseout="hideTip(event, 'fs18', 178)" onmouseover="showTip(event, 'fs18', 178)" class="i">this</span> <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs18', 179)" onmouseover="showTip(event, 'fs18', 179)" class="i">ViewModelBase</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 180)" onmouseover="showTip(event, 'fs18', 180)" class="i">grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 181)" onmouseover="showTip(event, 'fs18', 181)" class="i">ObservableCollection</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 182)" onmouseover="showTip(event, 'fs18', 182)" class="i">GrainViewModel</span><span class="o">&gt;</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 183)" onmouseover="showTip(event, 'fs18', 183)" class="i">addMaltCommand</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs18', 184)" onmouseover="showTip(event, 'fs18', 184)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 185)" onmouseover="showTip(event, 'fs18', 185)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 186)" onmouseover="showTip(event, 'fs18', 186)" class="i">CommandSync</span>
+            (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs18', 187)" onmouseover="showTip(event, 'fs18', 187)" class="i">param</span> <span class="k">-&gt;</span> 
+            <span onmouseout="hideTip(event, 'fs18', 188)" onmouseover="showTip(event, 'fs18', 188)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 189)" onmouseover="showTip(event, 'fs18', 189)" class="i">Add</span>(<span onmouseout="hideTip(event, 'fs18', 190)" onmouseover="showTip(event, 'fs18', 190)" class="i">GrainViewModel</span>(<span onmouseout="hideTip(event, 'fs18', 191)" onmouseover="showTip(event, 'fs18', 191)" class="i">name</span> <span class="o">=</span> <span class="s">&quot;</span><span class="s">Maris</span><span class="s"> </span><span class="s">Otter</span><span class="s">&quot;</span>, <span onmouseout="hideTip(event, 'fs18', 192)" onmouseover="showTip(event, 'fs18', 192)" class="i">Weight</span> <span class="o">=</span> <span class="n">0.1</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 193)" onmouseover="showTip(event, 'fs18', 193)" class="i">g</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs18', 194)" onmouseover="showTip(event, 'fs18', 194)" class="i">potential</span> <span class="o">=</span> <span class="n">37.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 195)" onmouseover="showTip(event, 'fs18', 195)" class="i">pgp</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs18', 196)" onmouseover="showTip(event, 'fs18', 196)" class="i">colour</span> <span class="o">=</span> <span class="n">4.0</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 197)" onmouseover="showTip(event, 'fs18', 197)" class="i">EBC</span><span class="o">&gt;</span>)))
+
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs83', 198)" onmouseover="showTip(event, 'fs83', 198)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 199)" onmouseover="showTip(event, 'fs18', 199)" class="i">AddMaltCommand</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 200)" onmouseover="showTip(event, 'fs18', 200)" class="i">addMaltCommand</span>
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs83', 201)" onmouseover="showTip(event, 'fs83', 201)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 202)" onmouseover="showTip(event, 'fs18', 202)" class="i">Grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 203)" onmouseover="showTip(event, 'fs18', 203)" class="i">grain</span></pre>
+</td>
+</tr>
+</table>
+
+<p>This Change allowed us to decouple the model from the view and allow for us to introduce a layer of mutability.</p>
+
+<p>The benefits of this are two fold, the view no longer cares what the model looks like, only what the view model(s) exposes to it.<br />
+This allows for the model to be changed freely, as long as we keep the view model consistent. 
+Of course, if we don't, we are invalidating our ViewModel not the View, this would be picked up in testing (Via unit testing the VMs).</p>
+
+<p>Secondly it allows us to model the entire domain, business logic and all, entirely separate of any UI elements.<br />
+This is the biggest benefit as it means we can utilise the power of F# as a domain modelling tool while ensuring that our representation is as robust as possible.</p>
+
+<p>All being well it should be possible to test the model (The domain and the logic related to it) and the view models in isolation of any UI concerns. (The VMs control the user driven <em>interaction</em> with the model. That is, they handle user actions that cause a reaction within the domain.)</p>
+
+<h3>Exposing the model and handling state</h3>
+
+<p>The first step then, was to extend the <code>GrainViewModel</code> to wrap a <em>snapshot</em> of our <code>Grain</code> model and expose mutable properties that can later be used to update/re-build the model.</p>
+
+<p>At this point it is worth stating that the intent of the view models is as follows:</p>
+
+<ul>
+<li>To wrap a snapshot (or two, depending on our design needs) of a model. These can then be used to provide functionality such as dirty checking or undo etc.</li>
+<li>To hold the state of the application. The VMs will hold all current state which will only be propagated to the persistent storage at a save point.</li>
+<li>To interact with the business logic (domain) in order to handle updates to the model.</li>
+</ul>
+
+<p>This means the VMs <em>rely on</em> the modules that represent the domain to handle any business logic.<br />
+In other words the view models are just a user facing pass through to the actual domain, which is all modelled in functional F# goodness.</p>
+
+<p>So, let's look at how this could be achieved.</p>
+
+<h3>Creating a new VM base class</h3>
+
+<p>First up, I introduced a new base class for my view models, derived from the <code>ViewModelBase</code> provided by <a href="https://github.com/fsprojects/FSharp.ViewModule">FSharp.ViewModule</a>.<br />
+I must admit, I didn't particularly like this approach due to adding an extra layer of inheritance, but I didn't want to duplicate code for updating the wrapped snapshot of the model in my VMs. I also couldn't parameterise the update logic, 
+as this logic is specific to the view models themselves.</p>
+
+<p>The new base class is as follows:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+[&lt;<span onmouseout="hideTip(event, 'fs18', 204)" onmouseover="showTip(event, 'fs18', 204)" class="i">AbstractClass</span>&gt;]
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs18', 205)" onmouseover="showTip(event, 'fs18', 205)" class="i">LabViewModel</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">t</span><span class="o">&gt;</span>(<span onmouseout="hideTip(event, 'fs18', 206)" onmouseover="showTip(event, 'fs18', 206)" class="i">model</span><span class="o">:</span><span class="o">&#39;</span><span class="i">t</span>) <span class="k">as</span> <span onmouseout="hideTip(event, 'fs18', 207)" onmouseover="showTip(event, 'fs18', 207)" class="i">this</span> <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs18', 208)" onmouseover="showTip(event, 'fs18', 208)" class="i">ViewModelBase</span>()
+
+    <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs18', 209)" onmouseover="showTip(event, 'fs18', 209)" class="i">model</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 210)" onmouseover="showTip(event, 'fs18', 210)" class="i">model</span>
+
+    <span class="k">abstract</span> <span onmouseout="hideTip(event, 'fs18', 211)" onmouseover="showTip(event, 'fs18', 211)" class="i">GetUpdatedModel</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs18', 212)" onmouseover="showTip(event, 'fs18', 212)" class="i">unit</span> <span class="k">-&gt;</span> <span class="o">&#39;</span><span class="i">t</span>
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs84', 213)" onmouseover="showTip(event, 'fs84', 213)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 214)" onmouseover="showTip(event, 'fs18', 214)" class="i">UpdateModel</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 215)" onmouseover="showTip(event, 'fs18', 215)" class="i">model</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs18', 216)" onmouseover="showTip(event, 'fs18', 216)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 217)" onmouseover="showTip(event, 'fs18', 217)" class="i">GetUpdatedModel</span>()</pre>
+</td>
+</tr>
+</table>
+
+<p>I then derived subsequent view models from this class.<br />
+This helps avoid code repetition and is, in my opinion, a valid reason to add the extra level of inheritance.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs18', 233)" onmouseover="showTip(event, 'fs18', 233)" class="i">GrainViewModel</span>(<span onmouseout="hideTip(event, 'fs18', 234)" onmouseover="showTip(event, 'fs18', 234)" class="i">addition</span>) <span class="k">as</span> <span onmouseout="hideTip(event, 'fs18', 235)" onmouseover="showTip(event, 'fs18', 235)" class="i">this</span> <span class="o">=</span> 
+        <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs18', 236)" onmouseover="showTip(event, 'fs18', 236)" class="i">LabViewModel</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 237)" onmouseover="showTip(event, 'fs18', 237)" class="i">GrainAddition</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 238)" onmouseover="showTip(event, 'fs18', 238)" class="i">kg</span><span class="o">&gt;</span><span class="o">&gt;</span>(<span onmouseout="hideTip(event, 'fs18', 239)" onmouseover="showTip(event, 'fs18', 239)" class="i">addition</span>)
+
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 240)" onmouseover="showTip(event, 'fs18', 240)" class="i">weight</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 241)" onmouseover="showTip(event, 'fs18', 241)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 242)" onmouseover="showTip(event, 'fs18', 242)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 243)" onmouseover="showTip(event, 'fs18', 243)" class="i">Backing</span>(&lt;@ <span onmouseout="hideTip(event, 'fs18', 244)" onmouseover="showTip(event, 'fs18', 244)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 245)" onmouseover="showTip(event, 'fs18', 245)" class="i">Weight</span> @&gt;, <span class="n">0.001</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 246)" onmouseover="showTip(event, 'fs18', 246)" class="i">kg</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs18', 247)" onmouseover="showTip(event, 'fs18', 247)" class="i">greaterThan</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs18', 248)" onmouseover="showTip(event, 'fs18', 248)" class="i">a</span> <span class="k">-&gt;</span> <span class="n">0.000</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 249)" onmouseover="showTip(event, 'fs18', 249)" class="i">kg</span><span class="o">&gt;</span>))
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 250)" onmouseover="showTip(event, 'fs18', 250)" class="i">grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 251)" onmouseover="showTip(event, 'fs18', 251)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 252)" onmouseover="showTip(event, 'fs18', 252)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 253)" onmouseover="showTip(event, 'fs18', 253)" class="i">Backing</span>(&lt;@ <span onmouseout="hideTip(event, 'fs18', 254)" onmouseover="showTip(event, 'fs18', 254)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 255)" onmouseover="showTip(event, 'fs18', 255)" class="i">Grain</span> @&gt;, <span onmouseout="hideTip(event, 'fs18', 256)" onmouseover="showTip(event, 'fs18', 256)" class="i">addition</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 257)" onmouseover="showTip(event, 'fs18', 257)" class="i">Grain</span>)
+
+        <span class="k">override</span> <span onmouseout="hideTip(event, 'fs19', 258)" onmouseover="showTip(event, 'fs19', 258)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 259)" onmouseover="showTip(event, 'fs18', 259)" class="i">GetUpdatedModel</span>() <span class="o">=</span> 
+            { <span onmouseout="hideTip(event, 'fs18', 260)" onmouseover="showTip(event, 'fs18', 260)" class="i">Grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 261)" onmouseover="showTip(event, 'fs18', 261)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 262)" onmouseover="showTip(event, 'fs18', 262)" class="i">Value</span>; <span onmouseout="hideTip(event, 'fs18', 263)" onmouseover="showTip(event, 'fs18', 263)" class="i">Weight</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 264)" onmouseover="showTip(event, 'fs18', 264)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 265)" onmouseover="showTip(event, 'fs18', 265)" class="i">Value</span> }
+
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs19', 266)" onmouseover="showTip(event, 'fs19', 266)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 267)" onmouseover="showTip(event, 'fs18', 267)" class="i">Grain</span> <span class="k">with</span> <span onmouseout="hideTip(event, 'fs18', 268)" onmouseover="showTip(event, 'fs18', 268)" class="i">get</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 269)" onmouseover="showTip(event, 'fs18', 269)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 270)" onmouseover="showTip(event, 'fs18', 270)" class="i">Value</span> <span class="k">and</span> <span onmouseout="hideTip(event, 'fs18', 271)" onmouseover="showTip(event, 'fs18', 271)" class="i">set</span>(<span onmouseout="hideTip(event, 'fs86', 272)" onmouseover="showTip(event, 'fs86', 272)" class="i">v</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 273)" onmouseover="showTip(event, 'fs18', 273)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 274)" onmouseover="showTip(event, 'fs18', 274)" class="i">Value</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs18', 275)" onmouseover="showTip(event, 'fs18', 275)" class="i">v</span>
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs19', 276)" onmouseover="showTip(event, 'fs19', 276)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 277)" onmouseover="showTip(event, 'fs18', 277)" class="i">Weight</span> <span class="k">with</span> <span onmouseout="hideTip(event, 'fs18', 278)" onmouseover="showTip(event, 'fs18', 278)" class="i">get</span> () <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 279)" onmouseover="showTip(event, 'fs18', 279)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 280)" onmouseover="showTip(event, 'fs18', 280)" class="i">Value</span> <span class="k">and</span> <span onmouseout="hideTip(event, 'fs18', 281)" onmouseover="showTip(event, 'fs18', 281)" class="i">set</span> (<span onmouseout="hideTip(event, 'fs18', 282)" onmouseover="showTip(event, 'fs18', 282)" class="i">value</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 283)" onmouseover="showTip(event, 'fs18', 283)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 284)" onmouseover="showTip(event, 'fs18', 284)" class="i">Value</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs18', 285)" onmouseover="showTip(event, 'fs18', 285)" class="i">value</span></pre>
+</td>
+</tr>
+</table>
+
+<p>As you can see, the grain view model is as minimal as possible, simply exposing mutable values from the immutable model, and implementing any abstract members as required.
+Following this approach keeps the view model types as dumb as possible and ensures they are merely used to provide access to the domain model in a controlled way.</p>
+
+<p>Adding all these extra view models caused me to need to think about how they interact with one another.</p>
+
+<h2>View Model Communication, Events and Responsibility</h2>
+
+<p>Inherent in all WPF applications is the need for the various parts to communicate with each other, usually for the purpose of informing each other of changes to data.
+As such, we need to handle the link between various VMs and the fact that the views related to these VMs needs to be updated when the various parts of the model change.</p>
+
+<p>To achieve this, we could go in a few different directions.</p>
+
+<ol>
+<li>Implement a simple event stream per view model, bind to it from the other view models that want to be notified, and fire events when a model part is changed. For example a <code>GrainChange</code> event would cause the recipe VM to refresh its snapshot of the recipe (by pulling from the current state of the other VMs). This has the benefit of being quick to implement, but it also directly ties the VMs together and could introduce circular dependencies. No body wants that!</li>
+<li>Use a message based approach where the various VMs can subscribe to a service, allowing them to send and receive updates as required.</li>
+<li>A mix of the above, with the addition of direct communication between immediately related VMs where one of them holds the <em>responsibility</em> for the update. For example, my <code>HopAddition</code> view model could rely on the <code>Recipe</code> view model that <em>owns</em> it to trigger an update of its <code>IBU</code> property when a related value changes, such as recipe volume or estimated gravity.</li>
+</ol>
+
+<p>Let's quickly see how each of these could be implemented.</p>
+
+<h3>Direct Events</h3>
+
+<p>The simple event based approach is as easy as adding an additional property and member to our <code>GrainViwModel</code> and then triggering the event when we update any fields.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs87', 300)" onmouseover="showTip(event, 'fs87', 300)" class="i">LabEvent</span> <span class="o">=</span> 
+    | <span onmouseout="hideTip(event, 'fs88', 301)" onmouseover="showTip(event, 'fs88', 301)" class="i">GrainChanged</span>
+    | <span onmouseout="hideTip(event, 'fs89', 302)" onmouseover="showTip(event, 'fs89', 302)" class="i">HopChanged</span>
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs18', 303)" onmouseover="showTip(event, 'fs18', 303)" class="i">GrainViewModel</span>(<span onmouseout="hideTip(event, 'fs18', 304)" onmouseover="showTip(event, 'fs18', 304)" class="i">addition</span>) <span class="k">as</span> <span onmouseout="hideTip(event, 'fs18', 305)" onmouseover="showTip(event, 'fs18', 305)" class="i">this</span> <span class="o">=</span> 
+        <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs18', 306)" onmouseover="showTip(event, 'fs18', 306)" class="i">LabViewModel</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 307)" onmouseover="showTip(event, 'fs18', 307)" class="i">GrainAddition</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 308)" onmouseover="showTip(event, 'fs18', 308)" class="i">kg</span><span class="o">&gt;</span><span class="o">&gt;</span>(<span onmouseout="hideTip(event, 'fs18', 309)" onmouseover="showTip(event, 'fs18', 309)" class="i">addition</span>)
+
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 310)" onmouseover="showTip(event, 'fs18', 310)" class="i">eventStream</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 311)" onmouseover="showTip(event, 'fs18', 311)" class="i">Event</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 312)" onmouseover="showTip(event, 'fs18', 312)" class="i">LabEvent</span><span class="o">&gt;</span>()
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 313)" onmouseover="showTip(event, 'fs18', 313)" class="i">weight</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 314)" onmouseover="showTip(event, 'fs18', 314)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 315)" onmouseover="showTip(event, 'fs18', 315)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 316)" onmouseover="showTip(event, 'fs18', 316)" class="i">Backing</span>(&lt;@ <span onmouseout="hideTip(event, 'fs18', 317)" onmouseover="showTip(event, 'fs18', 317)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 318)" onmouseover="showTip(event, 'fs18', 318)" class="i">Weight</span> @&gt;, <span class="n">0.001</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 319)" onmouseover="showTip(event, 'fs18', 319)" class="i">kg</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs18', 320)" onmouseover="showTip(event, 'fs18', 320)" class="i">greaterThan</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs18', 321)" onmouseover="showTip(event, 'fs18', 321)" class="i">a</span> <span class="k">-&gt;</span> <span class="n">0.000</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 322)" onmouseover="showTip(event, 'fs18', 322)" class="i">kg</span><span class="o">&gt;</span>))
+  
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs18', 323)" onmouseover="showTip(event, 'fs18', 323)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 324)" onmouseover="showTip(event, 'fs18', 324)" class="i">EventStream</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 325)" onmouseover="showTip(event, 'fs18', 325)" class="i">eventStream</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 326)" onmouseover="showTip(event, 'fs18', 326)" class="i">Publish</span> <span class="o">:&gt;</span> <span onmouseout="hideTip(event, 'fs18', 327)" onmouseover="showTip(event, 'fs18', 327)" class="i">IObservable</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 328)" onmouseover="showTip(event, 'fs18', 328)" class="i">LabEvent</span><span class="o">&gt;</span>
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs19', 329)" onmouseover="showTip(event, 'fs19', 329)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 330)" onmouseover="showTip(event, 'fs18', 330)" class="i">Weight</span> 
+            <span class="k">with</span> <span onmouseout="hideTip(event, 'fs18', 331)" onmouseover="showTip(event, 'fs18', 331)" class="i">get</span> () <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 332)" onmouseover="showTip(event, 'fs18', 332)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 333)" onmouseover="showTip(event, 'fs18', 333)" class="i">Value</span>
+            <span class="k">and</span> <span onmouseout="hideTip(event, 'fs18', 334)" onmouseover="showTip(event, 'fs18', 334)" class="i">set</span> (<span onmouseout="hideTip(event, 'fs18', 335)" onmouseover="showTip(event, 'fs18', 335)" class="i">value</span>) <span class="o">=</span> 
+                <span onmouseout="hideTip(event, 'fs18', 336)" onmouseover="showTip(event, 'fs18', 336)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 337)" onmouseover="showTip(event, 'fs18', 337)" class="i">Value</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs18', 338)" onmouseover="showTip(event, 'fs18', 338)" class="i">value</span>
+                <span onmouseout="hideTip(event, 'fs18', 339)" onmouseover="showTip(event, 'fs18', 339)" class="i">eventStream</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 340)" onmouseover="showTip(event, 'fs18', 340)" class="i">Trigger</span> <span onmouseout="hideTip(event, 'fs18', 341)" onmouseover="showTip(event, 'fs18', 341)" class="i">GrainChanged</span></pre>
+</td>
+</tr>
+</table>
+
+<p>This approach has the benefit of clarity of intent, but at the same time requires the subscribing view models to have direct access to the source of the event.</p>
+
+<p>Alternatively, we can use a more decoupled approach.</p>
+
+<h3>A Simple Event Service</h3>
+
+<p>To achieve this we can use a simple publish/subscriber based model.<br />
+This allows multiple publishers and subscribers to easily react to changes within our view models, regardless of whether they directly know about them or not.<br />
+We can also utilise the <code>INotifyProperty</code> changed events provided by <code>Fsharp.ViewModule</code> base class in order to avoid boilerplate code.</p>
+
+<p>We can implement an incredibly simple event service as follows:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+<span class="l">20: </span>
+<span class="l">21: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">module</span> <span class="i">Events</span> <span class="o">=</span>
+
+    <span class="k">open</span> <span onmouseout="hideTip(event, 'fs2', 342)" onmouseover="showTip(event, 'fs2', 342)" class="i">System</span>
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs90', 343)" onmouseover="showTip(event, 'fs90', 343)" class="i">LabEvent</span> <span class="o">=</span> 
+        | <span onmouseout="hideTip(event, 'fs91', 344)" onmouseover="showTip(event, 'fs91', 344)" class="i">GravityChange</span>
+        | <span onmouseout="hideTip(event, 'fs92', 345)" onmouseover="showTip(event, 'fs92', 345)" class="i">VolumeChange</span>
+        | <span onmouseout="hideTip(event, 'fs93', 346)" onmouseover="showTip(event, 'fs93', 346)" class="i">HopChange</span>
+        | <span onmouseout="hideTip(event, 'fs94', 347)" onmouseover="showTip(event, 'fs94', 347)" class="i">FermentableChange</span>
+        | <span onmouseout="hideTip(event, 'fs95', 348)" onmouseover="showTip(event, 'fs95', 348)" class="i">EquipmentChange</span>
+        | <span onmouseout="hideTip(event, 'fs96', 349)" onmouseover="showTip(event, 'fs96', 349)" class="i">UnitsChanged</span>
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs97', 350)" onmouseover="showTip(event, 'fs97', 350)" class="i">RecipeEvent</span> <span class="k">private</span>() <span class="o">=</span> 
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs98', 351)" onmouseover="showTip(event, 'fs98', 351)" class="i">event</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs99', 352)" onmouseover="showTip(event, 'fs99', 352)" class="i">Event</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs90', 353)" onmouseover="showTip(event, 'fs90', 353)" class="i">LabEvent</span><span class="o">&gt;</span>()
+    
+        <span class="k">static</span> <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs100', 354)" onmouseover="showTip(event, 'fs100', 354)" class="i">instance</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs101', 355)" onmouseover="showTip(event, 'fs101', 355)" class="i">Lazy</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs102', 356)" onmouseover="showTip(event, 'fs102', 356)" class="i">Create</span>((<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs103', 357)" onmouseover="showTip(event, 'fs103', 357)" class="i">x</span> <span class="k">-&gt;</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs97', 358)" onmouseover="showTip(event, 'fs97', 358)" class="i">RecipeEvent</span>()))
+        <span class="k">static</span> <span class="k">member</span> <span onmouseout="hideTip(event, 'fs104', 359)" onmouseover="showTip(event, 'fs104', 359)" class="i">Instance</span> <span class="k">with</span> <span class="i">get</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs100', 360)" onmouseover="showTip(event, 'fs100', 360)" class="i">instance</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs105', 361)" onmouseover="showTip(event, 'fs105', 361)" class="i">Value</span>
+
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs106', 362)" onmouseover="showTip(event, 'fs106', 362)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs107', 363)" onmouseover="showTip(event, 'fs107', 363)" class="i">Event</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs98', 364)" onmouseover="showTip(event, 'fs98', 364)" class="i">event</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs108', 365)" onmouseover="showTip(event, 'fs108', 365)" class="i">Publish</span>
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs106', 366)" onmouseover="showTip(event, 'fs106', 366)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs109', 367)" onmouseover="showTip(event, 'fs109', 367)" class="i">Subscribe</span> <span onmouseout="hideTip(event, 'fs110', 368)" onmouseover="showTip(event, 'fs110', 368)" class="i">o</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs106', 369)" onmouseover="showTip(event, 'fs106', 369)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs111', 370)" onmouseover="showTip(event, 'fs111', 370)" class="i">Event</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs112', 371)" onmouseover="showTip(event, 'fs112', 371)" class="i">Subscribe</span> <span onmouseout="hideTip(event, 'fs110', 372)" onmouseover="showTip(event, 'fs110', 372)" class="i">o</span>
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs106', 373)" onmouseover="showTip(event, 'fs106', 373)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs113', 374)" onmouseover="showTip(event, 'fs113', 374)" class="i">Trigger</span> <span onmouseout="hideTip(event, 'fs114', 375)" onmouseover="showTip(event, 'fs114', 375)" class="i">o</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs98', 376)" onmouseover="showTip(event, 'fs98', 376)" class="i">event</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs115', 377)" onmouseover="showTip(event, 'fs115', 377)" class="i">Trigger</span> <span onmouseout="hideTip(event, 'fs114', 378)" onmouseover="showTip(event, 'fs114', 378)" class="i">o</span></pre>
+</td>
+</tr>
+</table>
+
+<p>I chose to make this a singleton so as to avoid the possibility of VMs subscribing/publishing to different event service handlers.</p>
+
+<h3>Option three, the best of both worlds</h3>
+
+<p>Even though my design is currently simple, I chose not to go down the route outlined in point 1 above as I do not like the resulting close coupling of the view models.<br />
+Likewise I chose not to fully go with approach 2.<br />
+This approach does however provide us with a couple of benefits.</p>
+
+<ol>
+<li>The main Recipe VM can subscribe once to an event aggregator service in order to receive updates. (As opposed to multiple VMs)</li>
+<li>Completely distinct parts of the app can cause others to be updated. These parts range from the obvious ingredient VMs to the not so obvious equipment setup and settings sections. 
+All of which could have rippling effects on the wider application.</li>
+</ol>
+
+<p>Therefore, for the purposes of this application, I chose to implement option three. A mixture of the first two approaches.
+To do so, I rely on the view models that have the responsibility for causing the updates, to propagate them on to the other view models.<br />
+This can happen in two ways.</p>
+
+<ul>
+<li>Via direct communication (This is only an option if the update source is the sole owner of the target. For example only the Recipe VM should be able to tell the HopAddition VMs that the gravity has changed).</li>
+<li>Via the decoupled event service.</li>
+</ul>
+
+<p>To make the use of the event service as easy as possible for the view models, I added a <code>BindEvents</code> member to the base class and also made use of the <code>INotifyPropertyChanged</code> event to broadcast any updates.<br />
+This function makes use of first class events by allowing us to manipulate an event stream to suite the VM it is being bound to, for example, to filter the event type listened to, or map it into another form.<br />
+The <code>BindEvent</code> method simply binds a callback to <em>any</em> event, passing the <code>IObservable</code> through a parameterised function providing the custom binding logic. Finally, it adds the disposable event handle to a list on the VM base that is cleared up in its own Dispose method.</p>
+
+<p>Below we can see the new method/backing collection (added to the base class) to support events and their handles, as well as the use of this method to subscribe the VMs own <code>INotifyPropertyChanged</code> event to a notifying event that propagates the event to the afore mentioned service.<br />
+Also of note is the new parameter added to the constructor in order to specify what kind of <code>LabEvent</code> to map the change events to.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+<span class="l">20: </span>
+<span class="l">21: </span>
+<span class="l">22: </span>
+<span class="l">23: </span>
+<span class="l">24: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    [&lt;<span onmouseout="hideTip(event, 'fs118', 383)" onmouseover="showTip(event, 'fs118', 383)" class="i">AbstractClass</span>&gt;]
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs18', 384)" onmouseover="showTip(event, 'fs18', 384)" class="i">LabViewModel</span><span class="o">&lt;</span><span class="o">&#39;</span><span class="i">t</span><span class="o">&gt;</span>(<span onmouseout="hideTip(event, 'fs18', 385)" onmouseover="showTip(event, 'fs18', 385)" class="i">model</span> <span class="o">:</span> <span class="o">&#39;</span><span class="i">t</span>, <span onmouseout="hideTip(event, 'fs18', 386)" onmouseover="showTip(event, 'fs18', 386)" class="i">eType</span><span class="o">:</span> <span onmouseout="hideTip(event, 'fs18', 387)" onmouseover="showTip(event, 'fs18', 387)" class="i">LabEvent</span>) <span class="k">as</span> <span onmouseout="hideTip(event, 'fs18', 388)" onmouseover="showTip(event, 'fs18', 388)" class="i">this</span> <span class="o">=</span> 
+        <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs18', 389)" onmouseover="showTip(event, 'fs18', 389)" class="i">ViewModelBase</span>()
+        <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs18', 390)" onmouseover="showTip(event, 'fs18', 390)" class="i">model</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 391)" onmouseover="showTip(event, 'fs18', 391)" class="i">model</span>
+        <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs18', 392)" onmouseover="showTip(event, 'fs18', 392)" class="i">eventHandles</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 393)" onmouseover="showTip(event, 'fs18', 393)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 394)" onmouseover="showTip(event, 'fs18', 394)" class="i">empty</span>
+
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 395)" onmouseover="showTip(event, 'fs18', 395)" class="i">NotifyChange</span> <span onmouseout="hideTip(event, 'fs119', 396)" onmouseover="showTip(event, 'fs119', 396)" class="i">e</span> <span class="o">=</span>
+            <span onmouseout="hideTip(event, 'fs18', 397)" onmouseover="showTip(event, 'fs18', 397)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 398)" onmouseover="showTip(event, 'fs18', 398)" class="i">UpdateModel</span>()
+            <span onmouseout="hideTip(event, 'fs18', 399)" onmouseover="showTip(event, 'fs18', 399)" class="i">RecipeEvent</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 400)" onmouseover="showTip(event, 'fs18', 400)" class="i">Instance</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 401)" onmouseover="showTip(event, 'fs18', 401)" class="i">Trigger</span>(<span onmouseout="hideTip(event, 'fs119', 402)" onmouseover="showTip(event, 'fs119', 402)" class="i">e</span>)
+
+        <span class="c">//Map the prop change notification to a recipe change event and inform everybody</span>
+        <span class="k">do</span> <span onmouseout="hideTip(event, 'fs18', 403)" onmouseover="showTip(event, 'fs18', 403)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 404)" onmouseover="showTip(event, 'fs18', 404)" class="i">BindEvent</span>((<span onmouseout="hideTip(event, 'fs18', 405)" onmouseover="showTip(event, 'fs18', 405)" class="i">this</span> <span class="o">:&gt;</span> <span onmouseout="hideTip(event, 'fs18', 406)" onmouseover="showTip(event, 'fs18', 406)" class="i">INotifyPropertyChanged</span>)<span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 407)" onmouseover="showTip(event, 'fs18', 407)" class="i">PropertyChanged</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs18', 408)" onmouseover="showTip(event, 'fs18', 408)" class="i">Observable</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs120', 409)" onmouseover="showTip(event, 'fs120', 409)" class="i">map</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs18', 410)" onmouseover="showTip(event, 'fs18', 410)" class="i">e</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs18', 411)" onmouseover="showTip(event, 'fs18', 411)" class="i">eType</span>), (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs18', 412)" onmouseover="showTip(event, 'fs18', 412)" class="i">o</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs18', 413)" onmouseover="showTip(event, 'fs18', 413)" class="i">o</span>), <span onmouseout="hideTip(event, 'fs18', 414)" onmouseover="showTip(event, 'fs18', 414)" class="i">NotifyChange</span>)
+
+        <span class="k">interface</span> <span onmouseout="hideTip(event, 'fs18', 415)" onmouseover="showTip(event, 'fs18', 415)" class="i">IDisposable</span> <span class="k">with</span>
+            <span class="k">member</span> <span onmouseout="hideTip(event, 'fs84', 416)" onmouseover="showTip(event, 'fs84', 416)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 417)" onmouseover="showTip(event, 'fs18', 417)" class="i">Dispose</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 418)" onmouseover="showTip(event, 'fs18', 418)" class="i">eventHandles</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs18', 419)" onmouseover="showTip(event, 'fs18', 419)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 420)" onmouseover="showTip(event, 'fs18', 420)" class="i">iter</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs121', 421)" onmouseover="showTip(event, 'fs121', 421)" class="i">d</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs121', 422)" onmouseover="showTip(event, 'fs121', 422)" class="i">d</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 423)" onmouseover="showTip(event, 'fs18', 423)" class="i">Dispose</span>())
+
+        <span class="k">abstract</span> <span onmouseout="hideTip(event, 'fs18', 424)" onmouseover="showTip(event, 'fs18', 424)" class="i">GetUpdatedModel</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs18', 425)" onmouseover="showTip(event, 'fs18', 425)" class="i">unit</span> <span class="k">-&gt;</span> <span class="o">&#39;</span><span class="i">t</span>
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs84', 426)" onmouseover="showTip(event, 'fs84', 426)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 427)" onmouseover="showTip(event, 'fs18', 427)" class="i">UpdateModel</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 428)" onmouseover="showTip(event, 'fs18', 428)" class="i">model</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs18', 429)" onmouseover="showTip(event, 'fs18', 429)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 430)" onmouseover="showTip(event, 'fs18', 430)" class="i">GetUpdatedModel</span>()
+
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs84', 431)" onmouseover="showTip(event, 'fs84', 431)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 432)" onmouseover="showTip(event, 'fs18', 432)" class="i">BindEvent</span>(<span onmouseout="hideTip(event, 'fs18', 433)" onmouseover="showTip(event, 'fs18', 433)" class="i">event</span>, <span onmouseout="hideTip(event, 'fs18', 434)" onmouseover="showTip(event, 'fs18', 434)" class="i">subscribe</span>, <span onmouseout="hideTip(event, 'fs18', 435)" onmouseover="showTip(event, 'fs18', 435)" class="i">callback</span>) <span class="o">=</span> 
+            <span onmouseout="hideTip(event, 'fs18', 436)" onmouseover="showTip(event, 'fs18', 436)" class="i">eventHandles</span> <span class="o">&lt;-</span> (<span onmouseout="hideTip(event, 'fs18', 437)" onmouseover="showTip(event, 'fs18', 437)" class="i">event</span> 
+                             <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs18', 438)" onmouseover="showTip(event, 'fs18', 438)" class="i">subscribe</span> 
+                             <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs18', 439)" onmouseover="showTip(event, 'fs18', 439)" class="i">Observable</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs122', 440)" onmouseover="showTip(event, 'fs122', 440)" class="i">subscribe</span> <span onmouseout="hideTip(event, 'fs18', 441)" onmouseover="showTip(event, 'fs18', 441)" class="i">callback</span>)
+                             <span class="o">::</span> <span onmouseout="hideTip(event, 'fs18', 442)" onmouseover="showTip(event, 'fs18', 442)" class="i">eventHandles</span></pre>
+</td>
+</tr>
+</table>
+
+<p>The ease of binding to the global event service can be seen in the updated <code>GrainViewModel</code> below.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs124', 458)" onmouseover="showTip(event, 'fs124', 458)" class="i">subscribe</span> <span onmouseout="hideTip(event, 'fs125', 459)" onmouseover="showTip(event, 'fs125', 459)" class="i">source</span> <span class="o">=</span> 
+            <span onmouseout="hideTip(event, 'fs125', 460)" onmouseover="showTip(event, 'fs125', 460)" class="i">source</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs126', 461)" onmouseover="showTip(event, 'fs126', 461)" class="i">Observable</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs127', 462)" onmouseover="showTip(event, 'fs127', 462)" class="i">filter</span> (<span class="k">function</span> <span onmouseout="hideTip(event, 'fs116', 463)" onmouseover="showTip(event, 'fs116', 463)" class="i">Events</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs90', 464)" onmouseover="showTip(event, 'fs90', 464)" class="i">LabEvent</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs128', 465)" onmouseover="showTip(event, 'fs128', 465)" class="i">UnitsChanged</span> <span class="k">-&gt;</span> <span class="k">true</span> | _ <span class="k">-&gt;</span> <span class="k">false</span>)
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs129', 466)" onmouseover="showTip(event, 'fs129', 466)" class="i">OnLabEvent</span> <span onmouseout="hideTip(event, 'fs130', 467)" onmouseover="showTip(event, 'fs130', 467)" class="i">e</span> <span class="o">=</span>  ()
+
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs18', 468)" onmouseover="showTip(event, 'fs18', 468)" class="i">GrainViewModel</span> (<span onmouseout="hideTip(event, 'fs18', 469)" onmouseover="showTip(event, 'fs18', 469)" class="i">addition</span>) <span class="k">as</span> <span onmouseout="hideTip(event, 'fs18', 470)" onmouseover="showTip(event, 'fs18', 470)" class="i">this</span> <span class="o">=</span> 
+        <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs18', 471)" onmouseover="showTip(event, 'fs18', 471)" class="i">LabViewModel</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 472)" onmouseover="showTip(event, 'fs18', 472)" class="i">GrainAddition</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 473)" onmouseover="showTip(event, 'fs18', 473)" class="i">kg</span><span class="o">&gt;</span><span class="o">&gt;</span>(<span onmouseout="hideTip(event, 'fs18', 474)" onmouseover="showTip(event, 'fs18', 474)" class="i">addition</span>, <span onmouseout="hideTip(event, 'fs18', 475)" onmouseover="showTip(event, 'fs18', 475)" class="i">Events</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs90', 476)" onmouseover="showTip(event, 'fs90', 476)" class="i">LabEvent</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 477)" onmouseover="showTip(event, 'fs18', 477)" class="i">FermentableChange</span>)
+
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 478)" onmouseover="showTip(event, 'fs18', 478)" class="i">weight</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 479)" onmouseover="showTip(event, 'fs18', 479)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 480)" onmouseover="showTip(event, 'fs18', 480)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 481)" onmouseover="showTip(event, 'fs18', 481)" class="i">Backing</span>(&lt;@ <span onmouseout="hideTip(event, 'fs18', 482)" onmouseover="showTip(event, 'fs18', 482)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 483)" onmouseover="showTip(event, 'fs18', 483)" class="i">Weight</span> @&gt;, <span class="n">0.001</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 484)" onmouseover="showTip(event, 'fs18', 484)" class="i">kg</span><span class="o">&gt;</span>, <span onmouseout="hideTip(event, 'fs18', 485)" onmouseover="showTip(event, 'fs18', 485)" class="i">greaterThan</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs18', 486)" onmouseover="showTip(event, 'fs18', 486)" class="i">a</span> <span class="k">-&gt;</span> <span class="n">0.000</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs18', 487)" onmouseover="showTip(event, 'fs18', 487)" class="i">kg</span><span class="o">&gt;</span>))
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 488)" onmouseover="showTip(event, 'fs18', 488)" class="i">grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 489)" onmouseover="showTip(event, 'fs18', 489)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 490)" onmouseover="showTip(event, 'fs18', 490)" class="i">Factory</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 491)" onmouseover="showTip(event, 'fs18', 491)" class="i">Backing</span>(&lt;@ <span onmouseout="hideTip(event, 'fs18', 492)" onmouseover="showTip(event, 'fs18', 492)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 493)" onmouseover="showTip(event, 'fs18', 493)" class="i">Grain</span> @&gt;, <span onmouseout="hideTip(event, 'fs18', 494)" onmouseover="showTip(event, 'fs18', 494)" class="i">addition</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 495)" onmouseover="showTip(event, 'fs18', 495)" class="i">Grain</span>)
+
+        <span class="k">do</span> <span class="k">base</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 496)" onmouseover="showTip(event, 'fs18', 496)" class="i">BindEvent</span>(<span onmouseout="hideTip(event, 'fs18', 497)" onmouseover="showTip(event, 'fs18', 497)" class="i">Events</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs131', 498)" onmouseover="showTip(event, 'fs131', 498)" class="i">RecipeEvent</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 499)" onmouseover="showTip(event, 'fs18', 499)" class="i">Instance</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 500)" onmouseover="showTip(event, 'fs18', 500)" class="i">Event</span>, <span onmouseout="hideTip(event, 'fs18', 501)" onmouseover="showTip(event, 'fs18', 501)" class="i">subscribe</span>, <span onmouseout="hideTip(event, 'fs18', 502)" onmouseover="showTip(event, 'fs18', 502)" class="i">OnLabEvent</span>)
+
+        <span class="k">override</span> <span onmouseout="hideTip(event, 'fs19', 503)" onmouseover="showTip(event, 'fs19', 503)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 504)" onmouseover="showTip(event, 'fs18', 504)" class="i">GetUpdatedModel</span>() <span class="o">=</span> 
+            { <span onmouseout="hideTip(event, 'fs18', 505)" onmouseover="showTip(event, 'fs18', 505)" class="i">Grain</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 506)" onmouseover="showTip(event, 'fs18', 506)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 507)" onmouseover="showTip(event, 'fs18', 507)" class="i">Value</span>; <span onmouseout="hideTip(event, 'fs18', 508)" onmouseover="showTip(event, 'fs18', 508)" class="i">Weight</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 509)" onmouseover="showTip(event, 'fs18', 509)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 510)" onmouseover="showTip(event, 'fs18', 510)" class="i">Value</span> }
+
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs19', 511)" onmouseover="showTip(event, 'fs19', 511)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 512)" onmouseover="showTip(event, 'fs18', 512)" class="i">Grain</span> <span class="k">with</span> <span onmouseout="hideTip(event, 'fs18', 513)" onmouseover="showTip(event, 'fs18', 513)" class="i">get</span>() <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 514)" onmouseover="showTip(event, 'fs18', 514)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 515)" onmouseover="showTip(event, 'fs18', 515)" class="i">Value</span> <span class="k">and</span> <span onmouseout="hideTip(event, 'fs18', 516)" onmouseover="showTip(event, 'fs18', 516)" class="i">set</span>(<span onmouseout="hideTip(event, 'fs86', 517)" onmouseover="showTip(event, 'fs86', 517)" class="i">v</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 518)" onmouseover="showTip(event, 'fs18', 518)" class="i">grain</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 519)" onmouseover="showTip(event, 'fs18', 519)" class="i">Value</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs18', 520)" onmouseover="showTip(event, 'fs18', 520)" class="i">v</span>
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs19', 521)" onmouseover="showTip(event, 'fs19', 521)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 522)" onmouseover="showTip(event, 'fs18', 522)" class="i">Weight</span> <span class="k">with</span> <span onmouseout="hideTip(event, 'fs18', 523)" onmouseover="showTip(event, 'fs18', 523)" class="i">get</span> () <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 524)" onmouseover="showTip(event, 'fs18', 524)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 525)" onmouseover="showTip(event, 'fs18', 525)" class="i">Value</span> <span class="k">and</span> <span onmouseout="hideTip(event, 'fs18', 526)" onmouseover="showTip(event, 'fs18', 526)" class="i">set</span> (<span onmouseout="hideTip(event, 'fs18', 527)" onmouseover="showTip(event, 'fs18', 527)" class="i">value</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs18', 528)" onmouseover="showTip(event, 'fs18', 528)" class="i">weight</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 529)" onmouseover="showTip(event, 'fs18', 529)" class="i">Value</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs18', 530)" onmouseover="showTip(event, 'fs18', 530)" class="i">value</span></pre>
+</td>
+</tr>
+</table>
+
+<p>Of course, we could implement this approach using agents. however, I see no need to introduce this level of complexity (I know, they're not really that complex) as the Application doesn't really fit the use case.<br />
+It is a simple, synchronous, single user based application and therefore does not need the benefits provided by Agents. These better suite, parallel, asynchronous, multi threaded/concurrent applications.</p>
+
+<p>I plan on re-visiting this area in a future post in the series once I have put my implementation to the test.</p>
+
+<h2>Views - The easy part</h2>
+
+<p>After all this model and view model development, the views obviously need to be updated.<br />
+All that is needed to utilise the new VM changes is to add some extra elements to the view. For completeness, I have included a partial snapshot of the Recipe view.</p>
+
+<p>{% highlight xml %}
+ <Grid Grid.Column="1">
+    <Grid.RowDefinitions>
+        <RowDefinition Height="32" />
+        <RowDefinition Height="*"/>
+        <RowDefinition Height="32" />
+    </Grid.RowDefinitions>
+    <TextBlock Text="Hop Additions" Grid.Row="0"  FontSize="14"/>
+    <DataGrid Name="HopAdditions" Grid.Row="1" Margin="3"  ItemsSource="{Binding HopAdditions}" AutoGenerateColumns="false">
+        <DataGrid.Columns>
+            <DataGridTemplateColumn Header="Name" Width="*">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <ComboBox Grid.Row="2" FontSize="16" Text="Select Hop" ItemsSource="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:RecipeView}, Path=DataContext.Hops, Mode=OneWay}" 
+                                  SelectedItem="{Binding Hop, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Name="HopDropDown">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Name}" Width="{Binding ElementName=HopDropDown, Path=ActualWidth}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn IsReadOnly="True" Binding="{Binding Hop.Alpha}" Header="Alpha (%)" Width="*"/>
+            <DataGridTemplateColumn Header="Type" Width="*">
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <ComboBox Grid.Row="2" FontSize="16" Text="Select Hop Type" ItemsSource="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:RecipeView}, Path=DataContext.HopTypes, Mode=OneWay}" 
+                                  SelectedItem="{Binding Type, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Name="HopTypeDropDown">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource DUConverter}}" Width="{Binding ElementName=HopTypeDropDown, Path=ActualWidth}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+            <DataGridTextColumn Binding="{Binding Weight, Mode=TwoWay}" Header="Weight" Width="*"/>
+            <DataGridTextColumn Binding="{Binding Time, Mode=TwoWay}" Header="Time" Width="*"/>
+            <DataGridTextColumn IsReadOnly="True" Binding="{Binding IBU, StringFormat=N2}" Header="IBU" Width="*"/>
+            <DataGridTemplateColumn>
+                <DataGridTemplateColumn.CellTemplate>
+                    <DataTemplate>
+                        <Button Name="RemoveHopButton"  Width="28" Height="28" HorizontalAlignment="Center" VerticalAlignment="Center" Background="OrangeRed" 
+                                CommandParameter="{Binding}"
+                                Command="{Binding RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:RecipeView}, Path=DataContext.RemoveHopCommand}" Visibility="Hidden" Content="X" ></Button>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Path=IsMouseOver, RelativeSource={RelativeSource AncestorType=DataGridRow}}" Value="True">
+                                <Setter Property="Visibility" TargetName="RemoveHopButton" Value="Visible"/>
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </DataGridTemplateColumn.CellTemplate>
+            </DataGridTemplateColumn>
+        </DataGrid.Columns>
+    </DataGrid>
+    <Grid Grid.Row="2">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Button Name="AddHop" FontSize="14" Command="{Binding AddHopCommand}">Add Hop</Button>
+    </Grid>
+</Grid>
+{% endhighlight %}</p>
+
+<p>The view is extremely basic at this point. There are now two grids (only one is shown above), one for hops, one for grain.<br />
+I have also added new columns to the grids as needed and provided a dropdown to switch the grain/hop respectively. Also of note is the use of a Discriminated Union directly as the options for the hop type dropdown.</p>
+
+<p>To do this we need to use a value converter.</p>
+
+<h3>Value Converters</h3>
+
+<p>The use of value converters is a common thing in WPF and as such I expect to need to implement many during the course of developing this app.<br />
+So far, I have needed to create one F# specific converter; To convert Discriminated Unions into string representations of their names.</p>
+
+<p>This value converter consists of some simple reflection calls in order to deduce the name of the DU passed to it.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">open</span> <span onmouseout="hideTip(event, 'fs10', 531)" onmouseover="showTip(event, 'fs10', 531)" class="i">Microsoft</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs11', 532)" onmouseover="showTip(event, 'fs11', 532)" class="i">FSharp</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs132', 533)" onmouseover="showTip(event, 'fs132', 533)" class="i">Reflection</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs133', 534)" onmouseover="showTip(event, 'fs133', 534)" class="i">DiscriminatedUnionText</span>() <span class="o">=</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs134', 535)" onmouseover="showTip(event, 'fs134', 535)" class="i">DuToString</span> <span onmouseout="hideTip(event, 'fs135', 536)" onmouseover="showTip(event, 'fs135', 536)" class="i">value</span> <span onmouseout="hideTip(event, 'fs136', 537)" onmouseover="showTip(event, 'fs136', 537)" class="i">uniontype</span> <span class="o">=</span>
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs137', 538)" onmouseover="showTip(event, 'fs137', 538)" class="i">FSharpValue</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs138', 539)" onmouseover="showTip(event, 'fs138', 539)" class="i">GetUnionFields</span>(<span onmouseout="hideTip(event, 'fs135', 540)" onmouseover="showTip(event, 'fs135', 540)" class="i">value</span>, <span onmouseout="hideTip(event, 'fs136', 541)" onmouseover="showTip(event, 'fs136', 541)" class="i">uniontype</span>) <span class="k">with</span>
+        | <span onmouseout="hideTip(event, 'fs139', 542)" onmouseover="showTip(event, 'fs139', 542)" class="i">case</span>, _ <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs139', 543)" onmouseover="showTip(event, 'fs139', 543)" class="i">case</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs140', 544)" onmouseover="showTip(event, 'fs140', 544)" class="i">Name</span>
+
+    <span class="k">interface</span> <span onmouseout="hideTip(event, 'fs2', 545)" onmouseover="showTip(event, 'fs2', 545)" class="i">System</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs3', 546)" onmouseover="showTip(event, 'fs3', 546)" class="i">Windows</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs141', 547)" onmouseover="showTip(event, 'fs141', 547)" class="i">Data</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs142', 548)" onmouseover="showTip(event, 'fs142', 548)" class="i">IValueConverter</span> <span class="k">with</span>
+        <span class="k">override</span> <span onmouseout="hideTip(event, 'fs143', 549)" onmouseover="showTip(event, 'fs143', 549)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs144', 550)" onmouseover="showTip(event, 'fs144', 550)" class="i">Convert</span>(<span onmouseout="hideTip(event, 'fs145', 551)" onmouseover="showTip(event, 'fs145', 551)" class="i">value</span>, <span onmouseout="hideTip(event, 'fs146', 552)" onmouseover="showTip(event, 'fs146', 552)" class="i">targetType</span>, <span onmouseout="hideTip(event, 'fs147', 553)" onmouseover="showTip(event, 'fs147', 553)" class="i">parameter</span>, <span onmouseout="hideTip(event, 'fs148', 554)" onmouseover="showTip(event, 'fs148', 554)" class="i">culture</span>) <span class="o">=</span>
+            <span onmouseout="hideTip(event, 'fs134', 555)" onmouseover="showTip(event, 'fs134', 555)" class="i">DuToString</span> <span onmouseout="hideTip(event, 'fs145', 556)" onmouseover="showTip(event, 'fs145', 556)" class="i">value</span> (<span onmouseout="hideTip(event, 'fs145', 557)" onmouseover="showTip(event, 'fs145', 557)" class="i">value</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs149', 558)" onmouseover="showTip(event, 'fs149', 558)" class="i">GetType</span>())
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs150', 559)" onmouseover="showTip(event, 'fs150', 559)" class="i">box</span>
+            
+        <span class="k">override</span> <span onmouseout="hideTip(event, 'fs143', 560)" onmouseover="showTip(event, 'fs143', 560)" class="i">this</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs151', 561)" onmouseover="showTip(event, 'fs151', 561)" class="i">ConvertBack</span>(<span onmouseout="hideTip(event, 'fs145', 562)" onmouseover="showTip(event, 'fs145', 562)" class="i">value</span>, <span onmouseout="hideTip(event, 'fs146', 563)" onmouseover="showTip(event, 'fs146', 563)" class="i">targetType</span>, <span onmouseout="hideTip(event, 'fs147', 564)" onmouseover="showTip(event, 'fs147', 564)" class="i">parameter</span>, <span onmouseout="hideTip(event, 'fs148', 565)" onmouseover="showTip(event, 'fs148', 565)" class="i">culture</span>) <span class="o">=</span>
+            <span onmouseout="hideTip(event, 'fs152', 566)" onmouseover="showTip(event, 'fs152', 566)" class="i">raise</span>(<span onmouseout="hideTip(event, 'fs153', 567)" onmouseover="showTip(event, 'fs153', 567)" class="i">NotImplementedException</span>())</pre>
+</td>
+</tr>
+</table>
+
+<p>This converter is currently being used to display the names of the <code>HopType</code> discriminated union (declared earlier) in a drop down on each the DataGrid row of the hop grid. 
+This usage can be seen above.</p>
+
+<p>We will keep any converters created bundled together with the view implementation as they are entirely view logic.<br />
+In my case, I will include them within the same, separate project for the view.</p>
+
+<p>As the Application grows larger, I will need to think about its structure.<br />
+This is a new venture for me as it is the first WPF project I have undertaken purely in F#. I therefore plan to discuss this in the next post.</p>
+
+<h2>Thoughts on WPF development with F#</h2>
+
+<p>At this point I thought it would be apt to share my thoughts on the development process in WPF with F#.</p>
+
+<p>Instead of a pros and cons style list I decided to focus on the features of F# that most influenced the implementation of this WPF application so far.<br />
+This is also because I don't see there being any cons anymore, thanks to the XAML Type provider etc, I am now just as comfortable writing F# WPF apps as C#.</p>
+
+<h3>Dependency Order</h3>
+
+<p>I briefly touched on this earlier and would like to expand on my points.<br />
+I whole heartedly believe that the enforced dependency order in F# is beneficial to a WPF project.<br />
+The fact that it removes the possibility of introducing pesky cyclic dependencies causes you to really think about what you are doing with your types.</p>
+
+<p>It does prevent some common code styles that I often see used in C# being implemented (such as passing a parent reference to a child - without the use of interfaces), 
+but for the most part, where I see them used, they are clearly rash decisions to take a short cut in development and the implementation would be better done another way.</p>
+
+<p>I find that F# prevents this; It makes the developer think.</p>
+
+<p>Not just about types and their usage but about the application as a whole. This is especially apparent when organising application layers and designing the domain.</p>
+
+<p>All of this makes creating 'Spaghetti Code' much more difficult.<br />
+This has the massive benefit that your applications code is therefore more easy to follow; You can clearly see the intent from the implementation.</p>
+
+<p>As a result, the code base is generally smaller, bugs are less numerous and technical debt is vastly reduced.</p>
+
+<h3>Multi-Paradigm</h3>
+
+<p>For me, the multi-paradigm approach has great benefits to WPF development.<br />
+We can keep the usual, class based, object oriented code (Albeit a shell of what we would see if using C#) that we are used to for our view models.<br />
+This makes dealing with interaction with XAML a simple task and provides us with the ability to utilise the many OO implementations of features that already exist. (Observable collections and any of the XAML framework classes spring to mind)</p>
+
+<p>Of course, we strip the F# classes back to the bones and turn to a functional approach when dealing with the domain model.<br />
+This gives us the best of both worlds (in my opinion).</p>
+
+<p>A simple, class based approach to handling interaction with XAML and the UI, and a functional, robust, domain model for 'business' logic.</p>
+
+<p>I'm sure there are other approaches, but currently, in my experience (this application) why fret over being pure?<br />
+Use the language features that exist where they best fit.</p>
+
+<h3>Functional/F# Specific Benefits</h3>
+
+<p>Obviously, there are numerous benefits that a functional style brings to the table and I'm sure I don't need to go into great detail here.<br />
+Therefore, I'll simply list the ones that have stood out the most so far during my WPF dev time.</p>
+
+<ul>
+<li>Robust type system for domain modelling.</li>
+<li>Immutability by default and controlled mutability.</li>
+<li>First class events.</li>
+<li>Pattern matching - Error prevention.</li>
+</ul>
+
+<h3>Concise Code</h3>
+
+<p>An additional benefit brought by the F# language is conciseness.<br />
+It is clear to see that F# is a 'write less, do more' language. Although this could be considered a very well planned side affect, it really does make a difference.</p>
+
+<p>In WPF development, this quickly becomes noticeable when your View Models are as small as 20 lines of code, while still packing all the functionality required.
+The inherent simplicity of F# code also allows for rapid refactoring. This really hit me during my experiments with first class events and allowed me to make massive changes to the infrastructure with minimal time and effort.</p>
+
+<h2>Summing Up</h2>
+
+<p>That's all for this post.<br />
+I will now be concentrating on fleshing out functionality of the app and finally adding some styling!</p>
+
+<p>Up in the next post in the series I will be focusing on three areas.</p>
+
+<ul>
+<li>Revisiting the Event implementation and view model communication.</li>
+<li>How to structure an F# WPF solution.</li>
+<li>Testing the application.</li>
+</ul>
+
+<p>I may also expand on the domain modelling or XAML side of things just for completeness.<br />
+Also to come in future posts are persistence/data stores and their integration with the application.</p>
+
+<p>Meanwhile, all my progress is visible on GitHub as usual, here: <a href="https://github.com/sjpemberton/BrewLab">BrewLab</a></p>
+
+<div class="tip" id="fs1">module FsWPF</div>
+<div class="tip" id="fs2">namespace System</div>
+<div class="tip" id="fs3">namespace System.Windows</div>
+<div class="tip" id="fs4">namespace System.Windows.Controls</div>
+<div class="tip" id="fs5">namespace FSharp</div>
+<div class="tip" id="fs6">namespace FSharp.ViewModule</div>
+<div class="tip" id="fs7">namespace FSharp.ViewModule.Validation</div>
+<div class="tip" id="fs8">namespace System.Collections</div>
+<div class="tip" id="fs9">namespace System.Collections.ObjectModel</div>
+<div class="tip" id="fs10">namespace Microsoft</div>
+<div class="tip" id="fs11">namespace Microsoft.FSharp</div>
+<div class="tip" id="fs12">namespace Microsoft.FSharp.Data</div>
+<div class="tip" id="fs13">namespace Microsoft.FSharp.Data.UnitSystems</div>
+<div class="tip" id="fs14">namespace Microsoft.FSharp.Data.UnitSystems.SI</div>
+<div class="tip" id="fs15">namespace Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols</div>
+<div class="tip" id="fs16">module Calculations</div>
+<div class="tip" id="fs17">namespace Units</div>
+<div class="tip" id="fs18"></div>
+<div class="tip" id="fs19">val x : GrainViewModel</div>
+<div class="tip" id="fs20">type HopType =<br />&#160;&#160;| Pellet<br />&#160;&#160;| Leaf<br />&#160;&#160;| Extract<br /><br />Full name: FsWPF.Ingredients.HopType</div>
+<div class="tip" id="fs21">union case HopType.Pellet: HopType</div>
+<div class="tip" id="fs22">union case HopType.Leaf: HopType</div>
+<div class="tip" id="fs23">union case HopType.Extract: HopType</div>
+<div class="tip" id="fs24">type hop&lt;&#39;w&gt; =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Alpha: float&lt;percentage&gt;;}<br /><br />Full name: FsWPF.Ingredients.hop&lt;_&gt;</div>
+<div class="tip" id="fs25">Multiple items<br />type MeasureAttribute =<br />&#160;&#160;inherit Attribute<br />&#160;&#160;new : unit -&gt; MeasureAttribute<br /><br />Full name: Microsoft.FSharp.Core.MeasureAttribute<br /><br />--------------------<br />new : unit -&gt; MeasureAttribute</div>
+<div class="tip" id="fs26">hop.Name: string</div>
+<div class="tip" id="fs27">Multiple items<br />val string : value:&#39;T -&gt; string<br /><br />Full name: Microsoft.FSharp.Core.Operators.string<br /><br />--------------------<br />type string = String<br /><br />Full name: Microsoft.FSharp.Core.string</div>
+<div class="tip" id="fs28">hop.Alpha: float&lt;percentage&gt;</div>
+<div class="tip" id="fs29">Multiple items<br />val float : value:&#39;T -&gt; float (requires member op_Explicit)<br /><br />Full name: Microsoft.FSharp.Core.Operators.float<br /><br />--------------------<br />type float = Double<br /><br />Full name: Microsoft.FSharp.Core.float<br /><br />--------------------<br />type float&lt;&#39;Measure&gt; = float<br /><br />Full name: Microsoft.FSharp.Core.float&lt;_&gt;</div>
+<div class="tip" id="fs30">[&lt;Measure&gt;]<br />type percentage<br /><br />Full name: Units.percentage</div>
+<div class="tip" id="fs31">type grain&lt;&#39;w&gt; =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Potential: float&lt;gp/&#39;w&gt;;<br />&#160;&#160;&#160;Colour: float&lt;EBC&gt;;}<br /><br />Full name: FsWPF.Ingredients.grain&lt;_&gt;</div>
+<div class="tip" id="fs32">grain.Name: string</div>
+<div class="tip" id="fs33">grain.Potential: float&lt;gp/&#39;w&gt;</div>
+<div class="tip" id="fs34">[&lt;Measure&gt;]<br />type gp<br /><br />Full name: Units.gp</div>
+<div class="tip" id="fs35">grain.Colour: float&lt;EBC&gt;</div>
+<div class="tip" id="fs36">[&lt;Measure&gt;]<br />type EBC<br /><br />Full name: Units.EBC</div>
+<div class="tip" id="fs37">type HopAddition&lt;&#39;w&gt; =<br />&#160;&#160;{Hop: hop&lt;&#39;w&gt;;<br />&#160;&#160;&#160;Weight: float&lt;&#39;w&gt;;<br />&#160;&#160;&#160;Time: float&lt;minute&gt;;<br />&#160;&#160;&#160;Type: HopType;}<br /><br />Full name: FsWPF.Ingredients.HopAddition&lt;_&gt;</div>
+<div class="tip" id="fs38">HopAddition.Hop: hop&lt;&#39;w&gt;</div>
+<div class="tip" id="fs39">HopAddition.Weight: float&lt;&#39;w&gt;</div>
+<div class="tip" id="fs40">HopAddition.Time: float&lt;minute&gt;</div>
+<div class="tip" id="fs41">[&lt;Measure&gt;]<br />type minute<br /><br />Full name: Units.minute</div>
+<div class="tip" id="fs42">Multiple items<br />HopAddition.Type: HopType<br /><br />--------------------<br />type Type =<br />&#160;&#160;inherit MemberInfo<br />&#160;&#160;member Assembly : Assembly<br />&#160;&#160;member AssemblyQualifiedName : string<br />&#160;&#160;member Attributes : TypeAttributes<br />&#160;&#160;member BaseType : Type<br />&#160;&#160;member ContainsGenericParameters : bool<br />&#160;&#160;member DeclaringMethod : MethodBase<br />&#160;&#160;member DeclaringType : Type<br />&#160;&#160;member Equals : o:obj -&gt; bool + 1 overload<br />&#160;&#160;member FindInterfaces : filter:TypeFilter * filterCriteria:obj -&gt; Type[]<br />&#160;&#160;member FindMembers : memberType:MemberTypes * bindingAttr:BindingFlags * filter:MemberFilter * filterCriteria:obj -&gt; MemberInfo[]<br />&#160;&#160;...<br /><br />Full name: System.Type</div>
+<div class="tip" id="fs43">type GrainAddition&lt;&#39;w&gt; =<br />&#160;&#160;{Grain: grain&lt;&#39;w&gt;;<br />&#160;&#160;&#160;Weight: float&lt;&#39;w&gt;;}<br /><br />Full name: FsWPF.Ingredients.GrainAddition&lt;_&gt;</div>
+<div class="tip" id="fs44">GrainAddition.Grain: grain&lt;&#39;w&gt;</div>
+<div class="tip" id="fs45">GrainAddition.Weight: float&lt;&#39;w&gt;</div>
+<div class="tip" id="fs46">type yeast&lt;&#39;t&gt; =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Attenuation: float&lt;percentage&gt;;<br />&#160;&#160;&#160;TempRange: float&lt;&#39;t&gt; * float&lt;&#39;t&gt;;}<br /><br />Full name: FsWPF.Ingredients.yeast&lt;_&gt;</div>
+<div class="tip" id="fs47">yeast.Name: string</div>
+<div class="tip" id="fs48">yeast.Attenuation: float&lt;percentage&gt;</div>
+<div class="tip" id="fs49">yeast.TempRange: float&lt;&#39;t&gt; * float&lt;&#39;t&gt;</div>
+<div class="tip" id="fs50">type Ingredient =<br />&#160;&#160;| Hop of HopAddition&lt;g&gt;<br />&#160;&#160;| Grain of GrainAddition&lt;kg&gt;<br />&#160;&#160;| Yeast of yeast&lt;degC&gt;<br /><br />Full name: FsWPF.Ingredients.Ingredient</div>
+<div class="tip" id="fs51">union case Ingredient.Hop: HopAddition&lt;g&gt; -&gt; Ingredient</div>
+<div class="tip" id="fs52">[&lt;Measure&gt;]<br />type g<br /><br />Full name: Units.g</div>
+<div class="tip" id="fs53">union case Ingredient.Grain: GrainAddition&lt;kg&gt; -&gt; Ingredient</div>
+<div class="tip" id="fs54">[&lt;Measure&gt;]<br />type kg = Data.UnitSystems.SI.UnitNames.kilogram<br /><br />Full name: Microsoft.FSharp.Data.UnitSystems.SI.UnitSymbols.kg</div>
+<div class="tip" id="fs55">union case Ingredient.Yeast: yeast&lt;degC&gt; -&gt; Ingredient</div>
+<div class="tip" id="fs56">[&lt;Measure&gt;]<br />type degC<br /><br />Full name: Units.degC</div>
+<div class="tip" id="fs57">val CalculateIBUs : hopAddition:HopAddition&lt;g&gt; -&gt; sg:float&lt;sg&gt; -&gt; vol:float&lt;L&gt; -&gt; float&lt;IBU&gt;<br /><br />Full name: FsWPF.Ingredients.CalculateIBUs</div>
+<div class="tip" id="fs58">val hopAddition : HopAddition&lt;g&gt;</div>
+<div class="tip" id="fs59">Multiple items<br />val sg : float&lt;sg&gt;<br /><br />--------------------<br />[&lt;Measure&gt;]<br />type sg = kg/L<br /><br />Full name: Units.sg</div>
+<div class="tip" id="fs60">val vol : float&lt;L&gt;</div>
+<div class="tip" id="fs61">val utilisation : float&lt;percentage&gt;</div>
+<div class="tip" id="fs62">val EstimateHopUtilisation : gravity:float&lt;sg&gt; -&gt; time:float -&gt; float&lt;percentage&gt;<br /><br />Full name: Calculations.EstimateHopUtilisation</div>
+<div class="tip" id="fs63">val EstimateIBUs : utilisation:float&lt;percentage&gt; -&gt; alpha:float&lt;percentage&gt; -&gt; weight:float&lt;g&gt; -&gt; volume:float&lt;L&gt; -&gt; float&lt;IBU&gt;<br /><br />Full name: Calculations.EstimateIBUs</div>
+<div class="tip" id="fs64">HopAddition.Hop: hop&lt;g&gt;</div>
+<div class="tip" id="fs65">HopAddition.Weight: float&lt;g&gt;</div>
+<div class="tip" id="fs66">val CalculateGravity : volume:float&lt;L&gt; -&gt; efficiency:float&lt;percentage&gt; -&gt; grain:GrainAddition&lt;pgpkg&gt; list -&gt; float&lt;sg&gt;<br /><br />Full name: FsWPF.Ingredients.CalculateGravity</div>
+<div class="tip" id="fs67">val volume : float&lt;L&gt;</div>
+<div class="tip" id="fs68">val efficiency : float&lt;percentage&gt;</div>
+<div class="tip" id="fs69">Multiple items<br />val grain : GrainAddition&lt;pgpkg&gt; list<br /><br />--------------------<br />type grain&lt;&#39;w&gt; =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Potential: float&lt;gp/&#39;w&gt;;<br />&#160;&#160;&#160;Colour: float&lt;EBC&gt;;}<br /><br />Full name: FsWPF.Ingredients.grain&lt;_&gt;</div>
+<div class="tip" id="fs70">Multiple items<br />module List<br /><br />from Microsoft.FSharp.Collections<br /><br />--------------------<br />type List&lt;&#39;T&gt; =<br />&#160;&#160;| ( [] )<br />&#160;&#160;| ( :: ) of Head: &#39;T * Tail: &#39;T list<br />&#160;&#160;interface IEnumerable<br />&#160;&#160;interface IEnumerable&lt;&#39;T&gt;<br />&#160;&#160;member Head : &#39;T<br />&#160;&#160;member IsEmpty : bool<br />&#160;&#160;member Item : index:int -&gt; &#39;T with get<br />&#160;&#160;member Length : int<br />&#160;&#160;member Tail : &#39;T list<br />&#160;&#160;static member Cons : head:&#39;T * tail:&#39;T list -&gt; &#39;T list<br />&#160;&#160;static member Empty : &#39;T list<br /><br />Full name: Microsoft.FSharp.Collections.List&lt;_&gt;</div>
+<div class="tip" id="fs71">val fold : folder:(&#39;State -&gt; &#39;T -&gt; &#39;State) -&gt; state:&#39;State -&gt; list:&#39;T list -&gt; &#39;State<br /><br />Full name: Microsoft.FSharp.Collections.List.fold</div>
+<div class="tip" id="fs72">val acc : float&lt;gp&gt;</div>
+<div class="tip" id="fs73">val g : GrainAddition&lt;pgpkg&gt;</div>
+<div class="tip" id="fs74">val EstimateGravityPoints : grainPotential:float&lt;pgpkg&gt; -&gt; grain:float&lt;kg&gt; -&gt; vol:float&lt;L&gt; -&gt; efficiency:float&lt;percentage&gt; -&gt; float&lt;gp&gt;<br /><br />Full name: Calculations.EstimateGravityPoints</div>
+<div class="tip" id="fs75">GrainAddition.Weight: float&lt;pgpkg&gt;</div>
+<div class="tip" id="fs76">GrainAddition.Grain: grain&lt;pgpkg&gt;</div>
+<div class="tip" id="fs77">grain.Potential: float&lt;gp/pgpkg&gt;</div>
+<div class="tip" id="fs78">val ToGravity : gravityPoints:float&lt;gp&gt; -&gt; float&lt;sg&gt;<br /><br />Full name: Calculations.ToGravity</div>
+<div class="tip" id="fs79">type grain =<br />&#160;&#160;{Name: string;<br />&#160;&#160;&#160;Weight: float&lt;g&gt;;<br />&#160;&#160;&#160;Potential: float&lt;pgp&gt;;<br />&#160;&#160;&#160;Colour: float&lt;EBC&gt;;}<br /><br />Full name: FsWPF.grain</div>
+<div class="tip" id="fs80">grain.Weight: float&lt;g&gt;</div>
+<div class="tip" id="fs81">grain.Potential: float&lt;pgp&gt;</div>
+<div class="tip" id="fs82">[&lt;Measure&gt;]<br />type pgp = gp/lb<br /><br />Full name: Units.pgp</div>
+<div class="tip" id="fs83">val x : RecipeViewModel</div>
+<div class="tip" id="fs84">val x : LabViewModel&lt;&#39;t&gt;</div>
+<div class="tip" id="fs85">module Ingredients<br /><br />from FsWPF</div>
+<div class="tip" id="fs86">val v : obj</div>
+<div class="tip" id="fs87">type LabEvent =<br />&#160;&#160;| GrainChanged<br />&#160;&#160;| HopChanged<br /><br />Full name: FsWPF.gvm2.LabEvent</div>
+<div class="tip" id="fs88">union case LabEvent.GrainChanged: LabEvent</div>
+<div class="tip" id="fs89">union case LabEvent.HopChanged: LabEvent</div>
+<div class="tip" id="fs90">type LabEvent =<br />&#160;&#160;| GravityChange<br />&#160;&#160;| VolumeChange<br />&#160;&#160;| HopChange<br />&#160;&#160;| FermentableChange<br />&#160;&#160;| EquipmentChange<br />&#160;&#160;| UnitsChanged<br /><br />Full name: FsWPF.Events.LabEvent</div>
+<div class="tip" id="fs91">union case LabEvent.GravityChange: LabEvent</div>
+<div class="tip" id="fs92">union case LabEvent.VolumeChange: LabEvent</div>
+<div class="tip" id="fs93">union case LabEvent.HopChange: LabEvent</div>
+<div class="tip" id="fs94">union case LabEvent.FermentableChange: LabEvent</div>
+<div class="tip" id="fs95">union case LabEvent.EquipmentChange: LabEvent</div>
+<div class="tip" id="fs96">union case LabEvent.UnitsChanged: LabEvent</div>
+<div class="tip" id="fs97">Multiple items<br />type RecipeEvent =<br />&#160;&#160;private new : unit -&gt; RecipeEvent<br />&#160;&#160;member Subscribe : o:IObserver&lt;LabEvent&gt; -&gt; IDisposable<br />&#160;&#160;member Trigger : o:LabEvent -&gt; unit<br />&#160;&#160;member Event : IEvent&lt;LabEvent&gt;<br />&#160;&#160;static member Instance : RecipeEvent<br /><br />Full name: FsWPF.Events.RecipeEvent<br /><br />--------------------<br />private new : unit -&gt; RecipeEvent</div>
+<div class="tip" id="fs98">val event : Event&lt;LabEvent&gt;</div>
+<div class="tip" id="fs99">Multiple items<br />module Event<br /><br />from Microsoft.FSharp.Control<br /><br />--------------------<br />type Event&lt;&#39;T&gt; =<br />&#160;&#160;new : unit -&gt; Event&lt;&#39;T&gt;<br />&#160;&#160;member Trigger : arg:&#39;T -&gt; unit<br />&#160;&#160;member Publish : IEvent&lt;&#39;T&gt;<br /><br />Full name: Microsoft.FSharp.Control.Event&lt;_&gt;<br /><br />--------------------<br />type Event&lt;&#39;Delegate,&#39;Args (requires delegate and &#39;Delegate :&gt; Delegate)&gt; =<br />&#160;&#160;new : unit -&gt; Event&lt;&#39;Delegate,&#39;Args&gt;<br />&#160;&#160;member Trigger : sender:obj * args:&#39;Args -&gt; unit<br />&#160;&#160;member Publish : IEvent&lt;&#39;Delegate,&#39;Args&gt;<br /><br />Full name: Microsoft.FSharp.Control.Event&lt;_,_&gt;<br /><br />--------------------<br />new : unit -&gt; Event&lt;&#39;T&gt;<br /><br />--------------------<br />new : unit -&gt; Event&lt;&#39;Delegate,&#39;Args&gt;</div>
+<div class="tip" id="fs100">val mutable instance : Lazy&lt;RecipeEvent&gt;</div>
+<div class="tip" id="fs101">Multiple items<br />active recognizer Lazy: Lazy&lt;&#39;T&gt; -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Core.ExtraTopLevelOperators.( |Lazy| )<br /><br />--------------------<br />type Lazy&lt;&#39;T&gt; =<br />&#160;&#160;new : unit -&gt; Lazy&lt;&#39;T&gt; + 5 overloads<br />&#160;&#160;member IsValueCreated : bool<br />&#160;&#160;member ToString : unit -&gt; string<br />&#160;&#160;member Value : &#39;T<br /><br />Full name: System.Lazy&lt;_&gt;<br /><br />--------------------<br />Lazy() : unit<br />Lazy(valueFactory: Func&lt;&#39;T&gt;) : unit<br />Lazy(isThreadSafe: bool) : unit<br />Lazy(mode: Threading.LazyThreadSafetyMode) : unit<br />Lazy(valueFactory: Func&lt;&#39;T&gt;, isThreadSafe: bool) : unit<br />Lazy(valueFactory: Func&lt;&#39;T&gt;, mode: Threading.LazyThreadSafetyMode) : unit</div>
+<div class="tip" id="fs102">static member Lazy.Create : creator:(unit -&gt; &#39;T) -&gt; Lazy&lt;&#39;T&gt;</div>
+<div class="tip" id="fs103">val x : unit</div>
+<div class="tip" id="fs104">static member RecipeEvent.Instance : RecipeEvent<br /><br />Full name: FsWPF.Events.RecipeEvent.Instance</div>
+<div class="tip" id="fs105">property Lazy.Value: RecipeEvent</div>
+<div class="tip" id="fs106">val this : RecipeEvent</div>
+<div class="tip" id="fs107">Multiple items<br />member RecipeEvent.Event : IEvent&lt;LabEvent&gt;<br /><br />Full name: FsWPF.Events.RecipeEvent.Event<br /><br />--------------------<br />module Event<br /><br />from Microsoft.FSharp.Control<br /><br />--------------------<br />type Event&lt;&#39;T&gt; =<br />&#160;&#160;new : unit -&gt; Event&lt;&#39;T&gt;<br />&#160;&#160;member Trigger : arg:&#39;T -&gt; unit<br />&#160;&#160;member Publish : IEvent&lt;&#39;T&gt;<br /><br />Full name: Microsoft.FSharp.Control.Event&lt;_&gt;<br /><br />--------------------<br />type Event&lt;&#39;Delegate,&#39;Args (requires delegate and &#39;Delegate :&gt; Delegate)&gt; =<br />&#160;&#160;new : unit -&gt; Event&lt;&#39;Delegate,&#39;Args&gt;<br />&#160;&#160;member Trigger : sender:obj * args:&#39;Args -&gt; unit<br />&#160;&#160;member Publish : IEvent&lt;&#39;Delegate,&#39;Args&gt;<br /><br />Full name: Microsoft.FSharp.Control.Event&lt;_,_&gt;<br /><br />--------------------<br />new : unit -&gt; Event&lt;&#39;T&gt;<br /><br />--------------------<br />new : unit -&gt; Event&lt;&#39;Delegate,&#39;Args&gt;</div>
+<div class="tip" id="fs108">property Event.Publish: IEvent&lt;LabEvent&gt;</div>
+<div class="tip" id="fs109">member RecipeEvent.Subscribe : o:IObserver&lt;LabEvent&gt; -&gt; IDisposable<br /><br />Full name: FsWPF.Events.RecipeEvent.Subscribe</div>
+<div class="tip" id="fs110">val o : IObserver&lt;LabEvent&gt;</div>
+<div class="tip" id="fs111">property RecipeEvent.Event: IEvent&lt;LabEvent&gt;</div>
+<div class="tip" id="fs112">member IObservable.Subscribe : callback:(&#39;T -&gt; unit) -&gt; IDisposable<br />IObservable.Subscribe(observer: IObserver&lt;LabEvent&gt;) : IDisposable</div>
+<div class="tip" id="fs113">Multiple items<br />member RecipeEvent.Trigger : o:LabEvent -&gt; unit<br /><br />Full name: FsWPF.Events.RecipeEvent.Trigger<br /><br />--------------------<br />type Trigger =<br />&#160;&#160;inherit TriggerBase<br />&#160;&#160;new : unit -&gt; Trigger<br />&#160;&#160;member Property : DependencyProperty with get, set<br />&#160;&#160;member Setters : SetterBaseCollection<br />&#160;&#160;member SourceName : string with get, set<br />&#160;&#160;member Value : obj with get, set<br />&#160;&#160;static member ReceiveTypeConverter : targetObject:obj * eventArgs:XamlSetTypeConverterEventArgs -&gt; unit<br /><br />Full name: System.Windows.Trigger<br /><br />--------------------<br />Trigger() : unit</div>
+<div class="tip" id="fs114">val o : LabEvent</div>
+<div class="tip" id="fs115">member Event.Trigger : arg:&#39;T -&gt; unit</div>
+<div class="tip" id="fs116">module Events<br /><br />from FsWPF</div>
+<div class="tip" id="fs117">namespace System.ComponentModel</div>
+<div class="tip" id="fs118">Multiple items<br />type AbstractClassAttribute =<br />&#160;&#160;inherit Attribute<br />&#160;&#160;new : unit -&gt; AbstractClassAttribute<br /><br />Full name: Microsoft.FSharp.Core.AbstractClassAttribute<br /><br />--------------------<br />new : unit -&gt; AbstractClassAttribute</div>
+<div class="tip" id="fs119">val e : LabEvent</div>
+<div class="tip" id="fs120">val map : mapping:(&#39;T -&gt; &#39;U) -&gt; source:IObservable&lt;&#39;T&gt; -&gt; IObservable&lt;&#39;U&gt;<br /><br />Full name: Microsoft.FSharp.Control.Observable.map</div>
+<div class="tip" id="fs121">val d : IDisposable</div>
+<div class="tip" id="fs122">val subscribe : callback:(&#39;T -&gt; unit) -&gt; source:IObservable&lt;&#39;T&gt; -&gt; IDisposable<br /><br />Full name: Microsoft.FSharp.Control.Observable.subscribe</div>
+<div class="tip" id="fs123">module lvm2<br /><br />from FsWPF</div>
+<div class="tip" id="fs124">val subscribe : source:IObservable&lt;Events.LabEvent&gt; -&gt; IObservable&lt;Events.LabEvent&gt;<br /><br />Full name: FsWPF.gvm3.subscribe</div>
+<div class="tip" id="fs125">val source : IObservable&lt;Events.LabEvent&gt;</div>
+<div class="tip" id="fs126">module Observable<br /><br />from Microsoft.FSharp.Control</div>
+<div class="tip" id="fs127">val filter : predicate:(&#39;T -&gt; bool) -&gt; source:IObservable&lt;&#39;T&gt; -&gt; IObservable&lt;&#39;T&gt;<br /><br />Full name: Microsoft.FSharp.Control.Observable.filter</div>
+<div class="tip" id="fs128">union case Events.LabEvent.UnitsChanged: Events.LabEvent</div>
+<div class="tip" id="fs129">val OnLabEvent : e:&#39;a -&gt; unit<br /><br />Full name: FsWPF.gvm3.OnLabEvent</div>
+<div class="tip" id="fs130">val e : &#39;a</div>
+<div class="tip" id="fs131">type RecipeEvent =<br />&#160;&#160;private new : unit -&gt; RecipeEvent<br />&#160;&#160;member Subscribe : o:IObserver&lt;LabEvent&gt; -&gt; IDisposable<br />&#160;&#160;member Trigger : o:LabEvent -&gt; unit<br />&#160;&#160;member Event : IEvent&lt;LabEvent&gt;<br />&#160;&#160;static member Instance : RecipeEvent<br /><br />Full name: FsWPF.Events.RecipeEvent</div>
+<div class="tip" id="fs132">namespace Microsoft.FSharp.Reflection</div>
+<div class="tip" id="fs133">Multiple items<br />type DiscriminatedUnionText =<br />&#160;&#160;interface IValueConverter<br />&#160;&#160;new : unit -&gt; DiscriminatedUnionText<br /><br />Full name: FsWPF.DiscriminatedUnionText<br /><br />--------------------<br />new : unit -&gt; DiscriminatedUnionText</div>
+<div class="tip" id="fs134">val DuToString : (&#39;a -&gt; Type -&gt; string)</div>
+<div class="tip" id="fs135">val value : &#39;a</div>
+<div class="tip" id="fs136">val uniontype : Type</div>
+<div class="tip" id="fs137">type FSharpValue =<br />&#160;&#160;static member GetExceptionFields : exn:obj * ?bindingFlags:BindingFlags -&gt; obj []<br />&#160;&#160;static member GetRecordField : record:obj * info:PropertyInfo -&gt; obj<br />&#160;&#160;static member GetRecordFields : record:obj * ?bindingFlags:BindingFlags -&gt; obj []<br />&#160;&#160;static member GetTupleField : tuple:obj * index:int -&gt; obj<br />&#160;&#160;static member GetTupleFields : tuple:obj -&gt; obj []<br />&#160;&#160;static member GetUnionFields : value:obj * unionType:Type * ?bindingFlags:BindingFlags -&gt; UnionCaseInfo * obj []<br />&#160;&#160;static member MakeFunction : functionType:Type * implementation:(obj -&gt; obj) -&gt; obj<br />&#160;&#160;static member MakeRecord : recordType:Type * values:obj [] * ?bindingFlags:BindingFlags -&gt; obj<br />&#160;&#160;static member MakeTuple : tupleElements:obj [] * tupleType:Type -&gt; obj<br />&#160;&#160;static member MakeUnion : unionCase:UnionCaseInfo * args:obj [] * ?bindingFlags:BindingFlags -&gt; obj<br />&#160;&#160;...<br /><br />Full name: Microsoft.FSharp.Reflection.FSharpValue</div>
+<div class="tip" id="fs138">static member FSharpValue.GetUnionFields : value:obj * unionType:Type * ?allowAccessToPrivateRepresentation:bool -&gt; UnionCaseInfo * obj []<br />static member FSharpValue.GetUnionFields : value:obj * unionType:Type * ?bindingFlags:Reflection.BindingFlags -&gt; UnionCaseInfo * obj []</div>
+<div class="tip" id="fs139">val case : UnionCaseInfo</div>
+<div class="tip" id="fs140">property UnionCaseInfo.Name: string</div>
+<div class="tip" id="fs141">namespace System.Windows.Data</div>
+<div class="tip" id="fs142">type IValueConverter =<br />&#160;&#160;member Convert : value:obj * targetType:Type * parameter:obj * culture:CultureInfo -&gt; obj<br />&#160;&#160;member ConvertBack : value:obj * targetType:Type * parameter:obj * culture:CultureInfo -&gt; obj<br /><br />Full name: System.Windows.Data.IValueConverter</div>
+<div class="tip" id="fs143">val this : DiscriminatedUnionText</div>
+<div class="tip" id="fs144">Multiple items<br />override DiscriminatedUnionText.Convert : value:obj * targetType:Type * parameter:obj * culture:Globalization.CultureInfo -&gt; obj<br /><br />Full name: FsWPF.DiscriminatedUnionText.Convert<br /><br />--------------------<br />type Convert =<br />&#160;&#160;static val DBNull : obj<br />&#160;&#160;static member ChangeType : value:obj * typeCode:TypeCode -&gt; obj + 3 overloads<br />&#160;&#160;static member FromBase64CharArray : inArray:char[] * offset:int * length:int -&gt; byte[]<br />&#160;&#160;static member FromBase64String : s:string -&gt; byte[]<br />&#160;&#160;static member GetTypeCode : value:obj -&gt; TypeCode<br />&#160;&#160;static member IsDBNull : value:obj -&gt; bool<br />&#160;&#160;static member ToBase64CharArray : inArray:byte[] * offsetIn:int * length:int * outArray:char[] * offsetOut:int -&gt; int + 1 overload<br />&#160;&#160;static member ToBase64String : inArray:byte[] -&gt; string + 3 overloads<br />&#160;&#160;static member ToBoolean : value:obj -&gt; bool + 17 overloads<br />&#160;&#160;static member ToByte : value:obj -&gt; byte + 18 overloads<br />&#160;&#160;...<br /><br />Full name: System.Convert</div>
+<div class="tip" id="fs145">val value : obj</div>
+<div class="tip" id="fs146">val targetType : Type</div>
+<div class="tip" id="fs147">val parameter : obj</div>
+<div class="tip" id="fs148">val culture : Globalization.CultureInfo</div>
+<div class="tip" id="fs149">Object.GetType() : Type</div>
+<div class="tip" id="fs150">val box : value:&#39;T -&gt; obj<br /><br />Full name: Microsoft.FSharp.Core.Operators.box</div>
+<div class="tip" id="fs151">override DiscriminatedUnionText.ConvertBack : value:obj * targetType:Type * parameter:obj * culture:Globalization.CultureInfo -&gt; obj<br /><br />Full name: FsWPF.DiscriminatedUnionText.ConvertBack</div>
+<div class="tip" id="fs152">val raise : exn:Exception -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Core.Operators.raise</div>
+<div class="tip" id="fs153">Multiple items<br />type NotImplementedException =<br />&#160;&#160;inherit SystemException<br />&#160;&#160;new : unit -&gt; NotImplementedException + 2 overloads<br /><br />Full name: System.NotImplementedException<br /><br />--------------------<br />NotImplementedException() : unit<br />NotImplementedException(message: string) : unit<br />NotImplementedException(message: string, inner: exn) : unit</div>
+<div class="tip" id="fs154">Multiple items<br />val FSharp : (&#39;a -&gt; &#39;b)<br /><br />--------------------<br />namespace FSharp</div>
+<div class="tip" id="fs155">val WPF : &#39;a</div>
+
