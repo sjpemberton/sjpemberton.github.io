@@ -31,9 +31,13 @@ h1 {
     color:#111;
 }
 
-ul {
+ul,ol {
 	padding-left: 40px;
     margin:10px 0 20px 0;
+}
+
+ol li {
+  margin: 6px 0 0 0;
 }
 
 p {
