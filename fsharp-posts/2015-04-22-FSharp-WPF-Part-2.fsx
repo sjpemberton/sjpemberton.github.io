@@ -38,25 +38,30 @@ type GrainViewModel(name:string, potential:float<pgp>, colour:float<EBC>) as thi
 #F# and WPF part two - functional models, decoupled views.
 
 This post is the second in my F# and WPF series.  
-It expands upon the basic use of F# for application development with WPF, using the XAML type provider from the previous post in the series.  
+It expands upon the basic use of F# for application development with WPF, using the [XAML type provider] from [the previous post in the series].  
 
-The main focus for this stage of the development of my BrewLab application was to create a clear separation between the functional representation of the domain (The models and their related business logic), and the more imperative, OO style used for the View Models (VMs).  
+The main focus during this stage of development for my BrewLab application was to create a clear separation between the functional representation of the domain (The models and their related business logic), and the more imperative, OO style used for the View Models (VMs).  
 The aim was to have a complete, robust domain model, implemented using F# modules, records and functions. These would then be utilised by the corresponding View Models, separating the concerns of the domain with the visual representation of it.  
 
 All in all, A pretty stereotypical MVVM implementation but with the added benefits of the F# language. Specifically, Immutability by default (no unforeseen side effects!), 
 functions for business logic (clear and concise, making the domain simple to model) and unique features like Units of measure, pattern matching and active patterns which all help to reduce complexity and clarify the solution.
 
+<!-- more -->
 
 ##Implementing the Domain Model
 
 The Domain for the application can be completely modelled in a functional manner. Thus ensuring we gain all the benefits from the F# language.
 This Allows us to create a few, simple, immutable, types to represent our data and then implement all the required domain logic via native functions.
 
-As an example, below is my representation of the key Ingredients required when creating a beer recipe.
+As an example, below is my representation of the key ingredients required when creating a beer recipe.
 As you can see I have kept the base record types generic, but have, in addition, supplied a Discriminated Union constraining the ingredients to Metric values for now (The default for the application).
 
-Also shown below is one of the functions associated with the Ingredients, CalculateIBUs. I have included this here as it is closely related to the HopAddition record type and is a good example of how simple our domain logic becomes.  
-It does however require inputs from the Recipe itself and would therefore most likely end up being moved into a encompassing module.
+Also shown below are two of the functions associated with the ingredients, `CalculateIBUs` and `CalculateGravity`. I have included these here as they are closely related to the `HopAddition` and `GrainAddition` record types.
+
+These two functions are a good example of how simple our domain logic becomes.  
+The idea is for these simple functions to be called by the view models. This will help during testing as we should be able to fully test/validate the model first, and then verify that our view models satisfy the user based interaction with it.
+
+Both of these functions require inputs from the Recipe itself and would therefore should (and do) exist in a `Recipe` module.
 *)
 
 module Ingredients =
@@ -79,23 +84,33 @@ module Ingredients =
     | Grain of GrainAddition<kg>
     | Yeast of yeast<degC>
 
+
+    //Recipe functions
     let CalculateIBUs hopAddition sg vol =
         let utilisation = EstimateHopUtilisation sg (float hopAddition.Time)
         EstimateIBUs utilisation hopAddition.Hop.Alpha hopAddition.Weight vol
 
+    let CalculateGravity volume efficiency grain =
+        grain 
+        |> List.fold (fun acc g -> acc + EstimateGravityPoints volume g.Weight g.Grain.Potential efficiency) 0.0<gp>
+        |> ToGravity
+
 
 (**
 
+Currently the app only handles changes to gravity and bitterness when adding/removing grain or hops. 
+As the domain is currently incredibly simple, I won't go into any more detail of the model in this post in order to cover the other aspects of WPF development.  
+
 The models and domain definition shall appear early on in the project stack, insuring it can be used by the view models defined afterwards.
-Although a topic that can polarise peoples opinions, I find that the Linear Dependency enforced by F# is a massive benefit in this case and WPF development as a whole (as is the case in most other areas).  
+Although a topic that can polarise peoples opinions, I find that the Linear Dependency enforced by F# is a massive benefit in both this case, and WPF development as a whole (as is the case in most other areas).  
 More on this later...
 
 ##Extending the View Models
 
-After I had produced the domain model to support the initial planned functionality, (Which can be viewed on GitHub if interested) it was time to focus on the view models.
+After I had produced the stripped down domain model to support the initial planned functionality, (Which can be viewed on GitHub if interested) it was time to focus on the view models.
 
 The first step was to make use of the existing View Models; Expanding on them in order to achieve a clearer separation of the model/domain and the view. 
-As an example of the aims; At the end of the last post, I had already re-factored the direct use of the Grain record within the RecipeViewModel, by creating, and using, a `GrainViewModel` instead.  
+As an example of the aims; At the end of the last post, I had already re-factored the direct use of the Grain record within the `RecipeViewModel`, by creating, and using, a `GrainViewModel` instead.  
 To recap, this is shown below:
 *)
 
@@ -632,7 +647,12 @@ Up in the next post in the series I will be focusing on three areas.
 - How to structure an F# WPF solution.
 - Testing the application.
 
-Meanwhile, all my progress is visible on GitHub as usual.
+Meanwhile, all my progress is visible on GitHub as usual, here: [BrewLab] 
+
+
+[XAML type provider]:https://github.com/fsprojects/FsXaml
+[BrewLab]: https://github.com/sjpemberton/BrewLab
+[the previous post in the series]: http://stevenpemberton.net/blog/2015/03/29/FSharp-WPF-and-the-XAML-type-provider/
 
 *)
 
