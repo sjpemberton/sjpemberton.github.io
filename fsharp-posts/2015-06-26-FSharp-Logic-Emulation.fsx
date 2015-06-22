@@ -71,7 +71,7 @@ Now that we have our NAND implementation, we need to tackle the following gates
 
 As well as some Multi bit versions and a multi way OR.
 
-The following are implementations of the first four gates, made up of only previously defined gates (as per the books instructions).
+The following are implementations of the first six gates, made up of only previously defined gates (as per the books instructions).  
 
 *)
 
@@ -98,8 +98,11 @@ let DMux x sel =
 
 (**
 
-Clearly they aren't the prettiest of functions due to the needed parenthesis.  
-Pattern matched versions more closely reflect the corresponding truth tables. 
+Clearly they aren't the prettiest of functions due to the needed parentheses.  
+Perhaps there is a better way of defining these functions when when creating them from the previously defined ones and I'd be interested in seeing the technique. 
+However, by ignoring the guidelines in the book (where the purpose is to learn how all other logic gates can be created using NAND as a starting point), we can utilise pattern matching to clean things up.
+
+The pattern matched versions more closely reflect the corresponding truth tables for the logic gates. 
 
 *)
 
@@ -124,12 +127,12 @@ let Xor a b =
     | false, true -> true
     | _, _ -> false
 
-let Mux a b sel =
+let Mux sel a b  =
     match sel with
     | false -> a
     | _ -> b
 
-let DMux x sel =
+let DMux sel x =
     match sel with
     | false -> (x,false)
     | _ -> (false,x)
@@ -150,16 +153,59 @@ let unaryArray gate bits =
 
 let binaryArray gate aBits bBits =
     Array.zip aBits bBits 
-    |> unaryArray gate
+    |> unaryArray (fun (a,b) -> gate a b)
 
 
 (**
 
 As you can see these functions both make use some useful array functions to help out and are overall nice and succinct.
 
+Some noteworthy points from the above.
+
+- I chose to use Zip to combine the two input arrays into corresponding pairs and pass that into the unaryArray function.
+This allows for a nice clean binaryArray function but does mean the gate function we pass in, needs to work with tuples, not individual arguments.
+This means we cannot just pass our previously created functions in. Fortunately we can simply use a lambda and pattern matching to extract the tuple parts succinctly within this binary gate function.
+
 Now we can use partial application to create our multi bit versions of the simple gates.  
 
+*)
 
+let MultiNot = unaryArray Not
+
+let MultiAnd = binaryArray And
+
+let MultiOr = binaryArray Or
+
+let MultiMux sel = 
+    Mux sel
+    |> binaryArray
+
+let MultiDMux sel = 
+    DMux sel
+    |> unaryArray
+
+
+
+(**
+The functions above show how clean and concise these new multi bit versions of the gates become.  
+One thing that isn't handled however is ensuring that the amount of bits is equal in both cases.
+
+This is not something that I worried about at this stage, but I would like to make it more robust in the future.  
+
+
+*)
+
+
+(**
+##Multi Way Gates
+*)
+
+let MultiWayOr bits = 
+    bits |> Array.reduce Or
+
+(**
+The MultiWayOr function above maps perfectly to the Reduce function.  
+It simply calls OR sequentially passing the result of the previous OR into the next -- TODO - re word and be precise
 *)
 
 (*** hide ***)
