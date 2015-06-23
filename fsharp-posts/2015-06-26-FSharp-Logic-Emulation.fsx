@@ -54,10 +54,13 @@ let Nand a b =
 This can, of course, be further simplified to the following. (albeit no longer mirroring the truth table)
 *)
 
-let Nand a b = 
-    match a, b with
-    | true, true -> false
-    | _, _ -> true
+(***hide***)
+module PatternMatched =
+
+    let Nand a b = 
+        match a, b with
+        | true, true -> false
+        | _, _ -> true
 
 (** 
 Now that we have our NAND implementation, we need to tackle the following gates
@@ -106,36 +109,41 @@ The pattern matched versions more closely reflect the corresponding truth tables
 
 *)
 
-let Not a = function
-    | true -> false
-    | false -> true
+(***hide***)
+module PatternMatched2 =
 
-let And a b = 
-    match a, b with
-    | true, true -> true
-    | _, _ -> false
+(***)
 
-let Or a b =
-    match a, b with
-    | true, _ -> true
-    | _, true -> true
-    | _, _ -> false 
+    let Not a = function
+        | true -> false
+        | false -> true
 
-let Xor a b =
-    match a, b with
-    | true, false -> true
-    | false, true -> true
-    | _, _ -> false
+    let And a b = 
+        match a, b with
+        | true, true -> true
+        | _, _ -> false
 
-let Mux sel a b  =
-    match sel with
-    | false -> a
-    | _ -> b
+    let Or a b =
+        match a, b with
+        | true, _ -> true
+        | _, true -> true
+        | _, _ -> false 
 
-let DMux sel x =
-    match sel with
-    | false -> (x,false)
-    | _ -> (false,x)
+    let Xor a b =
+        match a, b with
+        | true, false -> true
+        | false, true -> true
+        | _, _ -> false
+
+    let Mux sel a b  =
+        match sel with
+        | false -> a
+        | _ -> b
+
+    let DMux sel x =
+        match sel with
+        | false -> (x,false)
+        | _ -> (false,x)
 
 (**
 Now that they're out of the way, we can move on to some more interesting gates.
@@ -190,8 +198,7 @@ let MultiDMux sel =
 The functions above show how clean and concise these new multi bit versions of the gates become.  
 One thing that isn't handled however is ensuring that the amount of bits is equal in both cases.
 
-This is not something that I worried about at this stage, but I would like to make it more robust in the future.  
-
+This is not something that I am worried about at this stage, but I would like to make it more robust in the future.  
 
 *)
 
@@ -206,6 +213,136 @@ let MultiWayOr bits =
 (**
 The MultiWayOr function above maps perfectly to the Reduce function.  
 It simply calls OR sequentially passing the result of the previous OR into the next -- TODO - re word and be precise
+*)
+
+let Mux4Way16 a b c d (sel:bool array) = 
+    let m1 = MultiMux sel.[0] a b 
+    let m2 = MultiMux sel.[0] c d
+    MultiMux sel.[1] m1 m2 
+
+let Mux8Way16 a b c d e f g h (sel:bool array) =
+    let m1 = Mux4Way16 a b c d sel.[0..1]
+    let m2 = Mux4Way16 e f g h sel.[0..1]
+    MultiMux sel.[2] m1 m2 
+
+let DMux4Way x (sel:bool array) = 
+    let (d1,d2) = DMux x sel.[1]
+    let (a,b) = DMux d1 sel.[0]
+    let (c,d) = DMux d2 sel.[0]
+    (a,b,c,d)
+
+let DMux8Way x (sel:bool array) = 
+    let (d1,d2) = DMux x sel.[2]
+    let (a,b,c,d) = DMux4Way d1 sel.[0..1]
+    let (e,f,g,h) = DMux4Way d2 sel.[0..1]
+    (a,b,c,d,e,f,g,h)
+
+(**
+
+The multi way gates above all utilise previous ones we've created.  
+I chose to use some simple inline pattern matching to reduce the fluff by decomposing the results of the functions in turn before then returning the results in a large tuple.
+
+Of course, we can again use pattern matching instead to do the selection. I won't bother with those implementations though, as I would rather get onto the fun bits.
+
+So, next up, we finally get to some Boolean Arithmetic!
+
+##Boolean Arithmetic
+
+There are five parts to the arithmetic section outlined in the book. These are:
+
+- HalfAdder
+- FullAdder
+- MulitBitAdder (16 Bit)
+- MultiBitIncrementer (16 Bit)
+- ALU (Arithmetic Logic Unit)
+
+*)
+
+let HalfAdder a b = 
+    let sum = Xor a b
+    let carry = And a b
+    (sum,carry)
+
+let FullAdder a b c = 
+    let (s1,c1) = HalfAdder a b
+    let (sum,c2) = HalfAdder s1 c
+    (sum, Or c1 c2)
+
+//Ripple Carry Adder Implementation
+let Adder aBits bBits =
+    let rec addBits aBits bBits carry accu = 
+        match aBits, bBits with
+        | aHead :: aTail, bHead :: bTail -> 
+            let (sum,c) = FullAdder aHead bHead carry
+            addBits aTail bTail c (sum :: accu)
+        | [],_
+        | _,[] -> accu
+    addBits (aBits |> List.rev) (bBits |> List.rev) false List.empty
+    |> List.toArray
+
+//In plus one
+let Incrementer aBits = Adder (aBits |> List.ofArray) [ for i in 1 .. 16 -> match i with | 16 -> true | _ -> false ]
+
+let ALU xBits yBits nx zx ny zy f no = 
+    //handle x    
+    let ox1 = MultiMux zx xBits [|for i in 1..16 -> false |]  //Zero all X bits if zx
+    let nox1 = MultiNot ox1 //What would this be if negated
+    let ox2 = MultiMux nx ox1 nox1 //Select based on nx
+
+    //handle y
+    let oy1 = MultiMux zy yBits [|for i in 1..16 -> false |]  //Zero all X bits if zy
+    let noy1 = MultiNot oy1 //What would this be if negated
+    let oy2 = MultiMux ny oy1 noy1 //Select based on ny
+
+    //handle & / +
+    let o3 = MultiAnd ox2 oy2 //an and would be
+    let o4 = Adder (List.ofArray ox2) (List.ofArray oy2) //addition would be
+
+    //Output
+    let o5 = MultiMux f o3 o4 //Choose and or addition
+    let no5 = MultiNot o5 //Negated out would be
+    let out = MultiMux no o5 no5 //Choose to negate or not
+
+    let zr = Not (MultiWayOr out)
+    let ng = MultiWayOr (MultiAnd out [|for i in 1..16 -> match i with | 16 -> true | _ -> false|] )
+    
+    (out, zr, ng)
+
+(**
+
+As we can see, the half and full adder implementations are nice and simple.  
+Then the actual Ripple Carry Adder implementation draws on some nice functional techniques to provide a clean alternative to the way that I assume is expected in the book.
+That is, a 16 Bit implementation is actually 16 calls to FullAdder (As the Adder Chip is effectively an N bit array of full adder chips), working from Least significant bit, to the most (right to left) with the carry seeded into subsequent calls as required. 
+
+Finally the ALU is straight forward too.  
+It does however have some wasteful logic. By abiding to the books rules we have to execute to logic paths to produce their respective results before switching between them based on a specific control bit.
+
+Therefore, we can immediately refactor this as follows:
+
+*)
+
+//TODO - F# Style ALU implementation
+
+(**
+
+##Testing
+
+Finally, it's time to get some tests executed. The book provides comparison files in order to check our output when using the recommended Hardware simulator and HDL code.
+
+I decided it would be a fun exercise to utilise these within my tests.  
+
+What we need is a way to convert a string and/or integer representation of bits in to arrays of Boolean values for use with my Gates.  
+I therefore created some util functions.
+
+In addition we need to read the provided comparison files and compare to our results.  
+This means we need to return our results in the correct format (Also string representation of bits!) 
+
+Lets get to it.
+
+
+
+
+
 *)
 
 (*** hide ***)
