@@ -2,6 +2,7 @@
 (*** hide ***)
 module FsEmulation
 
+
 (**
 So, I've had this book on my shelf for a good few years and never got round to reading it, yet alone completing the exercises within.
 
@@ -283,7 +284,7 @@ let Adder aBits bBits =
 //In plus one
 let Incrementer aBits = Adder (aBits |> List.ofArray) [ for i in 1 .. 16 -> match i with | 16 -> true | _ -> false ]
 
-let ALU xBits yBits nx zx ny zy f no = 
+let ALU xBits yBits zx nx zy ny f no = 
     //handle x    
     let ox1 = MultiMux zx xBits [|for i in 1..16 -> false |]  //Zero all X bits if zx
     let nox1 = MultiNot ox1 //What would this be if negated
@@ -332,15 +333,71 @@ Finally, it's time to get some tests executed. The book provides comparison file
 I decided it would be a fun exercise to utilise these within my tests.  
 
 What we need is a way to convert a string and/or integer representation of bits in to arrays of Boolean values for use with my Gates.  
-I therefore created some util functions.
+I therefore created some utility functions.
 
 In addition we need to read the provided comparison files and compare to our results.  
-This means we need to return our results in the correct format (Also string representation of bits!) 
+This means we need to return our results in the correct format (Also a string representation of bits!) 
 
 Lets get to it.
 
+First up, converting a string to an array of integers.  
+In actual fact, what we is a bit different to that. We only care about 1 and zeros obviously.
+Therefore I will simply pattern match the char '1', to the integer 1 and anything else to zero.  
 
+This may not be the most robust implementation, as we would really want to trigger an error, or return nothing if the string is invalid (ie contained characters other than '1' or '0').
 
+*)
+
+module Utilities =
+
+    let stringToInts s =
+        s |> Seq.map (function | '1' ->  1 | _ -> 0)
+
+(**
+
+Next up, we create a quick helper to convert an integer array into a Boolean array.
+I've done this in the same manner as the string converter. I have purposefully ignored the fact we could have incorrect input values.
+
+*)
+
+    let intsToBools ints =
+        ints |> Seq.map (function | 1 -> true | _ -> false)
+
+(**
+We will also the inverse of these to functions.
+*)
+
+    let boolsToInts bools= 
+        bools |> Seq.map (function | true -> 1  | _ -> 0)
+
+    let intsToString ints =
+        ints |> Seq.map (function | 1 -> "1" | _ -> "0")
+        |> String.concat ""
+
+(**
+To complete the set we then compose these together to create straight string to Boolean array and Boolean array to string functions.
+
+*)
+
+    let stringToBools = stringToInts >> intsToBools
+    let boolsToString = boolsToInts >> intsToString
+
+(**
+I also thought it would be useful (and more importantly it was fun!) to make some actual int to binary (so base 10 to base 2) converters and vice versa.
+
+To do the actual testing I will use the provided comparison files supplied with the books software.
+
+These files, are basically truth tables.  
+An example of the one supplied for AND is as follows:
+
+|   a   |   b   |  out  |
+|   0   |   0   |   0   |
+|   0   |   1   |   0   |
+|   1   |   0   |   0   |
+|   1   |   1   |   1   |
+
+So, I need to parse this, create the inputs and then compare the given output with our functions output. 
+Sounds simple, right?
 
 
 *)
