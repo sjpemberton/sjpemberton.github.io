@@ -348,10 +348,16 @@ This may not be the most robust implementation, as we would really want to trigg
 
 *)
 
+(***hide***)
 module Utilities =
 
-    let stringToInts s =
-        s |> Seq.map (function | '1' ->  1 | _ -> 0)
+    open System
+    open System.IO
+    (***)
+
+    let stringToInt = function 
+        | "1" -> 1
+        | _ -> 0
 
 (**
 
@@ -360,46 +366,148 @@ I've done this in the same manner as the string converter. I have purposefully i
 
 *)
 
-    let intsToBools ints =
-        ints |> Seq.map (function | 1 -> true | _ -> false)
+    let intToBool = function 
+        | 1 -> true
+        | _ -> false
 
 (**
 We will also the inverse of these to functions.
 *)
 
-    let boolsToInts bools= 
-        bools |> Seq.map (function | true -> 1  | _ -> 0)
+    let boolToInt = function 
+        | true -> 1
+        | _ -> 0
 
-    let intsToString ints =
-        ints |> Seq.map (function | 1 -> "1" | _ -> "0")
-        |> String.concat ""
+    let intToString = function 
+        | 1 -> "1"
+        | _ -> "0"
+
+    let intsToString = Array.map intToString >> String.concat ""
+
 
 (**
 To complete the set we then compose these together to create straight string to Boolean array and Boolean array to string functions.
 
 *)
 
-    let stringToBools = stringToInts >> intsToBools
-    let boolsToString = boolsToInts >> intsToString
+    let stringToBool = stringToInt >> intToBool
+    let boolToString = boolToInt >> intToString
 
 (**
-I also thought it would be useful (and more importantly it was fun!) to make some actual int to binary (so base 10 to base 2) converters and vice versa.
+
+All of these simple functions can then be used with the built in Array/List module functions to convert entire collections as needed.
 
 To do the actual testing I will use the provided comparison files supplied with the books software.
 
 These files, are basically truth tables.  
 An example of the one supplied for AND is as follows:
 
-|   a   |   b   |  out  |
-|   0   |   0   |   0   |
-|   0   |   1   |   0   |
-|   1   |   0   |   0   |
-|   1   |   1   |   1   |
+    [lang=output]
+    |   a   |   b   |  out  |
+    |   0   |   0   |   0   |
+    |   0   |   1   |   0   |
+    |   1   |   0   |   0   |
+    |   1   |   1   |   1   |
 
 So, I need to parse this, create the inputs and then compare the given output with our functions output. 
 Sounds simple, right?
 
+First off, lets read a file in and create a list of the rows from the given table.
 
+*)
+
+    let parseFile path = 
+        File.ReadAllLines path
+        |> Seq.map (fun s -> 
+               s.Split([| "|" |], StringSplitOptions.RemoveEmptyEntries)
+               |> Array.map (fun s -> s.Trim())
+               |> Array.toList)
+        |> Seq.toList
+
+(**
+    [lang=output]
+    val x : string list list =
+      [["a"; "b"; "out"]; ["0"; "0"; "0"]; ["0"; "1"; "0"]; ["1"; "0"; "0"];
+       ["1"; "1"; "1"]]
+
+As you can see this gives us a list of lists representing the values per column per row.  
+We now need to convert this into a list of maps. So that the arguments can be accessed by name. 
+
+If I had stuck with the same naming conventions and argument order as the book, I likely wouldn't need to do this.
+
+*)
+
+    let rec createMap matrix (cols : string list) = 
+        match matrix with
+        | row :: rest -> 
+            [ row
+              |> List.mapi (fun i x -> (cols.[i], x))
+              |> Map.ofSeq ]
+            @ createMap rest cols
+        | _ -> []
+
+(**
+Finally we need a function to act as our test runner.  
+This will take a file name, parse the file, create a list of test case data and then call a provided test function.
+
+The test function provided will need to map the test case data (using the map keys) to the required argument and compare the required out argument to determine success.
+
+*)
+
+    let executeTests path func = 
+        let data = parseFile path
+        let testData = createMap (List.tail data) (List.head data)
+        let rec execute func testData num = 
+            match testData with
+            | case :: rest -> 
+                sprintf "Test number %i - %s \n" num  (if func case then "Success" else "Failure") + execute func rest (num+1)
+            | [] -> "All tests complete"
+        execute func testData 0
+
+(**
+Lets put it to the test.  
+I'll start simple and run the test for the And functions test file shown above.  
+
+Here is my test function and the use of it.
+*)
+
+    let andTest (case : Map<string, string>) = 
+        And (stringToBool case.["a"]) (stringToBool case.["b"]) = stringToBool case.["out"]
+
+    executeTests @"TestFiles\And.cmp" andTest
+
+(**
+    [lang=output]
+    val it : string =
+      "Test number 0 - Success 
+       Test number 1 - Success 
+       Test number 2 - Success 
+       Test number 3 - Success 
+       All tests complete"
+
+I could further extend this to log each parameter value as the test function is called, thus giving us full visibility of the variables.  
+For now though I'll leave it as is.
+
+Below is another example of the test case for the Incrementer function.  
+The partial truth table (test file) is also provided.
+
+    [Lang=output]
+    |        in        |       out        |
+    | 0000000000000000 | 0000000000000001 |
+    | 1111111111111111 | 0000000000000000 |
+    | 0000000000000101 | 0000000000000110 |
+    | 1111111111111011 | 1111111111111100 |
+*)
+
+    let IncTest (case : Map<string, string>) = 
+        case.["in"]
+        |> Seq.map (charToInt >> intToBool)
+        |> Seq.toArray
+        |> Incrementer
+        |> boolsToString = case.["out"]
+
+(**
+I also thought it would be useful (and more importantly it was fun!) to make some actual int to binary (so base 10 to base 2) converters and vice versa.
 *)
 
 (*** hide ***)
