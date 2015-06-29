@@ -316,13 +316,26 @@ Then the actual Ripple Carry Adder implementation draws on some nice functional 
 That is, a 16 Bit implementation is actually 16 calls to FullAdder (As the Adder Chip is effectively an N bit array of full adder chips), working from Least significant bit, to the most (right to left) with the carry seeded into subsequent calls as required. 
 
 Finally the ALU is straight forward too.  
-It does however have some wasteful logic. By abiding to the books rules we have to execute to logic paths to produce their respective results before switching between them based on a specific control bit.
+It does however have some wasteful logic. By abiding to the books rules we have to execute individual logic paths to produce their respective results before switching between them based on a specific control bit.
 
 Therefore, we can immediately refactor this as follows:
 
 *)
+(***hide***)
+module AlternateALU =
+(***)
 
-//TODO - F# Style ALU implementation
+    let ALU xBits yBits zx nx zy ny f no = 
+        let zero c b = if c then [| for i in 1..16 -> false |] else b 
+        let negate c b = if c then MultiNot b else b
+        let x = xBits |> zero zx |> negate nx 
+        let y = yBits |> zero zy |> negate ny 
+
+        //Apply function and negate if needed
+        let out = if f then MultiAnd x y else Adder x y
+                  |> negate no
+         
+        (out, MultiWayOr out |> Not, MultiAnd out [| for i in 1..16 -> match i with | 16 -> true | _ -> false |] |> MultiWayOr)
 
 (**
 
@@ -496,7 +509,7 @@ Here is my test function and the use of it.
 I could further extend this to log each parameter value as the test function is called, thus giving us full visibility of the variables.  
 For now though I'll leave it as is.
 
-Below is another example of the test case for the Incrementer function.  
+Below is another example of the test case for the Increment function.  
 The partial truth table (test file) is also provided.
 
     [Lang=output]
@@ -525,7 +538,7 @@ The following converts a decimal to binary (it doesn't handle negatives, we will
             match i with
             | _ when i > 0 -> (i % 2) :: convert (i / 2) acc
             | _ -> acc
-        convert i [] |> List.rev |> List.toArray
+        convert i [] |> List.rev |> List.toArray 
 
 (**
 Next we require a function to flip each bit in a sequence. This is required for converting an integer into a twos compliment binary representation when the number is negative.
@@ -572,22 +585,22 @@ this will no allow us to get the binary representation of any integer returned i
 
 We can also define a couple of simple functions to convert back from binary base 10.
 *)
-    let toDecimal b = 
+    let toBase10 b = 
         let rec convert b i acc = 
             match b with
             | h :: t -> float h * 2.0 ** i + convert t (i + 1.0) acc
             | [] -> acc
         convert (b |> Array.rev |> Array.toList) 0.0 0.0 |> int
 
-    let toDecimalFromTC b (binary : int array) =
+    let toDecimal b (binary : int array) =
         match binary.[0] with
-        | 0 -> binary |> toDecimal
+        | 0 -> binary |> toBase10
         | _ -> 
             -(binary
             |> padBits b
             |> flipBits |> Array.map intToBool
             |> Increment |> Array.map boolToInt 
-            |> toDecimal)
+            |> toBase10)
 
 (**
 Phew, let's give these new functions a test.  
@@ -612,7 +625,7 @@ module tests =
     let result = 
         Adder a b
         |> Array.map boolToInt
-        |> toDecimalFromTC 16
+        |> toDecimal 16
 
 (**
     [lang=output]
@@ -628,8 +641,12 @@ module tests =
     let negativePlus1 = 
         Increment negative
         |> Array.map boolToInt
-        |> toDecimalFromTC 16
+        |> toDecimal 16
 
+(**
+    [lang=output]
+    val negativePlus1 : int = -111
+*)
 (***)
 
 (*** hide ***)
