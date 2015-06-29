@@ -525,7 +525,7 @@ The following converts a decimal to binary (it doesn't handle negatives, we will
             match i with
             | _ when i > 0 -> (i % 2) :: convert (i / 2) acc
             | _ -> acc
-        convert i [] |> List.rev
+        convert i [] |> List.rev |> List.toArray
 
 (**
 Next we require a function to flip each bit in a sequence. This is required for converting an integer into a twos compliment binary representation when the number is negative.
@@ -539,16 +539,16 @@ Next we require a function to flip each bit in a sequence. This is required for 
                 | 1 -> 0 :: convert t acc
                 | _ -> 1 :: convert t acc
             | [] -> acc
-        convert b []
+        convert (b |> List.ofSeq) []
+        |> List.toArray
 
 (**
 Next up is a function to pad a binary array with zeros depending on the given maximum bit length.
 *)
 
-    let padBits length (bits : int list) = 
-        let pad = length - bits.Length
-        [ for i in 1..pad -> 0 ]
-        @ bits
+    let padBits length (bits : int array) =
+        let padding = [| for i in 1..(length - bits.Length) -> 0 |]
+        Array.concat [|padding; bits|]
 
 (**
 Finally, we make use of the Increment function we have already defined as part of the boolean arithmetic functions in order to complete what we need to fully represent a decimal in twos compliment binary form.
@@ -560,16 +560,12 @@ Finally, we make use of the Increment function we have already defined as part o
             abs i
             |> toBinary
             |> padBits b
-            |> flipBits
-            |> List.toArray
-            |> Array.map intToBool
-            |> Increment
-            |> Array.map boolToInt
+            |> flipBits |> Array.map intToBool
+            |> Increment |> Array.map boolToInt
         | _ -> 
             i
             |> toBinary
             |> padBits b
-            |> List.toArray
 
 (**
 this will no allow us to get the binary representation of any integer returned in an array of bools for use in our arithmetic functions.
@@ -581,13 +577,17 @@ We can also define a couple of simple functions to convert back from binary base
             match b with
             | h :: t -> float h * 2.0 ** i + convert t (i + 1.0) acc
             | [] -> acc
-        convert (b |> List.rev) 0.0 0.0 |> int
+        convert (b |> Array.rev |> Array.toList) 0.0 0.0 |> int
 
-    let toDecimalFromTC (binary : int list) =
-        let result = binary |> toDecimal
+    let toDecimalFromTC b (binary : int array) =
         match binary.[0] with
-        | 0 -> result
-        | _ -> -result
+        | 0 -> binary |> toDecimal
+        | _ -> 
+            -(binary
+            |> padBits b
+            |> flipBits |> Array.map intToBool
+            |> Increment |> Array.map boolToInt 
+            |> toDecimal)
 
 (**
 Phew, let's give these new functions a test.  
@@ -611,9 +611,8 @@ module tests =
 
     let result = 
         Adder a b
-        |> Array.map boolToInt 
-        |> List.ofArray
-        |> toDecimalFromTC
+        |> Array.map boolToInt
+        |> toDecimalFromTC 16
 
 (**
     [lang=output]
@@ -628,9 +627,8 @@ module tests =
 
     let negativePlus1 = 
         Increment negative
-        |> Array.map boolToInt 
-        |> List.ofArray
-        |> toDecimalFromTC
+        |> Array.map boolToInt
+        |> toDecimalFromTC 16
 
 (***)
 
