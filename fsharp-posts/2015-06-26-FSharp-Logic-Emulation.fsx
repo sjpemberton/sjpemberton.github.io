@@ -4,41 +4,52 @@ module FsEmulation
 
 
 (**
-So, I've had this book on my shelf for a good few years and never got round to reading it, yet alone completing the exercises within.
+So, I've had this book (The Elements of Computing Systems) on my shelf for a good few years and never got round to reading it, yet alone completing the exercises within.
 
 <img src="/content/images/post-images/tecs_cover.jpg" alt="Drawing" style="width:220px; float:right; margin:20px;"/>
 
-Therefore I thought why not complete the exercises in a different way than suggested in the book.  
-Rather than utilising the Hardware Definition Language and the given emulator as suggested. I will model all of the parts of the computer, in F#. 
+Therefore I thought I'd finally read it.  
+I also decided I would complete the exercises in a different way than suggested in the book. By using F#!  
+
+Rather than utilising the Hardware Definition Language and the given emulator as suggested. I will model all of the parts of the computer in F#. 
 
 Doing so, I hope to utilise various functional programming techniques, alongside F# specific features to keep the solutions as simple and easy too understand as possible.   
+Hopefully learning something new on the way.
 
-The book starts with the building blocks of the CPU, Boolean logic gates, and that is what I'll cover in this post.
+As I work my way through the book I'll be adding to this series.  
+I aim to cover one collection of exercises (roughly a chapter) per post, however this initial post will cover two, just to get me going.
 
+The book starts with the building blocks of the CPU, Boolean logic gates.
+Let's dive straight in.
 
 <!-- more -->
 
 #Logic Gates
 
-The approach outlined in the book is to create a number of simple logic gates, from an initial NAND gate implementation that is provided for you.  
+The approach outlined in the book is to create a number of simple logic gates, composed of previously defined gates. 
+It starts you off with an initial NAND gate implementation that you can then utilise to create the next gate, which can then also be used in subsequent gates, and so on..  
 
-All of the gates I create here could have a much nicer implementation using pure pattern matching instead of making use of the previously defined gates.
-In some cases I will provide both and have done so on GitHub if anyone is interested.
+I kind of like this approach from an academic point of view. It makes for some interesting problem solving activities.  
+Therefore, I'll follow the approach in the book, even though I know it won't result in the cleanest, most idiomatic F# code. (At least not that I can currently create. Please feel free to give me some pointers) 
 
-Therefore my first step was to create a NAND gate.
+That being said, all of the gates I create have a much cleaner implementation by utilising pattern matching instead of making use of the previously defined gates.
+I will also provide these for most of the implementations.
+
+Right then, first up we need to replicate that NAND gate the book provided for us.
 
 ##Starting with NAND
 
-As you may know, a NAND gate is a binary gate that returns false if both of it's inputs are true and true otherwise.  
+As you may know, a NAND gate is a binary gate that returns false if both of it's inputs are true or returns true otherwise.  
 A truth table for the gate is as follows:  
 
-A|B|Output  
-0|0|1  
-0|1|1  
-1|0|1  
-1|1|0  
+   [Lang=output]
+   |   a   |   b   |  out  |
+   |   0   |   0   |   1   |
+   |   0   |   1   |   1   |
+   |   1   |   0   |   1   |
+   |   1   |   1   |   0   |
 
-One great thing about using F# for modelling these gates is that we can utilise Pattern Matching to mirror the truth tables.
+One great thing about using F# and Pattern Matching for modelling these gates is that they end up mirroring the truth tables.
 
 Therefore our NAND gate can be defined like so.
 
@@ -52,7 +63,7 @@ let Nand a b =
     | true, true -> false
 
 (**
-This can, of course, be further simplified to the following. (albeit no longer mirroring the truth table)
+This can, of course, be further simplified to the following. (albeit no longer mirroring the truth table above)
 *)
 
 (***hide***)
@@ -64,7 +75,8 @@ module PatternMatched =
         | _, _ -> true
 
 (** 
-Now that we have our NAND implementation, we need to tackle the following gates
+Now that we have our NAND implementation, the book instructs us to tackle the following gates in the order given.  
+The order is only important so that we can use each of the implementations in subsequent gates.
 
 - NOT
 - AND
@@ -73,9 +85,18 @@ Now that we have our NAND implementation, we need to tackle the following gates
 - Multiplexor (MUX)
 - Demultiplexor (DMUX)
 
-As well as some Multi bit versions and a multi way OR.
+In addition there are some Multi bit versions of these gates, and a multi way OR. We'll look at these in more detail when we get to them.
 
 The following are implementations of the first six gates, made up of only previously defined gates (as per the books instructions).  
+*)
+
+(**
+
+    [Lang=output]
+        NOT GATE
+    |   a   |  out  |
+    |   0   |   1   |
+    |   1   |   0   |
 
 *)
 
@@ -102,9 +123,9 @@ let DMux x sel =
 
 (**
 
-Clearly they aren't the prettiest of functions due to the needed parentheses.  
-Perhaps there is a better way of defining these functions when when creating them from the previously defined ones and I'd be interested in seeing the technique. 
-However, by ignoring the guidelines in the book (where the purpose is to learn how all other logic gates can be created using NAND as a starting point), we can utilise pattern matching to clean things up.
+Clearly they aren't the prettiest of functions due to the needed parentheses. They don't tend to suite the (or maybe just my) functional style.  
+Perhaps there is a better way of defining these functions when creating them from the previously defined ones and I'd be interested in seeing the technique. 
+However, as mentioned before, by ignoring the guidelines in the book (where the purpose is to learn how all other logic gates can be created using NAND as a starting point), we can utilise pattern matching to clean things up.
 
 The pattern matched versions more closely reflect the corresponding truth tables for the logic gates. 
 
@@ -197,23 +218,36 @@ let MultiDMux sel =
 
 (**
 The functions above show how clean and concise these new multi bit versions of the gates become.  
-One thing that isn't handled however is ensuring that the amount of bits is equal in both cases.
 
+One thing that isn't handled however is ensuring that the amount of bits is equal in both cases.
 This is not something that I am worried about at this stage, but I would like to make it more robust in the future.  
+
+- It's also worth pointing out that I have completely diverged from the book here.
+To implement these in the way the book expects we simply have to iteratively call the simple gates, seeding the bits in order and collecting the results into a new array.  
+This is exactly what we get for free with Array.map!
 
 *)
 
 
 (**
 ##Multi Way Gates
+
+First up, we can tackle that MultiWay OR gate I mentioned earlier.  
+It's a simple gate that consists of a series of OR Gates.  
+The first two bits are passed to the first gate, and then the third plus the result of the first gate are fed into the next gate.
+This pattern continues for all bits provided.
+
+Hmmm, this sounds familiar, I think we'll skip the explicit definition and jump straight to a concise F# specific one.
 *)
 
 let MultiWayOr bits = 
     bits |> Array.reduce Or
 
 (**
-The MultiWayOr function above maps perfectly to the Reduce function.  
-It simply calls OR sequentially passing the result of the previous OR into the next -- TODO - re word and be precise
+As you can see, the MultiWayOr function above maps perfectly to F#s built in Reduce function.  
+
+Next up MultiWayMUX.  
+This gate is basically just three calls to our MultiMux gate.
 *)
 
 let Mux4Way16 a b c d (sel:bool array) = 
@@ -316,7 +350,7 @@ Then the actual Ripple Carry Adder implementation draws on some nice functional 
 That is, a 16 Bit implementation is actually 16 calls to FullAdder (As the Adder Chip is effectively an N bit array of full adder chips), working from Least significant bit, to the most (right to left) with the carry seeded into subsequent calls as required. 
 
 Finally the ALU is straight forward too.  
-It does however have some wasteful logic. By abiding to the books rules we have to execute individual logic paths to produce their respective results before switching between them based on a specific control bit.
+It does however have some wasteful processing. By abiding to the books rules we have to execute individual logic paths to produce their respective results before switching between them based on a specific control bit.
 
 Therefore, we can immediately refactor this as follows:
 
