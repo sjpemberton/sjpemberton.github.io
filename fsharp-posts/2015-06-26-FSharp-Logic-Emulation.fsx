@@ -40,14 +40,15 @@ Right then, first up we need to replicate that NAND gate the book provided for u
 ##Starting with NAND
 
 As you may know, a NAND gate is a binary gate that returns false if both of it's inputs are true or returns true otherwise.  
-A truth table for the gate is as follows:  
+A truth table for the gate is as follows.
 
-   [Lang=output]
-   |   a   |   b   |  out  |
-   |   0   |   0   |   1   |
-   |   0   |   1   |   1   |
-   |   1   |   0   |   1   |
-   |   1   |   1   |   0   |
+    [lang=output]
+    |   a   |   b   |  out  |
+    |   0   |   0   |   1   |
+    |   0   |   1   |   1   |
+    |   1   |   0   |   1   |
+    |   1   |   1   |   0   |
+
 
 One great thing about using F# and Pattern Matching for modelling these gates is that they end up mirroring the truth tables.
 
@@ -68,6 +69,7 @@ This can, of course, be further simplified to the following. (albeit no longer m
 
 (***hide***)
 module PatternMatched =
+(***)
 
     let Nand a b = 
         match a, b with
@@ -88,16 +90,21 @@ The order is only important so that we can use each of the implementations in su
 In addition there are some Multi bit versions of these gates, and a multi way OR. We'll look at these in more detail when we get to them.
 
 The following are implementations of the first six gates, made up of only previously defined gates (as per the books instructions).  
+I have included a truth table and circuit diagram for each of them, but to save space and keep the post concise (well, a bit shorter), they are initially hidden, just hover or click the prompt to view them.
 *)
-
 (**
+<span class="expandPrompt">Not Gate Details</span>
+<div class="hoverPopup" >
 
-    [Lang=output]
+    [lang=output]
         NOT GATE
     |   a   |  out  |
     |   0   |   1   |
     |   1   |   0   |
 
+<img src="/content/images/post-images/NOT.png" alt="NOT Gate" style="float:right; margin:20px;"/>
+
+</div>
 *)
 
 let Not a = 
@@ -116,8 +123,8 @@ let Xor a b =
 let Mux sel a b =
     Nand (Nand a sel) (Nand (Not sel) b)    
 
-let DMux x sel =
-    (And x (Not x), And x sel)
+let DMux a sel =
+    (And a (Not a), And a sel)
 
 
 
