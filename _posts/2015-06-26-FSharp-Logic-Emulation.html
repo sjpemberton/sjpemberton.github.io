@@ -1,0 +1,1592 @@
+---
+meta: The elements of computing systems using FSharp
+series-post-number: 1
+series: F# and The Elements of Computing Systems
+catagories: ["Exploration","examples"]
+tags: ["fsharp","Emulation"]
+comments: true
+date: 21/06/2015
+title: Boolean Logic and Arithmetic with F#
+layout: post
+---
+<p>So, I've had this book (The Elements of Computing Systems) on my shelf for a good few years and never got round to reading it, yet alone completing the exercises within.</p>
+
+<img src="/content/images/post-images/tecs_cover.jpg" alt="Drawing" style="width:220px; float:right; margin:20px;"/>
+
+<p>Therefore I thought I'd finally read it.<br />
+I also decided I would complete the exercises in a different way than suggested in the book. By using F#!</p>
+
+<p>Rather than utilising the Hardware Definition Language and the given emulator as suggested. I will model all of the parts of the computer in F#.</p>
+
+<p>Doing so, I hope to utilise various functional programming techniques, alongside F# specific features to keep the solutions as simple and easy too understand as possible. <br />
+Hopefully learning something new on the way.</p>
+
+<p>As I work my way through the book I'll be adding to this series.<br />
+I aim to cover one collection of exercises (roughly a chapter) per post, however this initial post will cover two, just to get me going.</p>
+
+<p>The book starts with the building blocks of the CPU, Boolean logic gates.
+Let's dive straight in.</p>
+
+<!-- more -->
+
+<h1>Logic Gates</h1>
+
+<p>The approach outlined in the book is to create a number of simple logic gates, composed of previously defined gates. 
+It starts you off with an initial NAND gate implementation that you can then utilise to create the next gate, which can then also be used in subsequent gates, and so on..</p>
+
+<p>I kind of like this approach from an academic point of view. It makes for some interesting problem solving activities.<br />
+Therefore, I'll follow the approach in the book, even though I know it won't result in the cleanest, most idiomatic F# code. (At least not that I can currently create. Please feel free to give me some pointers)</p>
+
+<p>That being said, all of the gates I create have a much cleaner implementation by utilising pattern matching instead of making use of the previously defined gates.
+I will also provide these for most of the implementations.</p>
+
+<p>Right then, first up we need to replicate that NAND gate the book provided for us.</p>
+
+<h2>Starting with NAND</h2>
+
+<p>As you may know, a NAND gate is a binary gate that returns false if both of it's inputs are true or returns true otherwise.<br />
+A truth table for the gate is as follows.</p>
+
+<table class="pre"><tr><td><pre lang="output">|   a   |   b   |  out  |
+|   0   |   0   |   1   |
+|   0   |   1   |   1   |
+|   1   |   0   |   1   |
+|   1   |   1   |   0   |
+</pre></td></tr></table>
+
+<p>One great thing about using F# and Pattern Matching for modelling these gates is that they end up mirroring the truth tables.</p>
+
+<p>Therefore our NAND gate can be defined like so.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs2', 2)" onmouseover="showTip(event, 'fs2', 2)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs3', 3)" onmouseover="showTip(event, 'fs3', 3)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 4)" onmouseover="showTip(event, 'fs4', 4)" class="i">b</span> <span class="o">=</span> 
+    <span class="k">match</span> <span onmouseout="hideTip(event, 'fs3', 5)" onmouseover="showTip(event, 'fs3', 5)" class="i">a</span>, <span onmouseout="hideTip(event, 'fs4', 6)" onmouseover="showTip(event, 'fs4', 6)" class="i">b</span> <span class="k">with</span>
+    | <span class="k">false</span>, <span class="k">false</span> <span class="k">-&gt;</span> <span class="k">true</span>
+    | <span class="k">false</span>, <span class="k">true</span> <span class="k">-&gt;</span> <span class="k">true</span>
+    | <span class="k">true</span>, <span class="k">false</span> <span class="k">-&gt;</span> <span class="k">true</span>
+    | <span class="k">true</span>, <span class="k">true</span> <span class="k">-&gt;</span> <span class="k">false</span></pre>
+</td>
+</tr>
+</table>
+
+<p>This can, of course, be further simplified to the following. (albeit no longer mirroring the truth table above)</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs5', 7)" onmouseover="showTip(event, 'fs5', 7)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs3', 8)" onmouseover="showTip(event, 'fs3', 8)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 9)" onmouseover="showTip(event, 'fs4', 9)" class="i">b</span> <span class="o">=</span> 
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs3', 10)" onmouseover="showTip(event, 'fs3', 10)" class="i">a</span>, <span onmouseout="hideTip(event, 'fs4', 11)" onmouseover="showTip(event, 'fs4', 11)" class="i">b</span> <span class="k">with</span>
+        | <span class="k">true</span>, <span class="k">true</span> <span class="k">-&gt;</span> <span class="k">false</span>
+        | _, _ <span class="k">-&gt;</span> <span class="k">true</span></pre>
+</td>
+</tr>
+</table>
+
+<p>Now that we have our NAND implementation, the book instructs us to tackle the following gates in the order given.<br />
+The order is only important so that we can use each of the implementations in subsequent gates.</p>
+
+<ul>
+<li>NOT</li>
+<li>AND</li>
+<li>OR</li>
+<li>XOR</li>
+<li>Multiplexor (MUX)</li>
+<li>Demultiplexor (DMUX)</li>
+</ul>
+
+<p>In addition there are some Multi bit versions of these gates, and a multi way OR. We'll look at these in more detail when we get to them.</p>
+
+<p>The following are implementations of the first six gates, made up of only previously defined gates (as per the books instructions).<br />
+I have included a truth table and circuit diagram for each of them. The circuit diagrams are created using only previously defined gates, as the book intended. <br />
+In order to save space and keep the post concise (well, shorter at least), they are initially hidden, just hover or click the link to view them.</p>
+
+<a class="expandPrompt">NOT Gate Details</a>
+<div class="hoverPopup" >
+
+<table class="pre"><tr><td><pre lang="output">NOT GATE
+|   a   |  out  |
+|   0   |   1   |
+|   1   |   0   |
+</pre></td></tr></table>
+
+<img src="/content/images/post-images/NOT.png" alt="NOT Gate" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs6', 12)" onmouseover="showTip(event, 'fs6', 12)" class="i">Not</span> <span onmouseout="hideTip(event, 'fs3', 13)" onmouseover="showTip(event, 'fs3', 13)" class="i">a</span> <span class="o">=</span> 
+    <span onmouseout="hideTip(event, 'fs2', 14)" onmouseover="showTip(event, 'fs2', 14)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs3', 15)" onmouseover="showTip(event, 'fs3', 15)" class="i">a</span> <span onmouseout="hideTip(event, 'fs3', 16)" onmouseover="showTip(event, 'fs3', 16)" class="i">a</span></pre>
+</td>
+</tr>
+</table>
+
+<a class="expandPrompt">AND Gate Details</a>
+<div class="hoverPopup" >
+
+<table class="pre"><tr><td><pre lang="output">AND GATE
+|   a   |   b   |  out  |
+|   0   |   0   |   0   |
+|   1   |   0   |   0   |
+|   0   |   1   |   0   |
+|   1   |   1   |   1   |
+</pre></td></tr></table>
+
+<img src="/content/images/post-images/AND.png" alt="AND Gate" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs7', 17)" onmouseover="showTip(event, 'fs7', 17)" class="i">And</span> <span onmouseout="hideTip(event, 'fs3', 18)" onmouseover="showTip(event, 'fs3', 18)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 19)" onmouseover="showTip(event, 'fs4', 19)" class="i">b</span> <span class="o">=</span> 
+    <span onmouseout="hideTip(event, 'fs2', 20)" onmouseover="showTip(event, 'fs2', 20)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs3', 21)" onmouseover="showTip(event, 'fs3', 21)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 22)" onmouseover="showTip(event, 'fs4', 22)" class="i">b</span> 
+    <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs6', 23)" onmouseover="showTip(event, 'fs6', 23)" class="i">Not</span></pre>
+</td>
+</tr>
+</table>
+
+<a class="expandPrompt">OR Gate Details</a>
+<div class="hoverPopup" >
+
+<table class="pre"><tr><td><pre lang="output">OR GATE
+|   a   |   b   |  out  |
+|   0   |   0   |   0   |
+|   1   |   0   |   1   |
+|   0   |   1   |   1   |
+|   1   |   1   |   1   |
+</pre></td></tr></table>
+
+<img src="/content/images/post-images/OR.png" alt="OR Gate" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs8', 24)" onmouseover="showTip(event, 'fs8', 24)" class="i">Or</span> <span onmouseout="hideTip(event, 'fs3', 25)" onmouseover="showTip(event, 'fs3', 25)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 26)" onmouseover="showTip(event, 'fs4', 26)" class="i">b</span> <span class="o">=</span>
+    <span onmouseout="hideTip(event, 'fs2', 27)" onmouseover="showTip(event, 'fs2', 27)" class="i">Nand</span> (<span onmouseout="hideTip(event, 'fs2', 28)" onmouseover="showTip(event, 'fs2', 28)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs3', 29)" onmouseover="showTip(event, 'fs3', 29)" class="i">a</span> <span onmouseout="hideTip(event, 'fs3', 30)" onmouseover="showTip(event, 'fs3', 30)" class="i">a</span>) (<span onmouseout="hideTip(event, 'fs2', 31)" onmouseover="showTip(event, 'fs2', 31)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs4', 32)" onmouseover="showTip(event, 'fs4', 32)" class="i">b</span> <span onmouseout="hideTip(event, 'fs4', 33)" onmouseover="showTip(event, 'fs4', 33)" class="i">b</span>)</pre>
+</td>
+</tr>
+</table>
+
+<a class="expandPrompt">XOR Gate Details</a>
+<div class="hoverPopup" >
+
+<table class="pre"><tr><td><pre lang="output">AND GATE
+|   a   |   b   |  out  |
+|   0   |   0   |   0   |
+|   1   |   0   |   1   |
+|   0   |   1   |   1   |
+|   1   |   1   |   0   |
+</pre></td></tr></table>
+
+<img src="/content/images/post-images/XOR.png" alt="XOR Gate" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs9', 34)" onmouseover="showTip(event, 'fs9', 34)" class="i">Xor</span> <span onmouseout="hideTip(event, 'fs3', 35)" onmouseover="showTip(event, 'fs3', 35)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 36)" onmouseover="showTip(event, 'fs4', 36)" class="i">b</span> <span class="o">=</span> 
+    <span onmouseout="hideTip(event, 'fs8', 37)" onmouseover="showTip(event, 'fs8', 37)" class="i">Or</span> (<span onmouseout="hideTip(event, 'fs7', 38)" onmouseover="showTip(event, 'fs7', 38)" class="i">And</span> <span onmouseout="hideTip(event, 'fs3', 39)" onmouseover="showTip(event, 'fs3', 39)" class="i">a</span> (<span onmouseout="hideTip(event, 'fs6', 40)" onmouseover="showTip(event, 'fs6', 40)" class="i">Not</span> <span onmouseout="hideTip(event, 'fs4', 41)" onmouseover="showTip(event, 'fs4', 41)" class="i">b</span>)) (<span onmouseout="hideTip(event, 'fs7', 42)" onmouseover="showTip(event, 'fs7', 42)" class="i">And</span> (<span onmouseout="hideTip(event, 'fs6', 43)" onmouseover="showTip(event, 'fs6', 43)" class="i">Not</span> <span onmouseout="hideTip(event, 'fs3', 44)" onmouseover="showTip(event, 'fs3', 44)" class="i">a</span>) <span onmouseout="hideTip(event, 'fs4', 45)" onmouseover="showTip(event, 'fs4', 45)" class="i">b</span>) </pre>
+</td>
+</tr>
+</table>
+
+<a class="expandPrompt">MUX Gate Details</a>
+<div class="hoverPopup" >
+
+<table class="pre"><tr><td><pre lang="output">MUX GATE
+|  sel  |   a   |   b   |  out  |
+|   0   |   0   |   0   |   0   |
+|   0   |   0   |   1   |   0   |
+|   0   |   1   |   0   |   1   |
+|   0   |   1   |   1   |   1   |
+|   1   |   0   |   0   |   0   |
+|   1   |   0   |   1   |   1   |
+|   1   |   1   |   0   |   0   |
+|   1   |   1   |   1   |   1   |
+</pre></td></tr></table>
+
+<img src="/content/images/post-images/MUX.png" alt="MUX Gate" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs10', 46)" onmouseover="showTip(event, 'fs10', 46)" class="i">Mux</span> <span onmouseout="hideTip(event, 'fs11', 47)" onmouseover="showTip(event, 'fs11', 47)" class="i">sel</span> <span onmouseout="hideTip(event, 'fs3', 48)" onmouseover="showTip(event, 'fs3', 48)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 49)" onmouseover="showTip(event, 'fs4', 49)" class="i">b</span> <span class="o">=</span>
+    <span onmouseout="hideTip(event, 'fs2', 50)" onmouseover="showTip(event, 'fs2', 50)" class="i">Nand</span> (<span onmouseout="hideTip(event, 'fs2', 51)" onmouseover="showTip(event, 'fs2', 51)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs3', 52)" onmouseover="showTip(event, 'fs3', 52)" class="i">a</span> <span onmouseout="hideTip(event, 'fs11', 53)" onmouseover="showTip(event, 'fs11', 53)" class="i">sel</span>) (<span onmouseout="hideTip(event, 'fs2', 54)" onmouseover="showTip(event, 'fs2', 54)" class="i">Nand</span> (<span onmouseout="hideTip(event, 'fs6', 55)" onmouseover="showTip(event, 'fs6', 55)" class="i">Not</span> <span onmouseout="hideTip(event, 'fs11', 56)" onmouseover="showTip(event, 'fs11', 56)" class="i">sel</span>) <span onmouseout="hideTip(event, 'fs4', 57)" onmouseover="showTip(event, 'fs4', 57)" class="i">b</span>)    </pre>
+</td>
+</tr>
+</table>
+
+<a class="expandPrompt">DMUX Gate Details</a>
+<div class="hoverPopup" >
+
+<table class="pre"><tr><td><pre lang="output">DMUX GATE
+|  sel  |   in   |  outA  |  outB  |
+|   0   |   0    |   0    |   0    |
+|   1   |   0    |   0    |   0    |
+|   0   |   1    |   1    |   0    |
+|   1   |   1    |   0    |   1    |
+</pre></td></tr></table>
+
+<img src="/content/images/post-images/DMUX.png" alt="DMUX Gate" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs12', 58)" onmouseover="showTip(event, 'fs12', 58)" class="i">DMux</span> <span onmouseout="hideTip(event, 'fs3', 59)" onmouseover="showTip(event, 'fs3', 59)" class="i">a</span> <span onmouseout="hideTip(event, 'fs11', 60)" onmouseover="showTip(event, 'fs11', 60)" class="i">sel</span> <span class="o">=</span>
+    (<span onmouseout="hideTip(event, 'fs7', 61)" onmouseover="showTip(event, 'fs7', 61)" class="i">And</span> <span onmouseout="hideTip(event, 'fs3', 62)" onmouseover="showTip(event, 'fs3', 62)" class="i">a</span> (<span onmouseout="hideTip(event, 'fs6', 63)" onmouseover="showTip(event, 'fs6', 63)" class="i">Not</span> <span onmouseout="hideTip(event, 'fs3', 64)" onmouseover="showTip(event, 'fs3', 64)" class="i">a</span>), <span onmouseout="hideTip(event, 'fs7', 65)" onmouseover="showTip(event, 'fs7', 65)" class="i">And</span> <span onmouseout="hideTip(event, 'fs3', 66)" onmouseover="showTip(event, 'fs3', 66)" class="i">a</span> <span onmouseout="hideTip(event, 'fs11', 67)" onmouseover="showTip(event, 'fs11', 67)" class="i">sel</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>Clearly they aren't the prettiest of functions due to the needed parentheses. They don't tend to suite the functional style. (or maybe that's just my lack of experience)</p>
+
+<p>Perhaps there is a better, more functional way of creating these functions from the previously defined ones. I'd be interested in seeing some similar solutions or techniques, so feel free to give me some pointers if you wish.</p>
+
+<p>That being said, It is clear that just like before and by ignoring the guidelines in the book (where the purpose is to learn how all other logic gates can be created using NAND as a starting point), we can again utilise pattern matching to clean things up.</p>
+
+<p>The pattern matched versions again, more closely reflect the corresponding truth tables for the logic gates. 
+The implementations are given below.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+<span class="l">20: </span>
+<span class="l">21: </span>
+<span class="l">22: </span>
+<span class="l">23: </span>
+<span class="l">24: </span>
+<span class="l">25: </span>
+<span class="l">26: </span>
+<span class="l">27: </span>
+<span class="l">28: </span>
+<span class="l">29: </span>
+<span class="l">30: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs13', 68)" onmouseover="showTip(event, 'fs13', 68)" class="i">Not</span> <span onmouseout="hideTip(event, 'fs14', 69)" onmouseover="showTip(event, 'fs14', 69)" class="i">a</span> <span class="o">=</span> <span class="k">function</span>
+        | <span class="k">true</span> <span class="k">-&gt;</span> <span class="k">false</span>
+        | <span class="k">false</span> <span class="k">-&gt;</span> <span class="k">true</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs15', 70)" onmouseover="showTip(event, 'fs15', 70)" class="i">And</span> <span onmouseout="hideTip(event, 'fs3', 71)" onmouseover="showTip(event, 'fs3', 71)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 72)" onmouseover="showTip(event, 'fs4', 72)" class="i">b</span> <span class="o">=</span> 
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs3', 73)" onmouseover="showTip(event, 'fs3', 73)" class="i">a</span>, <span onmouseout="hideTip(event, 'fs4', 74)" onmouseover="showTip(event, 'fs4', 74)" class="i">b</span> <span class="k">with</span>
+        | <span class="k">true</span>, <span class="k">true</span> <span class="k">-&gt;</span> <span class="k">true</span>
+        | _, _ <span class="k">-&gt;</span> <span class="k">false</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs16', 75)" onmouseover="showTip(event, 'fs16', 75)" class="i">Or</span> <span onmouseout="hideTip(event, 'fs3', 76)" onmouseover="showTip(event, 'fs3', 76)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 77)" onmouseover="showTip(event, 'fs4', 77)" class="i">b</span> <span class="o">=</span>
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs3', 78)" onmouseover="showTip(event, 'fs3', 78)" class="i">a</span>, <span onmouseout="hideTip(event, 'fs4', 79)" onmouseover="showTip(event, 'fs4', 79)" class="i">b</span> <span class="k">with</span>
+        | <span class="k">true</span>, _ <span class="k">-&gt;</span> <span class="k">true</span>
+        | _, <span class="k">true</span> <span class="k">-&gt;</span> <span class="k">true</span>
+        | _, _ <span class="k">-&gt;</span> <span class="k">false</span> 
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs17', 80)" onmouseover="showTip(event, 'fs17', 80)" class="i">Xor</span> <span onmouseout="hideTip(event, 'fs3', 81)" onmouseover="showTip(event, 'fs3', 81)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 82)" onmouseover="showTip(event, 'fs4', 82)" class="i">b</span> <span class="o">=</span>
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs3', 83)" onmouseover="showTip(event, 'fs3', 83)" class="i">a</span>, <span onmouseout="hideTip(event, 'fs4', 84)" onmouseover="showTip(event, 'fs4', 84)" class="i">b</span> <span class="k">with</span>
+        | <span class="k">true</span>, <span class="k">false</span> <span class="k">-&gt;</span> <span class="k">true</span>
+        | <span class="k">false</span>, <span class="k">true</span> <span class="k">-&gt;</span> <span class="k">true</span>
+        | _, _ <span class="k">-&gt;</span> <span class="k">false</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs18', 85)" onmouseover="showTip(event, 'fs18', 85)" class="i">Mux</span> <span onmouseout="hideTip(event, 'fs11', 86)" onmouseover="showTip(event, 'fs11', 86)" class="i">sel</span> <span onmouseout="hideTip(event, 'fs14', 87)" onmouseover="showTip(event, 'fs14', 87)" class="i">a</span> <span onmouseout="hideTip(event, 'fs19', 88)" onmouseover="showTip(event, 'fs19', 88)" class="i">b</span>  <span class="o">=</span>
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs11', 89)" onmouseover="showTip(event, 'fs11', 89)" class="i">sel</span> <span class="k">with</span>
+        | <span class="k">false</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs14', 90)" onmouseover="showTip(event, 'fs14', 90)" class="i">a</span>
+        | _ <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs19', 91)" onmouseover="showTip(event, 'fs19', 91)" class="i">b</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs20', 92)" onmouseover="showTip(event, 'fs20', 92)" class="i">DMux</span> <span onmouseout="hideTip(event, 'fs11', 93)" onmouseover="showTip(event, 'fs11', 93)" class="i">sel</span> <span onmouseout="hideTip(event, 'fs21', 94)" onmouseover="showTip(event, 'fs21', 94)" class="i">x</span> <span class="o">=</span>
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs11', 95)" onmouseover="showTip(event, 'fs11', 95)" class="i">sel</span> <span class="k">with</span>
+        | <span class="k">false</span> <span class="k">-&gt;</span> (<span onmouseout="hideTip(event, 'fs21', 96)" onmouseover="showTip(event, 'fs21', 96)" class="i">x</span>,<span class="k">false</span>)
+        | _ <span class="k">-&gt;</span> (<span class="k">false</span>,<span onmouseout="hideTip(event, 'fs21', 97)" onmouseover="showTip(event, 'fs21', 97)" class="i">x</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>Now that they're out of the way, we can move on to some more interesting gates.</p>
+
+<h2>Multi Bit Gates</h2>
+
+<p>Multi Bit gates are effectively arrays of the previous gates we have defined. We can therefore utilise some functional programming techniques in order to make implementing these quick and simple.</p>
+
+<p>First we define a couple of functions to handle Unary and Binary gate arrays.<br />
+This is all we require at this stage of working through the book, but i expect we will need some more at a latter stage.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs22', 98)" onmouseover="showTip(event, 'fs22', 98)" class="i">unaryArray</span> <span onmouseout="hideTip(event, 'fs23', 99)" onmouseover="showTip(event, 'fs23', 99)" class="i">gate</span> <span onmouseout="hideTip(event, 'fs24', 100)" onmouseover="showTip(event, 'fs24', 100)" class="i">bits</span> <span class="o">=</span>
+    <span onmouseout="hideTip(event, 'fs24', 101)" onmouseover="showTip(event, 'fs24', 101)" class="i">bits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 102)" onmouseover="showTip(event, 'fs25', 102)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 103)" onmouseover="showTip(event, 'fs26', 103)" class="i">map</span> <span onmouseout="hideTip(event, 'fs23', 104)" onmouseover="showTip(event, 'fs23', 104)" class="i">gate</span>
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs27', 105)" onmouseover="showTip(event, 'fs27', 105)" class="i">binaryArray</span> <span onmouseout="hideTip(event, 'fs28', 106)" onmouseover="showTip(event, 'fs28', 106)" class="i">gate</span> <span onmouseout="hideTip(event, 'fs29', 107)" onmouseover="showTip(event, 'fs29', 107)" class="i">aBits</span> <span onmouseout="hideTip(event, 'fs30', 108)" onmouseover="showTip(event, 'fs30', 108)" class="i">bBits</span> <span class="o">=</span>
+    <span onmouseout="hideTip(event, 'fs25', 109)" onmouseover="showTip(event, 'fs25', 109)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs31', 110)" onmouseover="showTip(event, 'fs31', 110)" class="i">zip</span> <span onmouseout="hideTip(event, 'fs29', 111)" onmouseover="showTip(event, 'fs29', 111)" class="i">aBits</span> <span onmouseout="hideTip(event, 'fs30', 112)" onmouseover="showTip(event, 'fs30', 112)" class="i">bBits</span> 
+    <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs22', 113)" onmouseover="showTip(event, 'fs22', 113)" class="i">unaryArray</span> (<span class="k">fun</span> (<span onmouseout="hideTip(event, 'fs14', 114)" onmouseover="showTip(event, 'fs14', 114)" class="i">a</span>,<span onmouseout="hideTip(event, 'fs32', 115)" onmouseover="showTip(event, 'fs32', 115)" class="i">b</span>) <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs28', 116)" onmouseover="showTip(event, 'fs28', 116)" class="i">gate</span> <span onmouseout="hideTip(event, 'fs14', 117)" onmouseover="showTip(event, 'fs14', 117)" class="i">a</span> <span onmouseout="hideTip(event, 'fs32', 118)" onmouseover="showTip(event, 'fs32', 118)" class="i">b</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>As you can see these functions both make use some useful array functions and are overall nice and succinct.</p>
+
+<p>Some noteworthy points from the above.</p>
+
+<ul>
+<li>I chose to use Zip to combine the two input arrays into corresponding pairs and pass that into the unaryArray function.
+This allows for a nice, clean, binaryArray function but does mean the gate function we pass in, needs to work with tuples, not individual arguments.
+This means we cannot simply use our previously created functions in.
+Fortunately, we can use a simple lambda expression combined with pattern matching to extract the tuple parts succinctly within this binary gate function.</li>
+</ul>
+
+<p>Now we can use partial application to create our multi bit versions of the simple gates.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs33', 119)" onmouseover="showTip(event, 'fs33', 119)" class="i">MultiNot</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs22', 120)" onmouseover="showTip(event, 'fs22', 120)" class="i">unaryArray</span> <span onmouseout="hideTip(event, 'fs6', 121)" onmouseover="showTip(event, 'fs6', 121)" class="i">Not</span>
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs34', 122)" onmouseover="showTip(event, 'fs34', 122)" class="i">MultiAnd</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs27', 123)" onmouseover="showTip(event, 'fs27', 123)" class="i">binaryArray</span> <span onmouseout="hideTip(event, 'fs7', 124)" onmouseover="showTip(event, 'fs7', 124)" class="i">And</span>
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs35', 125)" onmouseover="showTip(event, 'fs35', 125)" class="i">MultiOr</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs27', 126)" onmouseover="showTip(event, 'fs27', 126)" class="i">binaryArray</span> <span onmouseout="hideTip(event, 'fs8', 127)" onmouseover="showTip(event, 'fs8', 127)" class="i">Or</span>
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs36', 128)" onmouseover="showTip(event, 'fs36', 128)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs11', 129)" onmouseover="showTip(event, 'fs11', 129)" class="i">sel</span> <span class="o">=</span> 
+    <span onmouseout="hideTip(event, 'fs10', 130)" onmouseover="showTip(event, 'fs10', 130)" class="i">Mux</span> <span onmouseout="hideTip(event, 'fs11', 131)" onmouseover="showTip(event, 'fs11', 131)" class="i">sel</span>
+    <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs27', 132)" onmouseover="showTip(event, 'fs27', 132)" class="i">binaryArray</span>
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs37', 133)" onmouseover="showTip(event, 'fs37', 133)" class="i">MultiDMux</span> <span onmouseout="hideTip(event, 'fs11', 134)" onmouseover="showTip(event, 'fs11', 134)" class="i">sel</span> <span class="o">=</span> 
+    <span onmouseout="hideTip(event, 'fs12', 135)" onmouseover="showTip(event, 'fs12', 135)" class="i">DMux</span> <span onmouseout="hideTip(event, 'fs11', 136)" onmouseover="showTip(event, 'fs11', 136)" class="i">sel</span>
+    <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs22', 137)" onmouseover="showTip(event, 'fs22', 137)" class="i">unaryArray</span></pre>
+</td>
+</tr>
+</table>
+
+<p>The functions above show how clean and concise these new multi bit versions of the gates become.</p>
+
+<p>One thing that isn't handled however is ensuring that the amount of bits is equal in both cases.
+This is not something that I am worried about at this stage, but I would like to make it more robust in the future.</p>
+
+<ul>
+<li>It's also worth pointing out that I have completely diverged from the book here.
+To implement these gates in the way the book expects we would need to iteratively call the simple gates, passing in the appropriate pairs of input bits and collecting the results into a new array.
+This is exactly what we get for free from <code>Array.zip</code> and <code>Array.map</code>!</li>
+</ul>
+
+<h2>Multi Way Gates</h2>
+
+<p>Next up, we can tackle the multi way gates.<br />
+Multi way gates have an arbitrary number of inputs and outputs, as opposed to a fixed number like our previous gates.<br />
+These inputs can also be multi bit arrays.</p>
+
+<p>First, we can tackle that Multi Way OR gate I mentioned earlier.<br />
+It's a simple chip that consists of a series of OR Gates.</p>
+
+<p>The first two bits are passed to the first OR gate, and then the third bit plus the result of the first OR operation are fed into the next gate.
+This pattern continues for all bits provided.</p>
+
+<p>Hmmm, this sounds familiar, I think we'll skip the explicit definition and jump straight to a concise F# specific one.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs38', 138)" onmouseover="showTip(event, 'fs38', 138)" class="i">MultiWayOr</span> <span onmouseout="hideTip(event, 'fs39', 139)" onmouseover="showTip(event, 'fs39', 139)" class="i">bits</span> <span class="o">=</span> 
+    <span onmouseout="hideTip(event, 'fs39', 140)" onmouseover="showTip(event, 'fs39', 140)" class="i">bits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 141)" onmouseover="showTip(event, 'fs25', 141)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs40', 142)" onmouseover="showTip(event, 'fs40', 142)" class="i">reduce</span> <span onmouseout="hideTip(event, 'fs8', 143)" onmouseover="showTip(event, 'fs8', 143)" class="i">Or</span></pre>
+</td>
+</tr>
+</table>
+
+<p>As you can see, the MultiWayOr function above maps perfectly to F#s built in Reduce function.</p>
+
+<p>Next up is Multi Way MUX.</p>
+
+<p>This gate is specified in the book as having 4 inputs, all 16 bit wide.<br />
+We don't need to restrict ourselves to this, but doing so simplifies the solutions due to not having to handle errors with incorrect input amounts, so I will follow that approach.</p>
+
+<p>The number of control bits (the <code>sel</code> param) is equal to log<sub>2</sub>m where m is the number of inputs.<br />
+In this case, that means 2 bits. Again it would be nice to add some error handling around this, but that will have to wait for another time.</p>
+
+<p>The gate is basically just three calls to our MultiMux gate as follows.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs41', 144)" onmouseover="showTip(event, 'fs41', 144)" class="i">Mux4Way16</span> <span onmouseout="hideTip(event, 'fs42', 145)" onmouseover="showTip(event, 'fs42', 145)" class="i">a</span> <span onmouseout="hideTip(event, 'fs43', 146)" onmouseover="showTip(event, 'fs43', 146)" class="i">b</span> <span onmouseout="hideTip(event, 'fs44', 147)" onmouseover="showTip(event, 'fs44', 147)" class="i">c</span> <span onmouseout="hideTip(event, 'fs45', 148)" onmouseover="showTip(event, 'fs45', 148)" class="i">d</span> (<span onmouseout="hideTip(event, 'fs46', 149)" onmouseover="showTip(event, 'fs46', 149)" class="i">sel</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs47', 150)" onmouseover="showTip(event, 'fs47', 150)" class="i">bool</span> <span onmouseout="hideTip(event, 'fs48', 151)" onmouseover="showTip(event, 'fs48', 151)" class="i">array</span>) <span class="o">=</span> 
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs49', 152)" onmouseover="showTip(event, 'fs49', 152)" class="i">m1</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs36', 153)" onmouseover="showTip(event, 'fs36', 153)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs46', 154)" onmouseover="showTip(event, 'fs46', 154)" class="i">sel</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs42', 155)" onmouseover="showTip(event, 'fs42', 155)" class="i">a</span> <span onmouseout="hideTip(event, 'fs43', 156)" onmouseover="showTip(event, 'fs43', 156)" class="i">b</span> 
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs50', 157)" onmouseover="showTip(event, 'fs50', 157)" class="i">m2</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs36', 158)" onmouseover="showTip(event, 'fs36', 158)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs46', 159)" onmouseover="showTip(event, 'fs46', 159)" class="i">sel</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs44', 160)" onmouseover="showTip(event, 'fs44', 160)" class="i">c</span> <span onmouseout="hideTip(event, 'fs45', 161)" onmouseover="showTip(event, 'fs45', 161)" class="i">d</span>
+    <span onmouseout="hideTip(event, 'fs36', 162)" onmouseover="showTip(event, 'fs36', 162)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs46', 163)" onmouseover="showTip(event, 'fs46', 163)" class="i">sel</span><span class="o">.</span>[<span class="n">1</span>] <span onmouseout="hideTip(event, 'fs49', 164)" onmouseover="showTip(event, 'fs49', 164)" class="i">m1</span> <span onmouseout="hideTip(event, 'fs50', 165)" onmouseover="showTip(event, 'fs50', 165)" class="i">m2</span> </pre>
+</td>
+</tr>
+</table>
+
+<p>The book states we also need a 4 way, 16 bit version of this gate.<br />
+We can easily create this by using the 4 way version from above.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs51', 166)" onmouseover="showTip(event, 'fs51', 166)" class="i">Mux8Way16</span> <span onmouseout="hideTip(event, 'fs42', 167)" onmouseover="showTip(event, 'fs42', 167)" class="i">a</span> <span onmouseout="hideTip(event, 'fs43', 168)" onmouseover="showTip(event, 'fs43', 168)" class="i">b</span> <span onmouseout="hideTip(event, 'fs44', 169)" onmouseover="showTip(event, 'fs44', 169)" class="i">c</span> <span onmouseout="hideTip(event, 'fs45', 170)" onmouseover="showTip(event, 'fs45', 170)" class="i">d</span> <span onmouseout="hideTip(event, 'fs52', 171)" onmouseover="showTip(event, 'fs52', 171)" class="i">e</span> <span onmouseout="hideTip(event, 'fs53', 172)" onmouseover="showTip(event, 'fs53', 172)" class="i">f</span> <span onmouseout="hideTip(event, 'fs54', 173)" onmouseover="showTip(event, 'fs54', 173)" class="i">g</span> <span onmouseout="hideTip(event, 'fs55', 174)" onmouseover="showTip(event, 'fs55', 174)" class="i">h</span> (<span onmouseout="hideTip(event, 'fs46', 175)" onmouseover="showTip(event, 'fs46', 175)" class="i">sel</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs47', 176)" onmouseover="showTip(event, 'fs47', 176)" class="i">bool</span> <span onmouseout="hideTip(event, 'fs48', 177)" onmouseover="showTip(event, 'fs48', 177)" class="i">array</span>) <span class="o">=</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs49', 178)" onmouseover="showTip(event, 'fs49', 178)" class="i">m1</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs41', 179)" onmouseover="showTip(event, 'fs41', 179)" class="i">Mux4Way16</span> <span onmouseout="hideTip(event, 'fs42', 180)" onmouseover="showTip(event, 'fs42', 180)" class="i">a</span> <span onmouseout="hideTip(event, 'fs43', 181)" onmouseover="showTip(event, 'fs43', 181)" class="i">b</span> <span onmouseout="hideTip(event, 'fs44', 182)" onmouseover="showTip(event, 'fs44', 182)" class="i">c</span> <span onmouseout="hideTip(event, 'fs45', 183)" onmouseover="showTip(event, 'fs45', 183)" class="i">d</span> <span onmouseout="hideTip(event, 'fs46', 184)" onmouseover="showTip(event, 'fs46', 184)" class="i">sel</span><span class="o">.</span>[<span class="n">0..</span><span class="n">1</span>]
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs50', 185)" onmouseover="showTip(event, 'fs50', 185)" class="i">m2</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs41', 186)" onmouseover="showTip(event, 'fs41', 186)" class="i">Mux4Way16</span> <span onmouseout="hideTip(event, 'fs52', 187)" onmouseover="showTip(event, 'fs52', 187)" class="i">e</span> <span onmouseout="hideTip(event, 'fs53', 188)" onmouseover="showTip(event, 'fs53', 188)" class="i">f</span> <span onmouseout="hideTip(event, 'fs54', 189)" onmouseover="showTip(event, 'fs54', 189)" class="i">g</span> <span onmouseout="hideTip(event, 'fs55', 190)" onmouseover="showTip(event, 'fs55', 190)" class="i">h</span> <span onmouseout="hideTip(event, 'fs46', 191)" onmouseover="showTip(event, 'fs46', 191)" class="i">sel</span><span class="o">.</span>[<span class="n">0..</span><span class="n">1</span>]
+    <span onmouseout="hideTip(event, 'fs36', 192)" onmouseover="showTip(event, 'fs36', 192)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs46', 193)" onmouseover="showTip(event, 'fs46', 193)" class="i">sel</span><span class="o">.</span>[<span class="n">2</span>] <span onmouseout="hideTip(event, 'fs49', 194)" onmouseover="showTip(event, 'fs49', 194)" class="i">m1</span> <span onmouseout="hideTip(event, 'fs50', 195)" onmouseover="showTip(event, 'fs50', 195)" class="i">m2</span> </pre>
+</td>
+</tr>
+</table>
+
+<p>Up next, 4 way and 8 way DMUX.</p>
+
+<p>These gates have the same amount of selection bits as there MUX counter parts and a single input.<br />
+The multi way in this case, relates to the varying number of output bits.</p>
+
+<p>The purpose of multi way DMUX is to 'pipe' the input into a particular output based on the control bits.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs56', 196)" onmouseover="showTip(event, 'fs56', 196)" class="i">DMux4Way</span> <span onmouseout="hideTip(event, 'fs21', 197)" onmouseover="showTip(event, 'fs21', 197)" class="i">x</span> (<span onmouseout="hideTip(event, 'fs46', 198)" onmouseover="showTip(event, 'fs46', 198)" class="i">sel</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs47', 199)" onmouseover="showTip(event, 'fs47', 199)" class="i">bool</span> <span onmouseout="hideTip(event, 'fs48', 200)" onmouseover="showTip(event, 'fs48', 200)" class="i">array</span>) <span class="o">=</span> 
+    <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs57', 201)" onmouseover="showTip(event, 'fs57', 201)" class="i">d1</span>,<span onmouseout="hideTip(event, 'fs58', 202)" onmouseover="showTip(event, 'fs58', 202)" class="i">d2</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs12', 203)" onmouseover="showTip(event, 'fs12', 203)" class="i">DMux</span> <span onmouseout="hideTip(event, 'fs21', 204)" onmouseover="showTip(event, 'fs21', 204)" class="i">x</span> <span onmouseout="hideTip(event, 'fs46', 205)" onmouseover="showTip(event, 'fs46', 205)" class="i">sel</span><span class="o">.</span>[<span class="n">1</span>]
+    <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs3', 206)" onmouseover="showTip(event, 'fs3', 206)" class="i">a</span>,<span onmouseout="hideTip(event, 'fs4', 207)" onmouseover="showTip(event, 'fs4', 207)" class="i">b</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs12', 208)" onmouseover="showTip(event, 'fs12', 208)" class="i">DMux</span> <span onmouseout="hideTip(event, 'fs57', 209)" onmouseover="showTip(event, 'fs57', 209)" class="i">d1</span> <span onmouseout="hideTip(event, 'fs46', 210)" onmouseover="showTip(event, 'fs46', 210)" class="i">sel</span><span class="o">.</span>[<span class="n">0</span>]
+    <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs59', 211)" onmouseover="showTip(event, 'fs59', 211)" class="i">c</span>,<span onmouseout="hideTip(event, 'fs60', 212)" onmouseover="showTip(event, 'fs60', 212)" class="i">d</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs12', 213)" onmouseover="showTip(event, 'fs12', 213)" class="i">DMux</span> <span onmouseout="hideTip(event, 'fs58', 214)" onmouseover="showTip(event, 'fs58', 214)" class="i">d2</span> <span onmouseout="hideTip(event, 'fs46', 215)" onmouseover="showTip(event, 'fs46', 215)" class="i">sel</span><span class="o">.</span>[<span class="n">0</span>]
+    (<span onmouseout="hideTip(event, 'fs3', 216)" onmouseover="showTip(event, 'fs3', 216)" class="i">a</span>,<span onmouseout="hideTip(event, 'fs4', 217)" onmouseover="showTip(event, 'fs4', 217)" class="i">b</span>,<span onmouseout="hideTip(event, 'fs59', 218)" onmouseover="showTip(event, 'fs59', 218)" class="i">c</span>,<span onmouseout="hideTip(event, 'fs60', 219)" onmouseover="showTip(event, 'fs60', 219)" class="i">d</span>)
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs61', 220)" onmouseover="showTip(event, 'fs61', 220)" class="i">DMux8Way</span> <span onmouseout="hideTip(event, 'fs21', 221)" onmouseover="showTip(event, 'fs21', 221)" class="i">x</span> (<span onmouseout="hideTip(event, 'fs46', 222)" onmouseover="showTip(event, 'fs46', 222)" class="i">sel</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs47', 223)" onmouseover="showTip(event, 'fs47', 223)" class="i">bool</span> <span onmouseout="hideTip(event, 'fs48', 224)" onmouseover="showTip(event, 'fs48', 224)" class="i">array</span>) <span class="o">=</span> 
+    <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs57', 225)" onmouseover="showTip(event, 'fs57', 225)" class="i">d1</span>,<span onmouseout="hideTip(event, 'fs58', 226)" onmouseover="showTip(event, 'fs58', 226)" class="i">d2</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs12', 227)" onmouseover="showTip(event, 'fs12', 227)" class="i">DMux</span> <span onmouseout="hideTip(event, 'fs21', 228)" onmouseover="showTip(event, 'fs21', 228)" class="i">x</span> <span onmouseout="hideTip(event, 'fs46', 229)" onmouseover="showTip(event, 'fs46', 229)" class="i">sel</span><span class="o">.</span>[<span class="n">2</span>]
+    <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs3', 230)" onmouseover="showTip(event, 'fs3', 230)" class="i">a</span>,<span onmouseout="hideTip(event, 'fs4', 231)" onmouseover="showTip(event, 'fs4', 231)" class="i">b</span>,<span onmouseout="hideTip(event, 'fs59', 232)" onmouseover="showTip(event, 'fs59', 232)" class="i">c</span>,<span onmouseout="hideTip(event, 'fs60', 233)" onmouseover="showTip(event, 'fs60', 233)" class="i">d</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs56', 234)" onmouseover="showTip(event, 'fs56', 234)" class="i">DMux4Way</span> <span onmouseout="hideTip(event, 'fs57', 235)" onmouseover="showTip(event, 'fs57', 235)" class="i">d1</span> <span onmouseout="hideTip(event, 'fs46', 236)" onmouseover="showTip(event, 'fs46', 236)" class="i">sel</span><span class="o">.</span>[<span class="n">0..</span><span class="n">1</span>]
+    <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs62', 237)" onmouseover="showTip(event, 'fs62', 237)" class="i">e</span>,<span onmouseout="hideTip(event, 'fs63', 238)" onmouseover="showTip(event, 'fs63', 238)" class="i">f</span>,<span onmouseout="hideTip(event, 'fs64', 239)" onmouseover="showTip(event, 'fs64', 239)" class="i">g</span>,<span onmouseout="hideTip(event, 'fs65', 240)" onmouseover="showTip(event, 'fs65', 240)" class="i">h</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs56', 241)" onmouseover="showTip(event, 'fs56', 241)" class="i">DMux4Way</span> <span onmouseout="hideTip(event, 'fs58', 242)" onmouseover="showTip(event, 'fs58', 242)" class="i">d2</span> <span onmouseout="hideTip(event, 'fs46', 243)" onmouseover="showTip(event, 'fs46', 243)" class="i">sel</span><span class="o">.</span>[<span class="n">0..</span><span class="n">1</span>]
+    (<span onmouseout="hideTip(event, 'fs3', 244)" onmouseover="showTip(event, 'fs3', 244)" class="i">a</span>,<span onmouseout="hideTip(event, 'fs4', 245)" onmouseover="showTip(event, 'fs4', 245)" class="i">b</span>,<span onmouseout="hideTip(event, 'fs59', 246)" onmouseover="showTip(event, 'fs59', 246)" class="i">c</span>,<span onmouseout="hideTip(event, 'fs60', 247)" onmouseover="showTip(event, 'fs60', 247)" class="i">d</span>,<span onmouseout="hideTip(event, 'fs62', 248)" onmouseover="showTip(event, 'fs62', 248)" class="i">e</span>,<span onmouseout="hideTip(event, 'fs63', 249)" onmouseover="showTip(event, 'fs63', 249)" class="i">f</span>,<span onmouseout="hideTip(event, 'fs64', 250)" onmouseover="showTip(event, 'fs64', 250)" class="i">g</span>,<span onmouseout="hideTip(event, 'fs65', 251)" onmouseover="showTip(event, 'fs65', 251)" class="i">h</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>The multi way gates above all utilise previous ones we've created.</p>
+
+<p>I chose to use some simple inline pattern matching to reduce the fluff by decomposing the results of the functions in turn before then returning the results in a large tuple.</p>
+
+<p>Of course, we can again use pattern matching instead to do the selection. I won't bother with those implementations though, as I would rather get onto the fun bits.</p>
+
+<p>So, next up, we finally get to some Boolean Arithmetic!</p>
+
+<h2>Boolean Arithmetic</h2>
+
+<p>There are five chips included in the arithmetic section outlined in the book. These are:</p>
+
+<ul>
+<li>HalfAdder</li>
+<li>FullAdder</li>
+<li>MulitBitAdder (16 Bit)</li>
+<li>MultiBitIncrementer (16 Bit)</li>
+<li>ALU (Arithmetic Logic Unit)</li>
+</ul>
+
+<p>A half adder is designed to add 2 bits.<br />
+The 2 bits returned can be thought of as the sum and the carry resulting from the addition.
+(The least significant bit (LSB) is the sum and the most significant bit (MSB) is the carry.</p>
+
+<p>It turns out that the truth table for a half adder highlights that the sum and carry can be implemented with an XOR and an AND gate respectively (This can be seen by hovering the link below).</p>
+
+<a class="expandPrompt">Half Adder Details</a>
+<div class="hoverPopup" >
+
+<table class="pre"><tr><td><pre lang="output">Half Adder
+|   a   |   b   | carry |  sum  |
+|   0   |   0   |   0   |   0   |
+|   0   |   1   |   0   |   1   |
+|   1   |   0   |   0   |   1   |
+|   1   |   1   |   1   |   0   |
+</pre></td></tr></table>
+
+<img src="/content/images/post-images/HalfAdder.png" alt="Half Adder" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs66', 252)" onmouseover="showTip(event, 'fs66', 252)" class="i">HalfAdder</span> <span onmouseout="hideTip(event, 'fs3', 253)" onmouseover="showTip(event, 'fs3', 253)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 254)" onmouseover="showTip(event, 'fs4', 254)" class="i">b</span> <span class="o">=</span> 
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs67', 255)" onmouseover="showTip(event, 'fs67', 255)" class="i">sum</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs9', 256)" onmouseover="showTip(event, 'fs9', 256)" class="i">Xor</span> <span onmouseout="hideTip(event, 'fs3', 257)" onmouseover="showTip(event, 'fs3', 257)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 258)" onmouseover="showTip(event, 'fs4', 258)" class="i">b</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs68', 259)" onmouseover="showTip(event, 'fs68', 259)" class="i">carry</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs7', 260)" onmouseover="showTip(event, 'fs7', 260)" class="i">And</span> <span onmouseout="hideTip(event, 'fs3', 261)" onmouseover="showTip(event, 'fs3', 261)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 262)" onmouseover="showTip(event, 'fs4', 262)" class="i">b</span>
+    (<span onmouseout="hideTip(event, 'fs67', 263)" onmouseover="showTip(event, 'fs67', 263)" class="i">sum</span>,<span onmouseout="hideTip(event, 'fs68', 264)" onmouseover="showTip(event, 'fs68', 264)" class="i">carry</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>A full adder is designed to add 3 bits. 
+It is implemented by adding pairs of bits using the half adder we just created.</p>
+
+<p>The second pair of bits added consists of the result of the first addition.<br />
+The function then returns the LSB and the MSB as the sum and carry as before.</p>
+
+<a class="expandPrompt">Full Adder Details</a>
+<div class="hoverPopup" >
+
+<table class="pre"><tr><td><pre lang="output">Full Adder
+|   a   |   b   |   c   | carry |  sum  |
+|   0   |   0   |   0   |   0   |   0   |
+|   0   |   0   |   1   |   0   |   1   |
+|   0   |   1   |   0   |   0   |   1   |
+|   0   |   1   |   1   |   1   |   0   |
+|   1   |   0   |   0   |   0   |   1   |
+|   1   |   0   |   1   |   1   |   0   |
+|   1   |   1   |   0   |   1   |   0   |
+|   1   |   1   |   1   |   1   |   1   |
+</pre></td></tr></table>
+
+<img src="/content/images/post-images/FullAdder.png" alt="Full Adder" style="float:right; margin:20px;width:400px"/>
+</div>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs69', 265)" onmouseover="showTip(event, 'fs69', 265)" class="i">FullAdder</span> <span onmouseout="hideTip(event, 'fs3', 266)" onmouseover="showTip(event, 'fs3', 266)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 267)" onmouseover="showTip(event, 'fs4', 267)" class="i">b</span> <span onmouseout="hideTip(event, 'fs59', 268)" onmouseover="showTip(event, 'fs59', 268)" class="i">c</span> <span class="o">=</span> 
+    <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs70', 269)" onmouseover="showTip(event, 'fs70', 269)" class="i">s1</span>,<span onmouseout="hideTip(event, 'fs71', 270)" onmouseover="showTip(event, 'fs71', 270)" class="i">c1</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs66', 271)" onmouseover="showTip(event, 'fs66', 271)" class="i">HalfAdder</span> <span onmouseout="hideTip(event, 'fs3', 272)" onmouseover="showTip(event, 'fs3', 272)" class="i">a</span> <span onmouseout="hideTip(event, 'fs4', 273)" onmouseover="showTip(event, 'fs4', 273)" class="i">b</span>
+    <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs67', 274)" onmouseover="showTip(event, 'fs67', 274)" class="i">sum</span>,<span onmouseout="hideTip(event, 'fs72', 275)" onmouseover="showTip(event, 'fs72', 275)" class="i">c2</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs66', 276)" onmouseover="showTip(event, 'fs66', 276)" class="i">HalfAdder</span> <span onmouseout="hideTip(event, 'fs70', 277)" onmouseover="showTip(event, 'fs70', 277)" class="i">s1</span> <span onmouseout="hideTip(event, 'fs59', 278)" onmouseover="showTip(event, 'fs59', 278)" class="i">c</span>
+    (<span onmouseout="hideTip(event, 'fs67', 279)" onmouseover="showTip(event, 'fs67', 279)" class="i">sum</span>, <span onmouseout="hideTip(event, 'fs8', 280)" onmouseover="showTip(event, 'fs8', 280)" class="i">Or</span> <span onmouseout="hideTip(event, 'fs71', 281)" onmouseover="showTip(event, 'fs71', 281)" class="i">c1</span> <span onmouseout="hideTip(event, 'fs72', 282)" onmouseover="showTip(event, 'fs72', 282)" class="i">c2</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>Next up, we have the fully fledged Adder chip.<br />
+The adder is responsible for adding integers represented as bits.<br />
+It can therefore take bit arrays of any size (we will most likely only need up to 32 bits).</p>
+
+<p>The chip outlined in the book is an example of a ripple carry adder. 
+This means that the bits are added together in order, starting from the LSB and any carry is carried over into the next addition.</p>
+
+<p>This obviously means each stage of the addition (except the first) has 3 bits. This fits perfectly to our Full Adder from above.</p>
+
+<p>So, all we need to do is implement a recursive function that adds the given bits starting from the end of the arrays.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs73', 283)" onmouseover="showTip(event, 'fs73', 283)" class="i">Adder</span> <span onmouseout="hideTip(event, 'fs74', 284)" onmouseover="showTip(event, 'fs74', 284)" class="i">aBits</span> <span onmouseout="hideTip(event, 'fs75', 285)" onmouseover="showTip(event, 'fs75', 285)" class="i">bBits</span> <span class="o">=</span>
+    <span class="k">let</span> <span class="k">rec</span> <span onmouseout="hideTip(event, 'fs76', 286)" onmouseover="showTip(event, 'fs76', 286)" class="i">addBits</span> <span onmouseout="hideTip(event, 'fs77', 287)" onmouseover="showTip(event, 'fs77', 287)" class="i">aBits</span> <span onmouseout="hideTip(event, 'fs78', 288)" onmouseover="showTip(event, 'fs78', 288)" class="i">bBits</span> <span onmouseout="hideTip(event, 'fs68', 289)" onmouseover="showTip(event, 'fs68', 289)" class="i">carry</span> <span onmouseout="hideTip(event, 'fs79', 290)" onmouseover="showTip(event, 'fs79', 290)" class="i">accu</span> <span class="o">=</span> 
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs77', 291)" onmouseover="showTip(event, 'fs77', 291)" class="i">aBits</span>, <span onmouseout="hideTip(event, 'fs78', 292)" onmouseover="showTip(event, 'fs78', 292)" class="i">bBits</span> <span class="k">with</span>
+        | <span onmouseout="hideTip(event, 'fs80', 293)" onmouseover="showTip(event, 'fs80', 293)" class="i">aHead</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs81', 294)" onmouseover="showTip(event, 'fs81', 294)" class="i">aTail</span>, <span onmouseout="hideTip(event, 'fs82', 295)" onmouseover="showTip(event, 'fs82', 295)" class="i">bHead</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs83', 296)" onmouseover="showTip(event, 'fs83', 296)" class="i">bTail</span> <span class="k">-&gt;</span> 
+            <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs67', 297)" onmouseover="showTip(event, 'fs67', 297)" class="i">sum</span>,<span onmouseout="hideTip(event, 'fs59', 298)" onmouseover="showTip(event, 'fs59', 298)" class="i">c</span>) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs69', 299)" onmouseover="showTip(event, 'fs69', 299)" class="i">FullAdder</span> <span onmouseout="hideTip(event, 'fs80', 300)" onmouseover="showTip(event, 'fs80', 300)" class="i">aHead</span> <span onmouseout="hideTip(event, 'fs82', 301)" onmouseover="showTip(event, 'fs82', 301)" class="i">bHead</span> <span onmouseout="hideTip(event, 'fs68', 302)" onmouseover="showTip(event, 'fs68', 302)" class="i">carry</span>
+            <span onmouseout="hideTip(event, 'fs76', 303)" onmouseover="showTip(event, 'fs76', 303)" class="i">addBits</span> <span onmouseout="hideTip(event, 'fs81', 304)" onmouseover="showTip(event, 'fs81', 304)" class="i">aTail</span> <span onmouseout="hideTip(event, 'fs83', 305)" onmouseover="showTip(event, 'fs83', 305)" class="i">bTail</span> <span onmouseout="hideTip(event, 'fs59', 306)" onmouseover="showTip(event, 'fs59', 306)" class="i">c</span> (<span onmouseout="hideTip(event, 'fs67', 307)" onmouseover="showTip(event, 'fs67', 307)" class="i">sum</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs79', 308)" onmouseover="showTip(event, 'fs79', 308)" class="i">accu</span>)
+        | [],_
+        | _,[] <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs79', 309)" onmouseover="showTip(event, 'fs79', 309)" class="i">accu</span>
+    <span onmouseout="hideTip(event, 'fs76', 310)" onmouseover="showTip(event, 'fs76', 310)" class="i">addBits</span> (<span onmouseout="hideTip(event, 'fs77', 311)" onmouseover="showTip(event, 'fs77', 311)" class="i">aBits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 312)" onmouseover="showTip(event, 'fs25', 312)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs84', 313)" onmouseover="showTip(event, 'fs84', 313)" class="i">rev</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 314)" onmouseover="showTip(event, 'fs25', 314)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs85', 315)" onmouseover="showTip(event, 'fs85', 315)" class="i">toList</span>) (<span onmouseout="hideTip(event, 'fs75', 316)" onmouseover="showTip(event, 'fs75', 316)" class="i">bBits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 317)" onmouseover="showTip(event, 'fs25', 317)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs84', 318)" onmouseover="showTip(event, 'fs84', 318)" class="i">rev</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 319)" onmouseover="showTip(event, 'fs25', 319)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs85', 320)" onmouseover="showTip(event, 'fs85', 320)" class="i">toList</span>) <span class="k">false</span> <span onmouseout="hideTip(event, 'fs86', 321)" onmouseover="showTip(event, 'fs86', 321)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs87', 322)" onmouseover="showTip(event, 'fs87', 322)" class="i">empty</span>
+    <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs86', 323)" onmouseover="showTip(event, 'fs86', 323)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs88', 324)" onmouseover="showTip(event, 'fs88', 324)" class="i">toArray</span></pre>
+</td>
+</tr>
+</table>
+
+<p>The adder function allows us to add together any pair of 2's compliment binary integers.</p>
+
+<p>Lastly, the increment function is simply a partially applied Adder function with one of the parameters fixed to a binary representation of 1.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">//In plus one</span>
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs89', 325)" onmouseover="showTip(event, 'fs89', 325)" class="i">Increment</span> <span onmouseout="hideTip(event, 'fs74', 326)" onmouseover="showTip(event, 'fs74', 326)" class="i">aBits</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs73', 327)" onmouseover="showTip(event, 'fs73', 327)" class="i">Adder</span> <span onmouseout="hideTip(event, 'fs74', 328)" onmouseover="showTip(event, 'fs74', 328)" class="i">aBits</span> [| <span class="k">for</span> <span onmouseout="hideTip(event, 'fs90', 329)" onmouseover="showTip(event, 'fs90', 329)" class="i">i</span> <span class="k">in</span> <span class="n">1</span> <span class="o">..</span> <span class="n">16</span> <span class="k">-&gt;</span> <span class="k">match</span> <span onmouseout="hideTip(event, 'fs90', 330)" onmouseover="showTip(event, 'fs90', 330)" class="i">i</span> <span class="k">with</span> | <span class="n">16</span> <span class="k">-&gt;</span> <span class="k">true</span> | _ <span class="k">-&gt;</span> <span class="k">false</span> |]</pre>
+</td>
+</tr>
+</table>
+
+<h2>The Arithmetic Logic unit</h2>
+
+<p>Finally, we can bring all of our work together in the implementation of the Arithmetic Logic Unit (ALU).</p>
+
+<p>This ALU is specified in the book. It has 8 inputs consisting of two 16 bit data inputs, and 6 control bits.<br />
+These control bits are used to select the function that the ALU executes; They are.</p>
+
+<ul>
+<li>zx - Zeros the xBits input</li>
+<li>nx - Negates the xBits input</li>
+<li>zy - Zeros the yBits input</li>
+<li>ny - Negates the yBits input</li>
+<li>f - The function selecter. If 1 Addition is performed else AND is performed.</li>
+<li>no - Negates the output</li>
+</ul>
+
+<p>The ALU provides three outputs.</p>
+
+<ul>
+<li>The result of the function (Addition or AND)</li>
+<li>zr - Indicates whether the output is equal to zero</li>
+<li>ng - Indicates whether the output is negative</li>
+</ul>
+
+<p>The truth table for the ALU is far to big for me to copy out, but I'm sure you could found it with some quick google-foo if desired.</p>
+
+<p>My implementation of the ALU is shown below. As you can see, it's pretty straight forward.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+<span class="l">20: </span>
+<span class="l">21: </span>
+<span class="l">22: </span>
+<span class="l">23: </span>
+<span class="l">24: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs91', 331)" onmouseover="showTip(event, 'fs91', 331)" class="i">ALU</span> <span onmouseout="hideTip(event, 'fs92', 332)" onmouseover="showTip(event, 'fs92', 332)" class="i">xBits</span> <span onmouseout="hideTip(event, 'fs93', 333)" onmouseover="showTip(event, 'fs93', 333)" class="i">yBits</span> <span onmouseout="hideTip(event, 'fs94', 334)" onmouseover="showTip(event, 'fs94', 334)" class="i">zx</span> <span onmouseout="hideTip(event, 'fs95', 335)" onmouseover="showTip(event, 'fs95', 335)" class="i">nx</span> <span onmouseout="hideTip(event, 'fs96', 336)" onmouseover="showTip(event, 'fs96', 336)" class="i">zy</span> <span onmouseout="hideTip(event, 'fs97', 337)" onmouseover="showTip(event, 'fs97', 337)" class="i">ny</span> <span onmouseout="hideTip(event, 'fs63', 338)" onmouseover="showTip(event, 'fs63', 338)" class="i">f</span> <span onmouseout="hideTip(event, 'fs98', 339)" onmouseover="showTip(event, 'fs98', 339)" class="i">no</span> <span class="o">=</span> 
+    <span class="c">//handle x    </span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs99', 340)" onmouseover="showTip(event, 'fs99', 340)" class="i">ox1</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs36', 341)" onmouseover="showTip(event, 'fs36', 341)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs94', 342)" onmouseover="showTip(event, 'fs94', 342)" class="i">zx</span> <span onmouseout="hideTip(event, 'fs92', 343)" onmouseover="showTip(event, 'fs92', 343)" class="i">xBits</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs90', 344)" onmouseover="showTip(event, 'fs90', 344)" class="i">i</span> <span class="k">in</span> <span class="n">1..</span><span class="n">16</span> <span class="k">-&gt;</span> <span class="k">false</span> |]  <span class="c">//Zero all X bits if zx</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs100', 345)" onmouseover="showTip(event, 'fs100', 345)" class="i">nox1</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs33', 346)" onmouseover="showTip(event, 'fs33', 346)" class="i">MultiNot</span> <span onmouseout="hideTip(event, 'fs99', 347)" onmouseover="showTip(event, 'fs99', 347)" class="i">ox1</span> <span class="c">//What would this be if negated</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs101', 348)" onmouseover="showTip(event, 'fs101', 348)" class="i">ox2</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs36', 349)" onmouseover="showTip(event, 'fs36', 349)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs95', 350)" onmouseover="showTip(event, 'fs95', 350)" class="i">nx</span> <span onmouseout="hideTip(event, 'fs99', 351)" onmouseover="showTip(event, 'fs99', 351)" class="i">ox1</span> <span onmouseout="hideTip(event, 'fs100', 352)" onmouseover="showTip(event, 'fs100', 352)" class="i">nox1</span> <span class="c">//Select based on nx</span>
+
+    <span class="c">//handle y</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs102', 353)" onmouseover="showTip(event, 'fs102', 353)" class="i">oy1</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs36', 354)" onmouseover="showTip(event, 'fs36', 354)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs96', 355)" onmouseover="showTip(event, 'fs96', 355)" class="i">zy</span> <span onmouseout="hideTip(event, 'fs93', 356)" onmouseover="showTip(event, 'fs93', 356)" class="i">yBits</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs90', 357)" onmouseover="showTip(event, 'fs90', 357)" class="i">i</span> <span class="k">in</span> <span class="n">1..</span><span class="n">16</span> <span class="k">-&gt;</span> <span class="k">false</span> |]  <span class="c">//Zero all X bits if zy</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs103', 358)" onmouseover="showTip(event, 'fs103', 358)" class="i">noy1</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs33', 359)" onmouseover="showTip(event, 'fs33', 359)" class="i">MultiNot</span> <span onmouseout="hideTip(event, 'fs102', 360)" onmouseover="showTip(event, 'fs102', 360)" class="i">oy1</span> <span class="c">//What would this be if negated</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs104', 361)" onmouseover="showTip(event, 'fs104', 361)" class="i">oy2</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs36', 362)" onmouseover="showTip(event, 'fs36', 362)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs97', 363)" onmouseover="showTip(event, 'fs97', 363)" class="i">ny</span> <span onmouseout="hideTip(event, 'fs102', 364)" onmouseover="showTip(event, 'fs102', 364)" class="i">oy1</span> <span onmouseout="hideTip(event, 'fs103', 365)" onmouseover="showTip(event, 'fs103', 365)" class="i">noy1</span> <span class="c">//Select based on ny</span>
+
+    <span class="c">//handle &amp; / +</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs105', 366)" onmouseover="showTip(event, 'fs105', 366)" class="i">o3</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs34', 367)" onmouseover="showTip(event, 'fs34', 367)" class="i">MultiAnd</span> <span onmouseout="hideTip(event, 'fs101', 368)" onmouseover="showTip(event, 'fs101', 368)" class="i">ox2</span> <span onmouseout="hideTip(event, 'fs104', 369)" onmouseover="showTip(event, 'fs104', 369)" class="i">oy2</span> <span class="c">//an and would be</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs106', 370)" onmouseover="showTip(event, 'fs106', 370)" class="i">o4</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs73', 371)" onmouseover="showTip(event, 'fs73', 371)" class="i">Adder</span> <span onmouseout="hideTip(event, 'fs101', 372)" onmouseover="showTip(event, 'fs101', 372)" class="i">ox2</span> <span onmouseout="hideTip(event, 'fs104', 373)" onmouseover="showTip(event, 'fs104', 373)" class="i">oy2</span> <span class="c">//addition would be</span>
+
+    <span class="c">//Output</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs107', 374)" onmouseover="showTip(event, 'fs107', 374)" class="i">o5</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs36', 375)" onmouseover="showTip(event, 'fs36', 375)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs63', 376)" onmouseover="showTip(event, 'fs63', 376)" class="i">f</span> <span onmouseout="hideTip(event, 'fs105', 377)" onmouseover="showTip(event, 'fs105', 377)" class="i">o3</span> <span onmouseout="hideTip(event, 'fs106', 378)" onmouseover="showTip(event, 'fs106', 378)" class="i">o4</span> <span class="c">//Choose and or addition</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs108', 379)" onmouseover="showTip(event, 'fs108', 379)" class="i">no5</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs33', 380)" onmouseover="showTip(event, 'fs33', 380)" class="i">MultiNot</span> <span onmouseout="hideTip(event, 'fs107', 381)" onmouseover="showTip(event, 'fs107', 381)" class="i">o5</span> <span class="c">//Negated out would be</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs109', 382)" onmouseover="showTip(event, 'fs109', 382)" class="i">out</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs36', 383)" onmouseover="showTip(event, 'fs36', 383)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs98', 384)" onmouseover="showTip(event, 'fs98', 384)" class="i">no</span> <span onmouseout="hideTip(event, 'fs107', 385)" onmouseover="showTip(event, 'fs107', 385)" class="i">o5</span> <span onmouseout="hideTip(event, 'fs108', 386)" onmouseover="showTip(event, 'fs108', 386)" class="i">no5</span> <span class="c">//Choose to negate or not</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs110', 387)" onmouseover="showTip(event, 'fs110', 387)" class="i">zr</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs6', 388)" onmouseover="showTip(event, 'fs6', 388)" class="i">Not</span> (<span onmouseout="hideTip(event, 'fs38', 389)" onmouseover="showTip(event, 'fs38', 389)" class="i">MultiWayOr</span> <span onmouseout="hideTip(event, 'fs109', 390)" onmouseover="showTip(event, 'fs109', 390)" class="i">out</span>)
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs111', 391)" onmouseover="showTip(event, 'fs111', 391)" class="i">ng</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs38', 392)" onmouseover="showTip(event, 'fs38', 392)" class="i">MultiWayOr</span> (<span onmouseout="hideTip(event, 'fs34', 393)" onmouseover="showTip(event, 'fs34', 393)" class="i">MultiAnd</span> <span onmouseout="hideTip(event, 'fs109', 394)" onmouseover="showTip(event, 'fs109', 394)" class="i">out</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs90', 395)" onmouseover="showTip(event, 'fs90', 395)" class="i">i</span> <span class="k">in</span> <span class="n">1..</span><span class="n">16</span> <span class="k">-&gt;</span> <span class="k">match</span> <span onmouseout="hideTip(event, 'fs90', 396)" onmouseover="showTip(event, 'fs90', 396)" class="i">i</span> <span class="k">with</span> | <span class="n">16</span> <span class="k">-&gt;</span> <span class="k">true</span> | _ <span class="k">-&gt;</span> <span class="k">false</span>|] )
+    
+    (<span onmouseout="hideTip(event, 'fs109', 397)" onmouseover="showTip(event, 'fs109', 397)" class="i">out</span>, <span onmouseout="hideTip(event, 'fs110', 398)" onmouseover="showTip(event, 'fs110', 398)" class="i">zr</span>, <span onmouseout="hideTip(event, 'fs111', 399)" onmouseover="showTip(event, 'fs111', 399)" class="i">ng</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>Clearly though, this implementation does have some wasteful processing.</p>
+
+<p>By abiding to the books rules we have to execute individual logic paths to produce their respective results before switching between them based on a specific control bit.</p>
+
+<p>Therefore, we can immediately refactor this as follows:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs112', 400)" onmouseover="showTip(event, 'fs112', 400)" class="i">ALU</span> <span onmouseout="hideTip(event, 'fs92', 401)" onmouseover="showTip(event, 'fs92', 401)" class="i">xBits</span> <span onmouseout="hideTip(event, 'fs93', 402)" onmouseover="showTip(event, 'fs93', 402)" class="i">yBits</span> <span onmouseout="hideTip(event, 'fs94', 403)" onmouseover="showTip(event, 'fs94', 403)" class="i">zx</span> <span onmouseout="hideTip(event, 'fs95', 404)" onmouseover="showTip(event, 'fs95', 404)" class="i">nx</span> <span onmouseout="hideTip(event, 'fs96', 405)" onmouseover="showTip(event, 'fs96', 405)" class="i">zy</span> <span onmouseout="hideTip(event, 'fs97', 406)" onmouseover="showTip(event, 'fs97', 406)" class="i">ny</span> <span onmouseout="hideTip(event, 'fs63', 407)" onmouseover="showTip(event, 'fs63', 407)" class="i">f</span> <span onmouseout="hideTip(event, 'fs98', 408)" onmouseover="showTip(event, 'fs98', 408)" class="i">no</span> <span class="o">=</span> 
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs113', 409)" onmouseover="showTip(event, 'fs113', 409)" class="i">zero</span> <span onmouseout="hideTip(event, 'fs59', 410)" onmouseover="showTip(event, 'fs59', 410)" class="i">c</span> <span onmouseout="hideTip(event, 'fs43', 411)" onmouseover="showTip(event, 'fs43', 411)" class="i">b</span> <span class="o">=</span> <span class="k">if</span> <span onmouseout="hideTip(event, 'fs59', 412)" onmouseover="showTip(event, 'fs59', 412)" class="i">c</span> <span class="k">then</span> [| <span class="k">for</span> <span onmouseout="hideTip(event, 'fs90', 413)" onmouseover="showTip(event, 'fs90', 413)" class="i">i</span> <span class="k">in</span> <span class="n">1..</span><span class="n">16</span> <span class="k">-&gt;</span> <span class="k">false</span> |] <span class="k">else</span> <span onmouseout="hideTip(event, 'fs43', 414)" onmouseover="showTip(event, 'fs43', 414)" class="i">b</span> 
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs114', 415)" onmouseover="showTip(event, 'fs114', 415)" class="i">negate</span> <span onmouseout="hideTip(event, 'fs59', 416)" onmouseover="showTip(event, 'fs59', 416)" class="i">c</span> <span onmouseout="hideTip(event, 'fs43', 417)" onmouseover="showTip(event, 'fs43', 417)" class="i">b</span> <span class="o">=</span> <span class="k">if</span> <span onmouseout="hideTip(event, 'fs59', 418)" onmouseover="showTip(event, 'fs59', 418)" class="i">c</span> <span class="k">then</span> <span onmouseout="hideTip(event, 'fs33', 419)" onmouseover="showTip(event, 'fs33', 419)" class="i">MultiNot</span> <span onmouseout="hideTip(event, 'fs43', 420)" onmouseover="showTip(event, 'fs43', 420)" class="i">b</span> <span class="k">else</span> <span onmouseout="hideTip(event, 'fs43', 421)" onmouseover="showTip(event, 'fs43', 421)" class="i">b</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs115', 422)" onmouseover="showTip(event, 'fs115', 422)" class="i">x</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs92', 423)" onmouseover="showTip(event, 'fs92', 423)" class="i">xBits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs113', 424)" onmouseover="showTip(event, 'fs113', 424)" class="i">zero</span> <span onmouseout="hideTip(event, 'fs94', 425)" onmouseover="showTip(event, 'fs94', 425)" class="i">zx</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs114', 426)" onmouseover="showTip(event, 'fs114', 426)" class="i">negate</span> <span onmouseout="hideTip(event, 'fs95', 427)" onmouseover="showTip(event, 'fs95', 427)" class="i">nx</span> 
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs116', 428)" onmouseover="showTip(event, 'fs116', 428)" class="i">y</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs93', 429)" onmouseover="showTip(event, 'fs93', 429)" class="i">yBits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs113', 430)" onmouseover="showTip(event, 'fs113', 430)" class="i">zero</span> <span onmouseout="hideTip(event, 'fs96', 431)" onmouseover="showTip(event, 'fs96', 431)" class="i">zy</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs114', 432)" onmouseover="showTip(event, 'fs114', 432)" class="i">negate</span> <span onmouseout="hideTip(event, 'fs97', 433)" onmouseover="showTip(event, 'fs97', 433)" class="i">ny</span> 
+
+        <span class="c">//Apply function and negate if needed</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs109', 434)" onmouseover="showTip(event, 'fs109', 434)" class="i">out</span> <span class="o">=</span> <span class="k">if</span> <span onmouseout="hideTip(event, 'fs63', 435)" onmouseover="showTip(event, 'fs63', 435)" class="i">f</span> <span class="k">then</span> <span onmouseout="hideTip(event, 'fs34', 436)" onmouseover="showTip(event, 'fs34', 436)" class="i">MultiAnd</span> <span onmouseout="hideTip(event, 'fs115', 437)" onmouseover="showTip(event, 'fs115', 437)" class="i">x</span> <span onmouseout="hideTip(event, 'fs116', 438)" onmouseover="showTip(event, 'fs116', 438)" class="i">y</span> <span class="k">else</span> <span onmouseout="hideTip(event, 'fs73', 439)" onmouseover="showTip(event, 'fs73', 439)" class="i">Adder</span> <span onmouseout="hideTip(event, 'fs115', 440)" onmouseover="showTip(event, 'fs115', 440)" class="i">x</span> <span onmouseout="hideTip(event, 'fs116', 441)" onmouseover="showTip(event, 'fs116', 441)" class="i">y</span>
+                  <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs114', 442)" onmouseover="showTip(event, 'fs114', 442)" class="i">negate</span> <span onmouseout="hideTip(event, 'fs98', 443)" onmouseover="showTip(event, 'fs98', 443)" class="i">no</span>
+         
+        (<span onmouseout="hideTip(event, 'fs109', 444)" onmouseover="showTip(event, 'fs109', 444)" class="i">out</span>, <span onmouseout="hideTip(event, 'fs38', 445)" onmouseover="showTip(event, 'fs38', 445)" class="i">MultiWayOr</span> <span onmouseout="hideTip(event, 'fs109', 446)" onmouseover="showTip(event, 'fs109', 446)" class="i">out</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs6', 447)" onmouseover="showTip(event, 'fs6', 447)" class="i">Not</span>, <span onmouseout="hideTip(event, 'fs34', 448)" onmouseover="showTip(event, 'fs34', 448)" class="i">MultiAnd</span> <span onmouseout="hideTip(event, 'fs109', 449)" onmouseover="showTip(event, 'fs109', 449)" class="i">out</span> [| <span class="k">for</span> <span onmouseout="hideTip(event, 'fs90', 450)" onmouseover="showTip(event, 'fs90', 450)" class="i">i</span> <span class="k">in</span> <span class="n">1..</span><span class="n">16</span> <span class="k">-&gt;</span> <span class="k">match</span> <span onmouseout="hideTip(event, 'fs90', 451)" onmouseover="showTip(event, 'fs90', 451)" class="i">i</span> <span class="k">with</span> | <span class="n">16</span> <span class="k">-&gt;</span> <span class="k">true</span> | _ <span class="k">-&gt;</span> <span class="k">false</span> |] <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs38', 452)" onmouseover="showTip(event, 'fs38', 452)" class="i">MultiWayOr</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>Much better!</p>
+
+<p>All we need to do now is get testing.</p>
+
+<h2>Testing</h2>
+
+<p>Finally, it's time to get some tests executed. The book provides comparison files in order to check our output when using the recommended Hardware simulator and Hardware Definition Language (HDL) code.</p>
+
+<p>I decided it would be a fun exercise to utilise these within my tests.</p>
+
+<p>So, what we need is a way to convert a string and/or integer representation of bits in to arrays of Boolean values for use with my Gates (I could have implemented my gates using integers of course).</p>
+
+<p>In addition we need to read the provided comparison file and compare it to our results.<br />
+This means we need to return our results in the correct format (Also a string representation of bits!)</p>
+
+<p>Lets get to it.</p>
+
+<p>First up, converting a string (A sequence of chars) to an array of integers.<br />
+In actual fact, what we need is a bit different to that as we only care about ones and zeros, obviously.
+Therefore I will simply pattern match the char '1', to the integer 1 and anything else to zero.</p>
+
+<p>This may not be the most robust implementation, as we would really want to trigger an error, or return nothing if the string is invalid (eg. if it contained characters other than '1' or '0').</p>
+
+<p>I have also created a string version of the function (as opposed to working on chars).</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs119', 456)" onmouseover="showTip(event, 'fs119', 456)" class="i">stringToInt</span> <span class="o">=</span> <span class="k">function</span> 
+        | <span class="s">&quot;</span><span class="s">1</span><span class="s">&quot;</span> <span class="k">-&gt;</span> <span class="n">1</span>
+        | _ <span class="k">-&gt;</span> <span class="n">0</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs120', 457)" onmouseover="showTip(event, 'fs120', 457)" class="i">charToInt</span> <span class="o">=</span> <span class="k">function</span> 
+        | <span class="s">&#39;1&#39;</span> <span class="k">-&gt;</span> <span class="n">1</span>
+        | _ <span class="k">-&gt;</span> <span class="n">0</span></pre>
+</td>
+</tr>
+</table>
+
+<p>Next up, we create a quick helper to convert an integer into a Boolean.
+I've done this in the same manner as the string converter. I have purposefully ignored the fact we could have incorrect input values.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs121', 458)" onmouseover="showTip(event, 'fs121', 458)" class="i">intToBool</span> <span class="o">=</span> <span class="k">function</span> 
+        | <span class="n">1</span> <span class="k">-&gt;</span> <span class="k">true</span>
+        | _ <span class="k">-&gt;</span> <span class="k">false</span></pre>
+</td>
+</tr>
+</table>
+
+<p>We will also need the inverse of these functions, Boolean to integer and integer to string.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+<span class="l">9: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs122', 459)" onmouseover="showTip(event, 'fs122', 459)" class="i">boolToInt</span> <span class="o">=</span> <span class="k">function</span> 
+        | <span class="k">true</span> <span class="k">-&gt;</span> <span class="n">1</span>
+        | _ <span class="k">-&gt;</span> <span class="n">0</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs123', 460)" onmouseover="showTip(event, 'fs123', 460)" class="i">intToString</span> <span class="o">=</span> <span class="k">function</span> 
+        | <span class="n">1</span> <span class="k">-&gt;</span> <span class="s">&quot;</span><span class="s">1</span><span class="s">&quot;</span>
+        | _ <span class="k">-&gt;</span> <span class="s">&quot;</span><span class="s">0</span><span class="s">&quot;</span>
+
+    </pre>
+</td>
+</tr>
+</table>
+
+<p>To complete the set we then compose these together to create straight string to Boolean and Boolean to string functions.<br />
+I also defined two additional functions to convert arrays of integers and Boolean values to a single string.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs124', 461)" onmouseover="showTip(event, 'fs124', 461)" class="i">stringToBool</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs119', 462)" onmouseover="showTip(event, 'fs119', 462)" class="i">stringToInt</span> <span class="o">&gt;</span><span class="o">&gt;</span> <span onmouseout="hideTip(event, 'fs121', 463)" onmouseover="showTip(event, 'fs121', 463)" class="i">intToBool</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs125', 464)" onmouseover="showTip(event, 'fs125', 464)" class="i">boolToString</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs122', 465)" onmouseover="showTip(event, 'fs122', 465)" class="i">boolToInt</span> <span class="o">&gt;</span><span class="o">&gt;</span> <span onmouseout="hideTip(event, 'fs123', 466)" onmouseover="showTip(event, 'fs123', 466)" class="i">intToString</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs126', 467)" onmouseover="showTip(event, 'fs126', 467)" class="i">intsToString</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs127', 468)" onmouseover="showTip(event, 'fs127', 468)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 469)" onmouseover="showTip(event, 'fs26', 469)" class="i">map</span> <span onmouseout="hideTip(event, 'fs123', 470)" onmouseover="showTip(event, 'fs123', 470)" class="i">intToString</span> <span class="o">&gt;</span><span class="o">&gt;</span> <span onmouseout="hideTip(event, 'fs128', 471)" onmouseover="showTip(event, 'fs128', 471)" class="i">String</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs129', 472)" onmouseover="showTip(event, 'fs129', 472)" class="i">concat</span> <span class="s">&quot;</span><span class="s">&quot;</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs130', 473)" onmouseover="showTip(event, 'fs130', 473)" class="i">boolsToString</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs127', 474)" onmouseover="showTip(event, 'fs127', 474)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 475)" onmouseover="showTip(event, 'fs26', 475)" class="i">map</span> <span onmouseout="hideTip(event, 'fs122', 476)" onmouseover="showTip(event, 'fs122', 476)" class="i">boolToInt</span> <span class="o">&gt;</span><span class="o">&gt;</span> <span onmouseout="hideTip(event, 'fs126', 477)" onmouseover="showTip(event, 'fs126', 477)" class="i">intsToString</span></pre>
+</td>
+</tr>
+</table>
+
+<p>All of these simple functions can then be used with the built in Array/List module functions to convert entire collections as needed.</p>
+
+<p>To do the actual testing I will use the provided comparison files supplied with the books software.</p>
+
+<p>These files, are basically truth tables.<br />
+An example of the one supplied for AND is as follows:</p>
+
+<table class="pre"><tr><td><pre lang="output">|   a   |   b   |  out  |
+|   0   |   0   |   0   |
+|   0   |   1   |   0   |
+|   1   |   0   |   0   |
+|   1   |   1   |   1   |
+</pre></td></tr></table>
+
+<p>So, I need to parse this, create the inputs and then compare the given output with our functions output. 
+Sounds simple, right?</p>
+
+<p>First off, lets read a file in and create a list of the rows from the given table.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs131', 478)" onmouseover="showTip(event, 'fs131', 478)" class="i">parseFile</span> <span onmouseout="hideTip(event, 'fs132', 479)" onmouseover="showTip(event, 'fs132', 479)" class="i">path</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs133', 480)" onmouseover="showTip(event, 'fs133', 480)" class="i">File</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs134', 481)" onmouseover="showTip(event, 'fs134', 481)" class="i">ReadAllLines</span> <span onmouseout="hideTip(event, 'fs132', 482)" onmouseover="showTip(event, 'fs132', 482)" class="i">path</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs135', 483)" onmouseover="showTip(event, 'fs135', 483)" class="i">Seq</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs136', 484)" onmouseover="showTip(event, 'fs136', 484)" class="i">map</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs137', 485)" onmouseover="showTip(event, 'fs137', 485)" class="i">s</span> <span class="k">-&gt;</span> 
+               <span onmouseout="hideTip(event, 'fs137', 486)" onmouseover="showTip(event, 'fs137', 486)" class="i">s</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs138', 487)" onmouseover="showTip(event, 'fs138', 487)" class="i">Split</span>([| <span class="s">&quot;</span><span class="s">|</span><span class="s">&quot;</span> |], <span onmouseout="hideTip(event, 'fs139', 488)" onmouseover="showTip(event, 'fs139', 488)" class="i">StringSplitOptions</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs140', 489)" onmouseover="showTip(event, 'fs140', 489)" class="i">RemoveEmptyEntries</span>)
+               <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs127', 490)" onmouseover="showTip(event, 'fs127', 490)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 491)" onmouseover="showTip(event, 'fs26', 491)" class="i">map</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs137', 492)" onmouseover="showTip(event, 'fs137', 492)" class="i">s</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs137', 493)" onmouseover="showTip(event, 'fs137', 493)" class="i">s</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs141', 494)" onmouseover="showTip(event, 'fs141', 494)" class="i">Trim</span>())
+               <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs127', 495)" onmouseover="showTip(event, 'fs127', 495)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs85', 496)" onmouseover="showTip(event, 'fs85', 496)" class="i">toList</span>)
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs135', 497)" onmouseover="showTip(event, 'fs135', 497)" class="i">Seq</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs142', 498)" onmouseover="showTip(event, 'fs142', 498)" class="i">toList</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">val x : string list list =
+  [[&quot;a&quot;; &quot;b&quot;; &quot;out&quot;]; [&quot;0&quot;; &quot;0&quot;; &quot;0&quot;]; [&quot;0&quot;; &quot;1&quot;; &quot;0&quot;]; [&quot;1&quot;; &quot;0&quot;; &quot;0&quot;];
+   [&quot;1&quot;; &quot;1&quot;; &quot;1&quot;]]
+</pre></td></tr></table>
+
+<p>As you can see this gives us a list of lists representing the values per column per row.<br />
+We now need to convert this into a list of maps. So that the arguments can be accessed by name.</p>
+
+<p>This is purely a convenience for me as I have renamed and rearranged the functions and there parameters in some cases.
+If I had stuck with the same naming conventions and argument order as the book, I likely wouldn't need to do this.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span class="k">rec</span> <span onmouseout="hideTip(event, 'fs143', 499)" onmouseover="showTip(event, 'fs143', 499)" class="i">createMap</span> <span onmouseout="hideTip(event, 'fs144', 500)" onmouseover="showTip(event, 'fs144', 500)" class="i">matrix</span> (<span onmouseout="hideTip(event, 'fs145', 501)" onmouseover="showTip(event, 'fs145', 501)" class="i">cols</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs146', 502)" onmouseover="showTip(event, 'fs146', 502)" class="i">string</span> <span onmouseout="hideTip(event, 'fs147', 503)" onmouseover="showTip(event, 'fs147', 503)" class="i">list</span>) <span class="o">=</span> 
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs144', 504)" onmouseover="showTip(event, 'fs144', 504)" class="i">matrix</span> <span class="k">with</span>
+        | <span onmouseout="hideTip(event, 'fs148', 505)" onmouseover="showTip(event, 'fs148', 505)" class="i">row</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs149', 506)" onmouseover="showTip(event, 'fs149', 506)" class="i">rest</span> <span class="k">-&gt;</span> 
+            [ <span class="i">row</span>
+              <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs86', 507)" onmouseover="showTip(event, 'fs86', 507)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs150', 508)" onmouseover="showTip(event, 'fs150', 508)" class="i">mapi</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs90', 509)" onmouseover="showTip(event, 'fs90', 509)" class="i">i</span> <span onmouseout="hideTip(event, 'fs151', 510)" onmouseover="showTip(event, 'fs151', 510)" class="i">x</span> <span class="k">-&gt;</span> (<span onmouseout="hideTip(event, 'fs145', 511)" onmouseover="showTip(event, 'fs145', 511)" class="i">cols</span><span class="o">.</span>[<span onmouseout="hideTip(event, 'fs90', 512)" onmouseover="showTip(event, 'fs90', 512)" class="i">i</span>], <span onmouseout="hideTip(event, 'fs151', 513)" onmouseover="showTip(event, 'fs151', 513)" class="i">x</span>))
+              <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs152', 514)" onmouseover="showTip(event, 'fs152', 514)" class="i">Map</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs153', 515)" onmouseover="showTip(event, 'fs153', 515)" class="i">ofSeq</span> ]
+            <span class="o">@</span> <span onmouseout="hideTip(event, 'fs143', 516)" onmouseover="showTip(event, 'fs143', 516)" class="i">createMap</span> <span onmouseout="hideTip(event, 'fs149', 517)" onmouseover="showTip(event, 'fs149', 517)" class="i">rest</span> <span onmouseout="hideTip(event, 'fs145', 518)" onmouseover="showTip(event, 'fs145', 518)" class="i">cols</span>
+        | _ <span class="k">-&gt;</span> []</pre>
+</td>
+</tr>
+</table>
+
+<p>Finally we need a function to act as our test runner.<br />
+This will take a file name, parse the file, create a list of test case data and then call a provided test function.</p>
+
+<p>The test function provided will need to map the test case data (using the map keys) to the actual parameters and compare the result in a specific manner to determine success (or failure).</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+<span class="l">9: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs154', 519)" onmouseover="showTip(event, 'fs154', 519)" class="i">executeTests</span> <span onmouseout="hideTip(event, 'fs132', 520)" onmouseover="showTip(event, 'fs132', 520)" class="i">path</span> <span onmouseout="hideTip(event, 'fs155', 521)" onmouseover="showTip(event, 'fs155', 521)" class="i">func</span> <span class="o">=</span> 
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs156', 522)" onmouseover="showTip(event, 'fs156', 522)" class="i">data</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs131', 523)" onmouseover="showTip(event, 'fs131', 523)" class="i">parseFile</span> <span onmouseout="hideTip(event, 'fs132', 524)" onmouseover="showTip(event, 'fs132', 524)" class="i">path</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs157', 525)" onmouseover="showTip(event, 'fs157', 525)" class="i">testData</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs143', 526)" onmouseover="showTip(event, 'fs143', 526)" class="i">createMap</span> (<span onmouseout="hideTip(event, 'fs86', 527)" onmouseover="showTip(event, 'fs86', 527)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs158', 528)" onmouseover="showTip(event, 'fs158', 528)" class="i">tail</span> <span onmouseout="hideTip(event, 'fs156', 529)" onmouseover="showTip(event, 'fs156', 529)" class="i">data</span>) (<span onmouseout="hideTip(event, 'fs86', 530)" onmouseover="showTip(event, 'fs86', 530)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs159', 531)" onmouseover="showTip(event, 'fs159', 531)" class="i">head</span> <span onmouseout="hideTip(event, 'fs156', 532)" onmouseover="showTip(event, 'fs156', 532)" class="i">data</span>)
+        <span class="k">let</span> <span class="k">rec</span> <span onmouseout="hideTip(event, 'fs160', 533)" onmouseover="showTip(event, 'fs160', 533)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs161', 534)" onmouseover="showTip(event, 'fs161', 534)" class="i">func</span> <span onmouseout="hideTip(event, 'fs162', 535)" onmouseover="showTip(event, 'fs162', 535)" class="i">testData</span> <span onmouseout="hideTip(event, 'fs163', 536)" onmouseover="showTip(event, 'fs163', 536)" class="i">num</span> <span class="o">=</span> 
+            <span class="k">match</span> <span onmouseout="hideTip(event, 'fs162', 537)" onmouseover="showTip(event, 'fs162', 537)" class="i">testData</span> <span class="k">with</span>
+            | <span onmouseout="hideTip(event, 'fs164', 538)" onmouseover="showTip(event, 'fs164', 538)" class="i">case</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs165', 539)" onmouseover="showTip(event, 'fs165', 539)" class="i">rest</span> <span class="k">-&gt;</span> 
+                <span onmouseout="hideTip(event, 'fs166', 540)" onmouseover="showTip(event, 'fs166', 540)" class="i">sprintf</span> <span class="s">&quot;</span><span class="s">Test</span><span class="s"> </span><span class="s">number</span><span class="s"> </span><span class="s">%</span><span class="s">i</span><span class="s"> </span><span class="s">-</span><span class="s"> </span><span class="s">%</span><span class="s">s</span><span class="s"> </span><span class="s">\n</span><span class="s">&quot;</span> <span onmouseout="hideTip(event, 'fs163', 541)" onmouseover="showTip(event, 'fs163', 541)" class="i">num</span>  (<span class="k">if</span> <span onmouseout="hideTip(event, 'fs161', 542)" onmouseover="showTip(event, 'fs161', 542)" class="i">func</span> <span class="i">case</span> <span class="k">then</span> <span class="s">&quot;</span><span class="s">Success</span><span class="s">&quot;</span> <span class="k">else</span> <span class="s">&quot;</span><span class="s">Failure</span><span class="s">&quot;</span>) <span class="o">+</span> <span onmouseout="hideTip(event, 'fs160', 543)" onmouseover="showTip(event, 'fs160', 543)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs161', 544)" onmouseover="showTip(event, 'fs161', 544)" class="i">func</span> <span onmouseout="hideTip(event, 'fs165', 545)" onmouseover="showTip(event, 'fs165', 545)" class="i">rest</span> (<span onmouseout="hideTip(event, 'fs163', 546)" onmouseover="showTip(event, 'fs163', 546)" class="i">num</span><span class="o">+</span><span class="n">1</span>)
+            | [] <span class="k">-&gt;</span> <span class="s">&quot;</span><span class="s">All</span><span class="s"> </span><span class="s">tests</span><span class="s"> </span><span class="s">complete</span><span class="s">&quot;</span>
+        <span onmouseout="hideTip(event, 'fs160', 547)" onmouseover="showTip(event, 'fs160', 547)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs161', 548)" onmouseover="showTip(event, 'fs161', 548)" class="i">func</span> <span onmouseout="hideTip(event, 'fs157', 549)" onmouseover="showTip(event, 'fs157', 549)" class="i">testData</span> <span class="n">0</span></pre>
+</td>
+</tr>
+</table>
+
+<p>Lets put it to the test.<br />
+I'll start simple and run the test for the And functions test file shown above.</p>
+
+<p>Here is my test function and the use of it.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs167', 550)" onmouseover="showTip(event, 'fs167', 550)" class="i">andTest</span> (<span onmouseout="hideTip(event, 'fs168', 551)" onmouseover="showTip(event, 'fs168', 551)" class="i">case</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs152', 552)" onmouseover="showTip(event, 'fs152', 552)" class="i">Map</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs146', 553)" onmouseover="showTip(event, 'fs146', 553)" class="i">string</span>, <span onmouseout="hideTip(event, 'fs146', 554)" onmouseover="showTip(event, 'fs146', 554)" class="i">string</span><span class="o">&gt;</span>) <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs7', 555)" onmouseover="showTip(event, 'fs7', 555)" class="i">And</span> (<span onmouseout="hideTip(event, 'fs124', 556)" onmouseover="showTip(event, 'fs124', 556)" class="i">stringToBool</span> <span onmouseout="hideTip(event, 'fs168', 557)" onmouseover="showTip(event, 'fs168', 557)" class="i">case</span><span class="o">.</span>[<span class="s">&quot;</span><span class="s">a</span><span class="s">&quot;</span>]) (<span onmouseout="hideTip(event, 'fs124', 558)" onmouseover="showTip(event, 'fs124', 558)" class="i">stringToBool</span> <span onmouseout="hideTip(event, 'fs168', 559)" onmouseover="showTip(event, 'fs168', 559)" class="i">case</span><span class="o">.</span>[<span class="s">&quot;</span><span class="s">b</span><span class="s">&quot;</span>]) <span class="o">=</span> <span onmouseout="hideTip(event, 'fs124', 560)" onmouseover="showTip(event, 'fs124', 560)" class="i">stringToBool</span> <span onmouseout="hideTip(event, 'fs168', 561)" onmouseover="showTip(event, 'fs168', 561)" class="i">case</span><span class="o">.</span>[<span class="s">&quot;</span><span class="s">out</span><span class="s">&quot;</span>]
+
+    <span onmouseout="hideTip(event, 'fs154', 562)" onmouseover="showTip(event, 'fs154', 562)" class="i">executeTests</span> <span class="s">@&quot;</span><span class="s">content</span><span class="s">\</span><span class="s">post</span><span class="s">-</span><span class="s">files</span><span class="s">\</span><span class="s">Emulation</span><span class="s">\</span><span class="s">And</span><span class="s">.</span><span class="s">cmp</span><span class="s">&quot;</span> <span onmouseout="hideTip(event, 'fs167', 563)" onmouseover="showTip(event, 'fs167', 563)" class="i">andTest</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">val it : string =
+  &quot;Test number 0 - Success 
+   Test number 1 - Success 
+   Test number 2 - Success 
+   Test number 3 - Success 
+   All tests complete&quot;
+</pre></td></tr></table>
+
+<p>I could further extend this to log each parameter value as the test function is called, thus giving us full visibility of the variables.<br />
+For now though I'll leave it as is. (The post is already long enough! :) )</p>
+
+<p>Another example is given below; It is the test case for the Increment function.<br />
+The partial truth table (test file) is as follows.</p>
+
+<table class="pre"><tr><td><pre lang="output">|        in        |       out        |
+| 0000000000000000 | 0000000000000001 |
+| 1111111111111111 | 0000000000000000 |
+| 0000000000000101 | 0000000000000110 |
+| 1111111111111011 | 1111111111111100 |</pre></td></tr></table>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs169', 564)" onmouseover="showTip(event, 'fs169', 564)" class="i">IncTest</span> (<span onmouseout="hideTip(event, 'fs168', 565)" onmouseover="showTip(event, 'fs168', 565)" class="i">case</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs152', 566)" onmouseover="showTip(event, 'fs152', 566)" class="i">Map</span><span class="o">&lt;</span><span onmouseout="hideTip(event, 'fs146', 567)" onmouseover="showTip(event, 'fs146', 567)" class="i">string</span>, <span onmouseout="hideTip(event, 'fs146', 568)" onmouseover="showTip(event, 'fs146', 568)" class="i">string</span><span class="o">&gt;</span>) <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs168', 569)" onmouseover="showTip(event, 'fs168', 569)" class="i">case</span><span class="o">.</span>[<span class="s">&quot;</span><span class="s">in</span><span class="s">&quot;</span>]
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs135', 570)" onmouseover="showTip(event, 'fs135', 570)" class="i">Seq</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs136', 571)" onmouseover="showTip(event, 'fs136', 571)" class="i">map</span> (<span onmouseout="hideTip(event, 'fs120', 572)" onmouseover="showTip(event, 'fs120', 572)" class="i">charToInt</span> <span class="o">&gt;</span><span class="o">&gt;</span> <span onmouseout="hideTip(event, 'fs121', 573)" onmouseover="showTip(event, 'fs121', 573)" class="i">intToBool</span>)
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs135', 574)" onmouseover="showTip(event, 'fs135', 574)" class="i">Seq</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs170', 575)" onmouseover="showTip(event, 'fs170', 575)" class="i">toArray</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs89', 576)" onmouseover="showTip(event, 'fs89', 576)" class="i">Increment</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs130', 577)" onmouseover="showTip(event, 'fs130', 577)" class="i">boolsToString</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs168', 578)" onmouseover="showTip(event, 'fs168', 578)" class="i">case</span><span class="o">.</span>[<span class="s">&quot;</span><span class="s">out</span><span class="s">&quot;</span>]</pre>
+</td>
+</tr>
+</table>
+
+<p>I also thought it would be useful (and more importantly it was fun!) to make some actual decimal integer to binary (so base 10 to base 2) converters and vice versa.</p>
+
+<p>The following converts a decimal to binary (it doesn't handle negatives, we will get to that later).</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs171', 579)" onmouseover="showTip(event, 'fs171', 579)" class="i">toBinary</span> <span onmouseout="hideTip(event, 'fs90', 580)" onmouseover="showTip(event, 'fs90', 580)" class="i">i</span> <span class="o">=</span> 
+        <span class="k">let</span> <span class="k">rec</span> <span onmouseout="hideTip(event, 'fs172', 581)" onmouseover="showTip(event, 'fs172', 581)" class="i">convert</span> <span onmouseout="hideTip(event, 'fs90', 582)" onmouseover="showTip(event, 'fs90', 582)" class="i">i</span> <span onmouseout="hideTip(event, 'fs173', 583)" onmouseover="showTip(event, 'fs173', 583)" class="i">acc</span> <span class="o">=</span> 
+            <span class="k">match</span> <span onmouseout="hideTip(event, 'fs90', 584)" onmouseover="showTip(event, 'fs90', 584)" class="i">i</span> <span class="k">with</span>
+            | _ <span class="k">when</span> <span onmouseout="hideTip(event, 'fs90', 585)" onmouseover="showTip(event, 'fs90', 585)" class="i">i</span> <span class="o">&gt;</span> <span class="n">0</span> <span class="k">-&gt;</span> (<span onmouseout="hideTip(event, 'fs90', 586)" onmouseover="showTip(event, 'fs90', 586)" class="i">i</span> <span class="o">%</span> <span class="n">2</span>) <span class="o">::</span> <span onmouseout="hideTip(event, 'fs172', 587)" onmouseover="showTip(event, 'fs172', 587)" class="i">convert</span> (<span onmouseout="hideTip(event, 'fs90', 588)" onmouseover="showTip(event, 'fs90', 588)" class="i">i</span> <span class="o">/</span> <span class="n">2</span>) <span onmouseout="hideTip(event, 'fs173', 589)" onmouseover="showTip(event, 'fs173', 589)" class="i">acc</span>
+            | _ <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs173', 590)" onmouseover="showTip(event, 'fs173', 590)" class="i">acc</span>
+        <span onmouseout="hideTip(event, 'fs172', 591)" onmouseover="showTip(event, 'fs172', 591)" class="i">convert</span> <span onmouseout="hideTip(event, 'fs90', 592)" onmouseover="showTip(event, 'fs90', 592)" class="i">i</span> [] <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs86', 593)" onmouseover="showTip(event, 'fs86', 593)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs174', 594)" onmouseover="showTip(event, 'fs174', 594)" class="i">rev</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs86', 595)" onmouseover="showTip(event, 'fs86', 595)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs88', 596)" onmouseover="showTip(event, 'fs88', 596)" class="i">toArray</span> </pre>
+</td>
+</tr>
+</table>
+
+<p>Next we require a function to flip each bit in a sequence. This is required for converting an integer into a two's compliment binary representation when the number is negative.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs175', 597)" onmouseover="showTip(event, 'fs175', 597)" class="i">flipBits</span> <span onmouseout="hideTip(event, 'fs176', 598)" onmouseover="showTip(event, 'fs176', 598)" class="i">b</span> <span class="o">=</span> 
+        <span class="k">let</span> <span class="k">rec</span> <span onmouseout="hideTip(event, 'fs177', 599)" onmouseover="showTip(event, 'fs177', 599)" class="i">convert</span> <span onmouseout="hideTip(event, 'fs178', 600)" onmouseover="showTip(event, 'fs178', 600)" class="i">b</span> <span onmouseout="hideTip(event, 'fs173', 601)" onmouseover="showTip(event, 'fs173', 601)" class="i">acc</span> <span class="o">=</span> 
+            <span class="k">match</span> <span onmouseout="hideTip(event, 'fs178', 602)" onmouseover="showTip(event, 'fs178', 602)" class="i">b</span> <span class="k">with</span>
+            | <span onmouseout="hideTip(event, 'fs179', 603)" onmouseover="showTip(event, 'fs179', 603)" class="i">h</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs180', 604)" onmouseover="showTip(event, 'fs180', 604)" class="i">t</span> <span class="k">-&gt;</span> 
+                <span class="k">match</span> <span onmouseout="hideTip(event, 'fs179', 605)" onmouseover="showTip(event, 'fs179', 605)" class="i">h</span> <span class="k">with</span>
+                | <span class="n">1</span> <span class="k">-&gt;</span> <span class="n">0</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs177', 606)" onmouseover="showTip(event, 'fs177', 606)" class="i">convert</span> <span onmouseout="hideTip(event, 'fs180', 607)" onmouseover="showTip(event, 'fs180', 607)" class="i">t</span> <span onmouseout="hideTip(event, 'fs173', 608)" onmouseover="showTip(event, 'fs173', 608)" class="i">acc</span>
+                | _ <span class="k">-&gt;</span> <span class="n">1</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs177', 609)" onmouseover="showTip(event, 'fs177', 609)" class="i">convert</span> <span onmouseout="hideTip(event, 'fs180', 610)" onmouseover="showTip(event, 'fs180', 610)" class="i">t</span> <span onmouseout="hideTip(event, 'fs173', 611)" onmouseover="showTip(event, 'fs173', 611)" class="i">acc</span>
+            | [] <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs173', 612)" onmouseover="showTip(event, 'fs173', 612)" class="i">acc</span>
+        <span onmouseout="hideTip(event, 'fs177', 613)" onmouseover="showTip(event, 'fs177', 613)" class="i">convert</span> (<span onmouseout="hideTip(event, 'fs176', 614)" onmouseover="showTip(event, 'fs176', 614)" class="i">b</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs86', 615)" onmouseover="showTip(event, 'fs86', 615)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs181', 616)" onmouseover="showTip(event, 'fs181', 616)" class="i">ofSeq</span>) []
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs86', 617)" onmouseover="showTip(event, 'fs86', 617)" class="i">List</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs88', 618)" onmouseover="showTip(event, 'fs88', 618)" class="i">toArray</span></pre>
+</td>
+</tr>
+</table>
+
+<p>As part of that conversion to two's compliment, we also need a function to pad a binary array with zeros depending on the given maximum bit length.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs182', 619)" onmouseover="showTip(event, 'fs182', 619)" class="i">padBits</span> <span onmouseout="hideTip(event, 'fs183', 620)" onmouseover="showTip(event, 'fs183', 620)" class="i">length</span> (<span onmouseout="hideTip(event, 'fs184', 621)" onmouseover="showTip(event, 'fs184', 621)" class="i">bits</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs185', 622)" onmouseover="showTip(event, 'fs185', 622)" class="i">int</span> <span onmouseout="hideTip(event, 'fs48', 623)" onmouseover="showTip(event, 'fs48', 623)" class="i">array</span>) <span class="o">=</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs186', 624)" onmouseover="showTip(event, 'fs186', 624)" class="i">padding</span> <span class="o">=</span> [| <span class="k">for</span> <span onmouseout="hideTip(event, 'fs90', 625)" onmouseover="showTip(event, 'fs90', 625)" class="i">i</span> <span class="k">in</span> <span class="n">1..</span>(<span onmouseout="hideTip(event, 'fs183', 626)" onmouseover="showTip(event, 'fs183', 626)" class="i">length</span> <span class="o">-</span> <span onmouseout="hideTip(event, 'fs184', 627)" onmouseover="showTip(event, 'fs184', 627)" class="i">bits</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs187', 628)" onmouseover="showTip(event, 'fs187', 628)" class="i">Length</span>) <span class="k">-&gt;</span> <span class="n">0</span> |]
+        <span onmouseout="hideTip(event, 'fs127', 629)" onmouseover="showTip(event, 'fs127', 629)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs188', 630)" onmouseover="showTip(event, 'fs188', 630)" class="i">concat</span> [|<span onmouseout="hideTip(event, 'fs186', 631)" onmouseover="showTip(event, 'fs186', 631)" class="i">padding</span>; <span onmouseout="hideTip(event, 'fs184', 632)" onmouseover="showTip(event, 'fs184', 632)" class="i">bits</span>|]</pre>
+</td>
+</tr>
+</table>
+
+<p>Finally, we make use of the Increment function we have already defined as part of our Boolean arithmetic functions in order to complete what we need to fully represent a decimal in twos compliment binary form.</p>
+
+<p>The basic steps to the function are:</p>
+
+<ol>
+<li>Take in a decimal integer and the target bit length.</li>
+<li>Determine whether the integer is negative.</li>
+<li>If it is:
+<ol>
+<li>Get the absolute value</li>
+<li>Convert that value to binary</li>
+<li>Pad the binary with zeros up until the bit length</li>
+<li>flip all the bits</li>
+<li>Add one</li>
+</ol></li>
+<li>If it is not:
+<ol>
+<li>Simply convert to binary and pad the bits</li>
+</ol></li>
+</ol>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs189', 633)" onmouseover="showTip(event, 'fs189', 633)" class="i">toTwosCompliment</span> <span onmouseout="hideTip(event, 'fs90', 634)" onmouseover="showTip(event, 'fs90', 634)" class="i">i</span> <span onmouseout="hideTip(event, 'fs190', 635)" onmouseover="showTip(event, 'fs190', 635)" class="i">b</span> <span class="o">=</span> 
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs90', 636)" onmouseover="showTip(event, 'fs90', 636)" class="i">i</span> <span class="k">with</span>
+        | _ <span class="k">when</span> <span onmouseout="hideTip(event, 'fs90', 637)" onmouseover="showTip(event, 'fs90', 637)" class="i">i</span> <span class="o">&lt;</span> <span class="n">0</span> <span class="k">-&gt;</span> 
+            <span onmouseout="hideTip(event, 'fs191', 638)" onmouseover="showTip(event, 'fs191', 638)" class="i">abs</span> <span onmouseout="hideTip(event, 'fs90', 639)" onmouseover="showTip(event, 'fs90', 639)" class="i">i</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs171', 640)" onmouseover="showTip(event, 'fs171', 640)" class="i">toBinary</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs182', 641)" onmouseover="showTip(event, 'fs182', 641)" class="i">padBits</span> <span onmouseout="hideTip(event, 'fs190', 642)" onmouseover="showTip(event, 'fs190', 642)" class="i">b</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs175', 643)" onmouseover="showTip(event, 'fs175', 643)" class="i">flipBits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs127', 644)" onmouseover="showTip(event, 'fs127', 644)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 645)" onmouseover="showTip(event, 'fs26', 645)" class="i">map</span> <span onmouseout="hideTip(event, 'fs121', 646)" onmouseover="showTip(event, 'fs121', 646)" class="i">intToBool</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs89', 647)" onmouseover="showTip(event, 'fs89', 647)" class="i">Increment</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs127', 648)" onmouseover="showTip(event, 'fs127', 648)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 649)" onmouseover="showTip(event, 'fs26', 649)" class="i">map</span> <span onmouseout="hideTip(event, 'fs122', 650)" onmouseover="showTip(event, 'fs122', 650)" class="i">boolToInt</span>
+        | _ <span class="k">-&gt;</span> 
+            <span onmouseout="hideTip(event, 'fs90', 651)" onmouseover="showTip(event, 'fs90', 651)" class="i">i</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs171', 652)" onmouseover="showTip(event, 'fs171', 652)" class="i">toBinary</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs182', 653)" onmouseover="showTip(event, 'fs182', 653)" class="i">padBits</span> <span onmouseout="hideTip(event, 'fs190', 654)" onmouseover="showTip(event, 'fs190', 654)" class="i">b</span></pre>
+</td>
+</tr>
+</table>
+
+<p>this will now allow us to get the binary representation of any integer returned in an array of Boolean values for use in our arithmetic functions.</p>
+
+<p>The functions to convert back from binary to base 10 are just as simple.</p>
+
+<p>To convert to a positive decimal we do the following steps:</p>
+
+<ol>
+<li>Reverse the bits (As we need to work right to left)</li>
+<li>For each bit:
+<ol>
+<li>Multiply the value by the base (2)</li>
+<li>Raise it to it's index in the binary array.</li>
+</ol></li>
+</ol>
+
+<p>And that's all there is to it.</p>
+
+<p>For a negative number we first need to convert to two's complement.<br />
+This involves padding, flipping the bits and adding one (Exactly as when converting to a negative binary representation), before converting to base 10 as described above.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs192', 655)" onmouseover="showTip(event, 'fs192', 655)" class="i">toBase10</span> <span onmouseout="hideTip(event, 'fs193', 656)" onmouseover="showTip(event, 'fs193', 656)" class="i">b</span> <span class="o">=</span> 
+        <span class="k">let</span> <span class="k">rec</span> <span onmouseout="hideTip(event, 'fs194', 657)" onmouseover="showTip(event, 'fs194', 657)" class="i">convert</span> <span onmouseout="hideTip(event, 'fs178', 658)" onmouseover="showTip(event, 'fs178', 658)" class="i">b</span> <span onmouseout="hideTip(event, 'fs195', 659)" onmouseover="showTip(event, 'fs195', 659)" class="i">i</span> <span onmouseout="hideTip(event, 'fs196', 660)" onmouseover="showTip(event, 'fs196', 660)" class="i">acc</span> <span class="o">=</span> 
+            <span class="k">match</span> <span onmouseout="hideTip(event, 'fs178', 661)" onmouseover="showTip(event, 'fs178', 661)" class="i">b</span> <span class="k">with</span>
+            | <span onmouseout="hideTip(event, 'fs179', 662)" onmouseover="showTip(event, 'fs179', 662)" class="i">h</span> <span class="o">::</span> <span onmouseout="hideTip(event, 'fs180', 663)" onmouseover="showTip(event, 'fs180', 663)" class="i">t</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs197', 664)" onmouseover="showTip(event, 'fs197', 664)" class="i">float</span> <span onmouseout="hideTip(event, 'fs179', 665)" onmouseover="showTip(event, 'fs179', 665)" class="i">h</span> <span class="o">*</span> <span class="n">2.0</span> <span class="o">**</span> <span onmouseout="hideTip(event, 'fs195', 666)" onmouseover="showTip(event, 'fs195', 666)" class="i">i</span> <span class="o">+</span> <span onmouseout="hideTip(event, 'fs194', 667)" onmouseover="showTip(event, 'fs194', 667)" class="i">convert</span> <span onmouseout="hideTip(event, 'fs180', 668)" onmouseover="showTip(event, 'fs180', 668)" class="i">t</span> (<span onmouseout="hideTip(event, 'fs195', 669)" onmouseover="showTip(event, 'fs195', 669)" class="i">i</span> <span class="o">+</span> <span class="n">1.0</span>) <span onmouseout="hideTip(event, 'fs196', 670)" onmouseover="showTip(event, 'fs196', 670)" class="i">acc</span>
+            | [] <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs196', 671)" onmouseover="showTip(event, 'fs196', 671)" class="i">acc</span>
+        <span onmouseout="hideTip(event, 'fs194', 672)" onmouseover="showTip(event, 'fs194', 672)" class="i">convert</span> (<span onmouseout="hideTip(event, 'fs193', 673)" onmouseover="showTip(event, 'fs193', 673)" class="i">b</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs127', 674)" onmouseover="showTip(event, 'fs127', 674)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs84', 675)" onmouseover="showTip(event, 'fs84', 675)" class="i">rev</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs127', 676)" onmouseover="showTip(event, 'fs127', 676)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs85', 677)" onmouseover="showTip(event, 'fs85', 677)" class="i">toList</span>) <span class="n">0.0</span> <span class="n">0.0</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs185', 678)" onmouseover="showTip(event, 'fs185', 678)" class="i">int</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs198', 679)" onmouseover="showTip(event, 'fs198', 679)" class="i">toDecimal</span> <span onmouseout="hideTip(event, 'fs190', 680)" onmouseover="showTip(event, 'fs190', 680)" class="i">b</span> (<span onmouseout="hideTip(event, 'fs199', 681)" onmouseover="showTip(event, 'fs199', 681)" class="i">binary</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs185', 682)" onmouseover="showTip(event, 'fs185', 682)" class="i">int</span> <span onmouseout="hideTip(event, 'fs48', 683)" onmouseover="showTip(event, 'fs48', 683)" class="i">array</span>) <span class="o">=</span>
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs199', 684)" onmouseover="showTip(event, 'fs199', 684)" class="i">binary</span><span class="o">.</span>[<span class="n">0</span>] <span class="k">with</span>
+        | <span class="n">0</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs199', 685)" onmouseover="showTip(event, 'fs199', 685)" class="i">binary</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs192', 686)" onmouseover="showTip(event, 'fs192', 686)" class="i">toBase10</span>
+        | _ <span class="k">-&gt;</span> 
+            <span class="o">-</span>(<span onmouseout="hideTip(event, 'fs199', 687)" onmouseover="showTip(event, 'fs199', 687)" class="i">binary</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs182', 688)" onmouseover="showTip(event, 'fs182', 688)" class="i">padBits</span> <span onmouseout="hideTip(event, 'fs190', 689)" onmouseover="showTip(event, 'fs190', 689)" class="i">b</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs175', 690)" onmouseover="showTip(event, 'fs175', 690)" class="i">flipBits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs127', 691)" onmouseover="showTip(event, 'fs127', 691)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 692)" onmouseover="showTip(event, 'fs26', 692)" class="i">map</span> <span onmouseout="hideTip(event, 'fs121', 693)" onmouseover="showTip(event, 'fs121', 693)" class="i">intToBool</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs89', 694)" onmouseover="showTip(event, 'fs89', 694)" class="i">Increment</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs127', 695)" onmouseover="showTip(event, 'fs127', 695)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 696)" onmouseover="showTip(event, 'fs26', 696)" class="i">map</span> <span onmouseout="hideTip(event, 'fs122', 697)" onmouseover="showTip(event, 'fs122', 697)" class="i">boolToInt</span> 
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs192', 698)" onmouseover="showTip(event, 'fs192', 698)" class="i">toBase10</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>Phew!, let's give these new functions a test.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="c">//Adding 100 and 320.</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs202', 701)" onmouseover="showTip(event, 'fs202', 701)" class="i">a</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs189', 702)" onmouseover="showTip(event, 'fs189', 702)" class="i">toTwosCompliment</span> <span class="n">100</span> <span class="n">16</span> 
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 703)" onmouseover="showTip(event, 'fs25', 703)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 704)" onmouseover="showTip(event, 'fs26', 704)" class="i">map</span> <span onmouseout="hideTip(event, 'fs121', 705)" onmouseover="showTip(event, 'fs121', 705)" class="i">intToBool</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs203', 706)" onmouseover="showTip(event, 'fs203', 706)" class="i">b</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs189', 707)" onmouseover="showTip(event, 'fs189', 707)" class="i">toTwosCompliment</span> <span class="n">320</span> <span class="n">16</span> 
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 708)" onmouseover="showTip(event, 'fs25', 708)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 709)" onmouseover="showTip(event, 'fs26', 709)" class="i">map</span> <span onmouseout="hideTip(event, 'fs121', 710)" onmouseover="showTip(event, 'fs121', 710)" class="i">intToBool</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs204', 711)" onmouseover="showTip(event, 'fs204', 711)" class="i">result</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs73', 712)" onmouseover="showTip(event, 'fs73', 712)" class="i">Adder</span> <span onmouseout="hideTip(event, 'fs202', 713)" onmouseover="showTip(event, 'fs202', 713)" class="i">a</span> <span onmouseout="hideTip(event, 'fs203', 714)" onmouseover="showTip(event, 'fs203', 714)" class="i">b</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 715)" onmouseover="showTip(event, 'fs25', 715)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 716)" onmouseover="showTip(event, 'fs26', 716)" class="i">map</span> <span onmouseout="hideTip(event, 'fs122', 717)" onmouseover="showTip(event, 'fs122', 717)" class="i">boolToInt</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs198', 718)" onmouseover="showTip(event, 'fs198', 718)" class="i">toDecimal</span> <span class="n">16</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">
+val a : bool [] =
+  [|false; false; false; false; false; false; false; false; false; true; true;
+    false; false; true; false; false|]
+
+val b : bool [] =
+  [|false; false; false; false; false; false; false; true; false; true; false;
+    false; false; false; false; false|]
+
+val result : int = 420</pre></td></tr></table>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="c">//Incrementing a negative number.</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs205', 719)" onmouseover="showTip(event, 'fs205', 719)" class="i">negative</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs189', 720)" onmouseover="showTip(event, 'fs189', 720)" class="i">toTwosCompliment</span> <span class="o">-</span><span class="n">112</span> <span class="n">16</span> 
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 721)" onmouseover="showTip(event, 'fs25', 721)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 722)" onmouseover="showTip(event, 'fs26', 722)" class="i">map</span> <span onmouseout="hideTip(event, 'fs121', 723)" onmouseover="showTip(event, 'fs121', 723)" class="i">intToBool</span>
+
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs206', 724)" onmouseover="showTip(event, 'fs206', 724)" class="i">negativePlus1</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs89', 725)" onmouseover="showTip(event, 'fs89', 725)" class="i">Increment</span> <span onmouseout="hideTip(event, 'fs205', 726)" onmouseover="showTip(event, 'fs205', 726)" class="i">negative</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 727)" onmouseover="showTip(event, 'fs25', 727)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs26', 728)" onmouseover="showTip(event, 'fs26', 728)" class="i">map</span> <span onmouseout="hideTip(event, 'fs122', 729)" onmouseover="showTip(event, 'fs122', 729)" class="i">boolToInt</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs198', 730)" onmouseover="showTip(event, 'fs198', 730)" class="i">toDecimal</span> <span class="n">16</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">
+val negative : bool [] =
+  [|true; true; true; true; true; true; true; true; true; false; false; true;
+    false; false; false; false|]
+
+val negativePlus1 : int = -111</pre></td></tr></table>
+
+<p>Wow that turned out to be a long post. Thanks for hanging on in!</p>
+
+<p>I hope some of you find something useful to take from this post, be it F#, Boolean logic/arithmetic or book related.</p>
+
+<p>I'll try and keep the future posts in the series shorter, however I'm already thinking that I need to revisit some of the functions in this post to make them more robust.</p>
+
+<p>As always, the code and any supporting material can be found on <a href="https://github.com/sjpemberton/FSharpEmulator">GitHub</a> and I would love for people to share there advice or experience in F# to boost my understanding.</p>
+
+<div class="tip" id="fs1">module FsEmulation</div>
+<div class="tip" id="fs2">val Nand : a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.Nand</div>
+<div class="tip" id="fs3">val a : bool</div>
+<div class="tip" id="fs4">val b : bool</div>
+<div class="tip" id="fs5">val Nand : a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.PatternMatched.Nand</div>
+<div class="tip" id="fs6">val Not : a:bool -&gt; bool<br /><br />Full name: FsEmulation.Not</div>
+<div class="tip" id="fs7">val And : a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.And</div>
+<div class="tip" id="fs8">val Or : a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.Or</div>
+<div class="tip" id="fs9">val Xor : a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.Xor</div>
+<div class="tip" id="fs10">val Mux : sel:bool -&gt; a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.Mux</div>
+<div class="tip" id="fs11">val sel : bool</div>
+<div class="tip" id="fs12">val DMux : a:bool -&gt; sel:bool -&gt; bool * bool<br /><br />Full name: FsEmulation.DMux</div>
+<div class="tip" id="fs13">val Not : a:&#39;a -&gt; _arg1:bool -&gt; bool<br /><br />Full name: FsEmulation.PatternMatched2.Not</div>
+<div class="tip" id="fs14">val a : &#39;a</div>
+<div class="tip" id="fs15">val And : a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.PatternMatched2.And</div>
+<div class="tip" id="fs16">val Or : a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.PatternMatched2.Or</div>
+<div class="tip" id="fs17">val Xor : a:bool -&gt; b:bool -&gt; bool<br /><br />Full name: FsEmulation.PatternMatched2.Xor</div>
+<div class="tip" id="fs18">val Mux : sel:bool -&gt; a:&#39;a -&gt; b:&#39;a -&gt; &#39;a<br /><br />Full name: FsEmulation.PatternMatched2.Mux</div>
+<div class="tip" id="fs19">val b : &#39;a</div>
+<div class="tip" id="fs20">val DMux : sel:bool -&gt; x:bool -&gt; bool * bool<br /><br />Full name: FsEmulation.PatternMatched2.DMux</div>
+<div class="tip" id="fs21">val x : bool</div>
+<div class="tip" id="fs22">val unaryArray : gate:(&#39;a -&gt; &#39;b) -&gt; bits:&#39;a [] -&gt; &#39;b []<br /><br />Full name: FsEmulation.unaryArray</div>
+<div class="tip" id="fs23">val gate : (&#39;a -&gt; &#39;b)</div>
+<div class="tip" id="fs24">val bits : &#39;a []</div>
+<div class="tip" id="fs25">module Array<br /><br />from Microsoft.FSharp.Collections</div>
+<div class="tip" id="fs26">val map : mapping:(&#39;T -&gt; &#39;U) -&gt; array:&#39;T [] -&gt; &#39;U []<br /><br />Full name: Microsoft.FSharp.Collections.Array.map</div>
+<div class="tip" id="fs27">val binaryArray : gate:(&#39;a -&gt; &#39;b -&gt; &#39;c) -&gt; aBits:&#39;a [] -&gt; bBits:&#39;b [] -&gt; &#39;c []<br /><br />Full name: FsEmulation.binaryArray</div>
+<div class="tip" id="fs28">val gate : (&#39;a -&gt; &#39;b -&gt; &#39;c)</div>
+<div class="tip" id="fs29">val aBits : &#39;a []</div>
+<div class="tip" id="fs30">val bBits : &#39;b []</div>
+<div class="tip" id="fs31">val zip : array1:&#39;T1 [] -&gt; array2:&#39;T2 [] -&gt; (&#39;T1 * &#39;T2) []<br /><br />Full name: Microsoft.FSharp.Collections.Array.zip</div>
+<div class="tip" id="fs32">val b : &#39;b</div>
+<div class="tip" id="fs33">val MultiNot : (bool [] -&gt; bool [])<br /><br />Full name: FsEmulation.MultiNot</div>
+<div class="tip" id="fs34">val MultiAnd : (bool [] -&gt; bool [] -&gt; bool [])<br /><br />Full name: FsEmulation.MultiAnd</div>
+<div class="tip" id="fs35">val MultiOr : (bool [] -&gt; bool [] -&gt; bool [])<br /><br />Full name: FsEmulation.MultiOr</div>
+<div class="tip" id="fs36">val MultiMux : sel:bool -&gt; (bool [] -&gt; bool [] -&gt; bool [])<br /><br />Full name: FsEmulation.MultiMux</div>
+<div class="tip" id="fs37">val MultiDMux : sel:bool -&gt; (bool [] -&gt; (bool * bool) [])<br /><br />Full name: FsEmulation.MultiDMux</div>
+<div class="tip" id="fs38">val MultiWayOr : bits:bool [] -&gt; bool<br /><br />Full name: FsEmulation.MultiWayOr</div>
+<div class="tip" id="fs39">val bits : bool []</div>
+<div class="tip" id="fs40">val reduce : reduction:(&#39;T -&gt; &#39;T -&gt; &#39;T) -&gt; array:&#39;T [] -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Collections.Array.reduce</div>
+<div class="tip" id="fs41">val Mux4Way16 : a:bool [] -&gt; b:bool [] -&gt; c:bool [] -&gt; d:bool [] -&gt; sel:bool array -&gt; bool []<br /><br />Full name: FsEmulation.Mux4Way16</div>
+<div class="tip" id="fs42">val a : bool []</div>
+<div class="tip" id="fs43">val b : bool []</div>
+<div class="tip" id="fs44">val c : bool []</div>
+<div class="tip" id="fs45">val d : bool []</div>
+<div class="tip" id="fs46">val sel : bool array</div>
+<div class="tip" id="fs47">type bool = System.Boolean<br /><br />Full name: Microsoft.FSharp.Core.bool</div>
+<div class="tip" id="fs48">type &#39;T array = &#39;T []<br /><br />Full name: Microsoft.FSharp.Core.array&lt;_&gt;</div>
+<div class="tip" id="fs49">val m1 : bool []</div>
+<div class="tip" id="fs50">val m2 : bool []</div>
+<div class="tip" id="fs51">val Mux8Way16 : a:bool [] -&gt; b:bool [] -&gt; c:bool [] -&gt; d:bool [] -&gt; e:bool [] -&gt; f:bool [] -&gt; g:bool [] -&gt; h:bool [] -&gt; sel:bool array -&gt; bool []<br /><br />Full name: FsEmulation.Mux8Way16</div>
+<div class="tip" id="fs52">val e : bool []</div>
+<div class="tip" id="fs53">val f : bool []</div>
+<div class="tip" id="fs54">val g : bool []</div>
+<div class="tip" id="fs55">val h : bool []</div>
+<div class="tip" id="fs56">val DMux4Way : x:bool -&gt; sel:bool array -&gt; bool * bool * bool * bool<br /><br />Full name: FsEmulation.DMux4Way</div>
+<div class="tip" id="fs57">val d1 : bool</div>
+<div class="tip" id="fs58">val d2 : bool</div>
+<div class="tip" id="fs59">val c : bool</div>
+<div class="tip" id="fs60">val d : bool</div>
+<div class="tip" id="fs61">val DMux8Way : x:bool -&gt; sel:bool array -&gt; bool * bool * bool * bool * bool * bool * bool * bool<br /><br />Full name: FsEmulation.DMux8Way</div>
+<div class="tip" id="fs62">val e : bool</div>
+<div class="tip" id="fs63">val f : bool</div>
+<div class="tip" id="fs64">val g : bool</div>
+<div class="tip" id="fs65">val h : bool</div>
+<div class="tip" id="fs66">val HalfAdder : a:bool -&gt; b:bool -&gt; bool * bool<br /><br />Full name: FsEmulation.HalfAdder</div>
+<div class="tip" id="fs67">val sum : bool</div>
+<div class="tip" id="fs68">val carry : bool</div>
+<div class="tip" id="fs69">val FullAdder : a:bool -&gt; b:bool -&gt; c:bool -&gt; bool * bool<br /><br />Full name: FsEmulation.FullAdder</div>
+<div class="tip" id="fs70">val s1 : bool</div>
+<div class="tip" id="fs71">val c1 : bool</div>
+<div class="tip" id="fs72">val c2 : bool</div>
+<div class="tip" id="fs73">val Adder : aBits:bool [] -&gt; bBits:bool [] -&gt; bool []<br /><br />Full name: FsEmulation.Adder</div>
+<div class="tip" id="fs74">val aBits : bool []</div>
+<div class="tip" id="fs75">val bBits : bool []</div>
+<div class="tip" id="fs76">val addBits : (bool list -&gt; bool list -&gt; bool -&gt; bool list -&gt; bool list)</div>
+<div class="tip" id="fs77">val aBits : bool list</div>
+<div class="tip" id="fs78">val bBits : bool list</div>
+<div class="tip" id="fs79">val accu : bool list</div>
+<div class="tip" id="fs80">val aHead : bool</div>
+<div class="tip" id="fs81">val aTail : bool list</div>
+<div class="tip" id="fs82">val bHead : bool</div>
+<div class="tip" id="fs83">val bTail : bool list</div>
+<div class="tip" id="fs84">val rev : array:&#39;T [] -&gt; &#39;T []<br /><br />Full name: Microsoft.FSharp.Collections.Array.rev</div>
+<div class="tip" id="fs85">val toList : array:&#39;T [] -&gt; &#39;T list<br /><br />Full name: Microsoft.FSharp.Collections.Array.toList</div>
+<div class="tip" id="fs86">Multiple items<br />module List<br /><br />from Microsoft.FSharp.Collections<br /><br />--------------------<br />type List&lt;&#39;T&gt; =<br />&#160;&#160;| ( [] )<br />&#160;&#160;| ( :: ) of Head: &#39;T * Tail: &#39;T list<br />&#160;&#160;interface IEnumerable<br />&#160;&#160;interface IEnumerable&lt;&#39;T&gt;<br />&#160;&#160;member Head : &#39;T<br />&#160;&#160;member IsEmpty : bool<br />&#160;&#160;member Item : index:int -&gt; &#39;T with get<br />&#160;&#160;member Length : int<br />&#160;&#160;member Tail : &#39;T list<br />&#160;&#160;static member Cons : head:&#39;T * tail:&#39;T list -&gt; &#39;T list<br />&#160;&#160;static member Empty : &#39;T list<br /><br />Full name: Microsoft.FSharp.Collections.List&lt;_&gt;</div>
+<div class="tip" id="fs87">val empty&lt;&#39;T&gt; : &#39;T list<br /><br />Full name: Microsoft.FSharp.Collections.List.empty</div>
+<div class="tip" id="fs88">val toArray : list:&#39;T list -&gt; &#39;T []<br /><br />Full name: Microsoft.FSharp.Collections.List.toArray</div>
+<div class="tip" id="fs89">val Increment : aBits:bool [] -&gt; bool []<br /><br />Full name: FsEmulation.Increment</div>
+<div class="tip" id="fs90">val i : int</div>
+<div class="tip" id="fs91">val ALU : xBits:bool [] -&gt; yBits:bool [] -&gt; zx:bool -&gt; nx:bool -&gt; zy:bool -&gt; ny:bool -&gt; f:bool -&gt; no:bool -&gt; bool [] * bool * bool<br /><br />Full name: FsEmulation.ALU</div>
+<div class="tip" id="fs92">val xBits : bool []</div>
+<div class="tip" id="fs93">val yBits : bool []</div>
+<div class="tip" id="fs94">val zx : bool</div>
+<div class="tip" id="fs95">val nx : bool</div>
+<div class="tip" id="fs96">val zy : bool</div>
+<div class="tip" id="fs97">val ny : bool</div>
+<div class="tip" id="fs98">val no : bool</div>
+<div class="tip" id="fs99">val ox1 : bool []</div>
+<div class="tip" id="fs100">val nox1 : bool []</div>
+<div class="tip" id="fs101">val ox2 : bool []</div>
+<div class="tip" id="fs102">val oy1 : bool []</div>
+<div class="tip" id="fs103">val noy1 : bool []</div>
+<div class="tip" id="fs104">val oy2 : bool []</div>
+<div class="tip" id="fs105">val o3 : bool []</div>
+<div class="tip" id="fs106">val o4 : bool []</div>
+<div class="tip" id="fs107">val o5 : bool []</div>
+<div class="tip" id="fs108">val no5 : bool []</div>
+<div class="tip" id="fs109">val out : bool []</div>
+<div class="tip" id="fs110">val zr : bool</div>
+<div class="tip" id="fs111">val ng : bool</div>
+<div class="tip" id="fs112">val ALU : xBits:bool [] -&gt; yBits:bool [] -&gt; zx:bool -&gt; nx:bool -&gt; zy:bool -&gt; ny:bool -&gt; f:bool -&gt; no:bool -&gt; bool [] * bool * bool<br /><br />Full name: FsEmulation.AlternateALU.ALU</div>
+<div class="tip" id="fs113">val zero : (bool -&gt; bool [] -&gt; bool [])</div>
+<div class="tip" id="fs114">val negate : (bool -&gt; bool [] -&gt; bool [])</div>
+<div class="tip" id="fs115">val x : bool []</div>
+<div class="tip" id="fs116">val y : bool []</div>
+<div class="tip" id="fs117">namespace System</div>
+<div class="tip" id="fs118">namespace System.IO</div>
+<div class="tip" id="fs119">val stringToInt : _arg1:string -&gt; int<br /><br />Full name: FsEmulation.Utilities.stringToInt</div>
+<div class="tip" id="fs120">val charToInt : _arg1:char -&gt; int<br /><br />Full name: FsEmulation.Utilities.charToInt</div>
+<div class="tip" id="fs121">val intToBool : _arg1:int -&gt; bool<br /><br />Full name: FsEmulation.Utilities.intToBool</div>
+<div class="tip" id="fs122">val boolToInt : _arg1:bool -&gt; int<br /><br />Full name: FsEmulation.Utilities.boolToInt</div>
+<div class="tip" id="fs123">val intToString : _arg1:int -&gt; string<br /><br />Full name: FsEmulation.Utilities.intToString</div>
+<div class="tip" id="fs124">val stringToBool : (string -&gt; bool)<br /><br />Full name: FsEmulation.Utilities.stringToBool</div>
+<div class="tip" id="fs125">val boolToString : (bool -&gt; string)<br /><br />Full name: FsEmulation.Utilities.boolToString</div>
+<div class="tip" id="fs126">val intsToString : (int [] -&gt; string)<br /><br />Full name: FsEmulation.Utilities.intsToString</div>
+<div class="tip" id="fs127">type Array =<br />&#160;&#160;member Clone : unit -&gt; obj<br />&#160;&#160;member CopyTo : array:Array * index:int -&gt; unit + 1 overload<br />&#160;&#160;member GetEnumerator : unit -&gt; IEnumerator<br />&#160;&#160;member GetLength : dimension:int -&gt; int<br />&#160;&#160;member GetLongLength : dimension:int -&gt; int64<br />&#160;&#160;member GetLowerBound : dimension:int -&gt; int<br />&#160;&#160;member GetUpperBound : dimension:int -&gt; int<br />&#160;&#160;member GetValue : params indices:int[] -&gt; obj + 7 overloads<br />&#160;&#160;member Initialize : unit -&gt; unit<br />&#160;&#160;member IsFixedSize : bool<br />&#160;&#160;...<br /><br />Full name: System.Array</div>
+<div class="tip" id="fs128">Multiple items<br />type String =<br />&#160;&#160;new : value:char -&gt; string + 7 overloads<br />&#160;&#160;member Chars : int -&gt; char<br />&#160;&#160;member Clone : unit -&gt; obj<br />&#160;&#160;member CompareTo : value:obj -&gt; int + 1 overload<br />&#160;&#160;member Contains : value:string -&gt; bool<br />&#160;&#160;member CopyTo : sourceIndex:int * destination:char[] * destinationIndex:int * count:int -&gt; unit<br />&#160;&#160;member EndsWith : value:string -&gt; bool + 2 overloads<br />&#160;&#160;member Equals : obj:obj -&gt; bool + 2 overloads<br />&#160;&#160;member GetEnumerator : unit -&gt; CharEnumerator<br />&#160;&#160;member GetHashCode : unit -&gt; int<br />&#160;&#160;...<br /><br />Full name: System.String<br /><br />--------------------<br />String(value: nativeptr&lt;char&gt;) : unit<br />String(value: nativeptr&lt;sbyte&gt;) : unit<br />String(value: char []) : unit<br />String(c: char, count: int) : unit<br />String(value: nativeptr&lt;char&gt;, startIndex: int, length: int) : unit<br />String(value: nativeptr&lt;sbyte&gt;, startIndex: int, length: int) : unit<br />String(value: char [], startIndex: int, length: int) : unit<br />String(value: nativeptr&lt;sbyte&gt;, startIndex: int, length: int, enc: Text.Encoding) : unit</div>
+<div class="tip" id="fs129">val concat : sep:string -&gt; strings:seq&lt;string&gt; -&gt; string<br /><br />Full name: Microsoft.FSharp.Core.String.concat</div>
+<div class="tip" id="fs130">val boolsToString : (bool [] -&gt; string)<br /><br />Full name: FsEmulation.Utilities.boolsToString</div>
+<div class="tip" id="fs131">val parseFile : path:string -&gt; string list list<br /><br />Full name: FsEmulation.Utilities.parseFile</div>
+<div class="tip" id="fs132">val path : string</div>
+<div class="tip" id="fs133">type File =<br />&#160;&#160;static member AppendAllLines : path:string * contents:IEnumerable&lt;string&gt; -&gt; unit + 1 overload<br />&#160;&#160;static member AppendAllText : path:string * contents:string -&gt; unit + 1 overload<br />&#160;&#160;static member AppendText : path:string -&gt; StreamWriter<br />&#160;&#160;static member Copy : sourceFileName:string * destFileName:string -&gt; unit + 1 overload<br />&#160;&#160;static member Create : path:string -&gt; FileStream + 3 overloads<br />&#160;&#160;static member CreateText : path:string -&gt; StreamWriter<br />&#160;&#160;static member Decrypt : path:string -&gt; unit<br />&#160;&#160;static member Delete : path:string -&gt; unit<br />&#160;&#160;static member Encrypt : path:string -&gt; unit<br />&#160;&#160;static member Exists : path:string -&gt; bool<br />&#160;&#160;...<br /><br />Full name: System.IO.File</div>
+<div class="tip" id="fs134">File.ReadAllLines(path: string) : string []<br />File.ReadAllLines(path: string, encoding: Text.Encoding) : string []</div>
+<div class="tip" id="fs135">module Seq<br /><br />from Microsoft.FSharp.Collections</div>
+<div class="tip" id="fs136">val map : mapping:(&#39;T -&gt; &#39;U) -&gt; source:seq&lt;&#39;T&gt; -&gt; seq&lt;&#39;U&gt;<br /><br />Full name: Microsoft.FSharp.Collections.Seq.map</div>
+<div class="tip" id="fs137">val s : string</div>
+<div class="tip" id="fs138">String.Split(params separator: char []) : string []<br />String.Split(separator: string [], options: StringSplitOptions) : string []<br />String.Split(separator: char [], options: StringSplitOptions) : string []<br />String.Split(separator: char [], count: int) : string []<br />String.Split(separator: string [], count: int, options: StringSplitOptions) : string []<br />String.Split(separator: char [], count: int, options: StringSplitOptions) : string []</div>
+<div class="tip" id="fs139">type StringSplitOptions =<br />&#160;&#160;| None = 0<br />&#160;&#160;| RemoveEmptyEntries = 1<br /><br />Full name: System.StringSplitOptions</div>
+<div class="tip" id="fs140">field StringSplitOptions.RemoveEmptyEntries = 1</div>
+<div class="tip" id="fs141">String.Trim() : string<br />String.Trim(params trimChars: char []) : string</div>
+<div class="tip" id="fs142">val toList : source:seq&lt;&#39;T&gt; -&gt; &#39;T list<br /><br />Full name: Microsoft.FSharp.Collections.Seq.toList</div>
+<div class="tip" id="fs143">val createMap : matrix:&#39;a list list -&gt; cols:string list -&gt; Map&lt;string,&#39;a&gt; list<br /><br />Full name: FsEmulation.Utilities.createMap</div>
+<div class="tip" id="fs144">val matrix : &#39;a list list</div>
+<div class="tip" id="fs145">val cols : string list</div>
+<div class="tip" id="fs146">Multiple items<br />val string : value:&#39;T -&gt; string<br /><br />Full name: Microsoft.FSharp.Core.Operators.string<br /><br />--------------------<br />type string = String<br /><br />Full name: Microsoft.FSharp.Core.string</div>
+<div class="tip" id="fs147">type &#39;T list = List&lt;&#39;T&gt;<br /><br />Full name: Microsoft.FSharp.Collections.list&lt;_&gt;</div>
+<div class="tip" id="fs148">val row : &#39;a list</div>
+<div class="tip" id="fs149">val rest : &#39;a list list</div>
+<div class="tip" id="fs150">val mapi : mapping:(int -&gt; &#39;T -&gt; &#39;U) -&gt; list:&#39;T list -&gt; &#39;U list<br /><br />Full name: Microsoft.FSharp.Collections.List.mapi</div>
+<div class="tip" id="fs151">val x : &#39;a</div>
+<div class="tip" id="fs152">Multiple items<br />module Map<br /><br />from Microsoft.FSharp.Collections<br /><br />--------------------<br />type Map&lt;&#39;Key,&#39;Value (requires comparison)&gt; =<br />&#160;&#160;interface IEnumerable<br />&#160;&#160;interface IComparable<br />&#160;&#160;interface IEnumerable&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface ICollection&lt;KeyValuePair&lt;&#39;Key,&#39;Value&gt;&gt;<br />&#160;&#160;interface IDictionary&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;new : elements:seq&lt;&#39;Key * &#39;Value&gt; -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;member Add : key:&#39;Key * value:&#39;Value -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;member ContainsKey : key:&#39;Key -&gt; bool<br />&#160;&#160;override Equals : obj -&gt; bool<br />&#160;&#160;member Remove : key:&#39;Key -&gt; Map&lt;&#39;Key,&#39;Value&gt;<br />&#160;&#160;...<br /><br />Full name: Microsoft.FSharp.Collections.Map&lt;_,_&gt;<br /><br />--------------------<br />new : elements:seq&lt;&#39;Key * &#39;Value&gt; -&gt; Map&lt;&#39;Key,&#39;Value&gt;</div>
+<div class="tip" id="fs153">val ofSeq : elements:seq&lt;&#39;Key * &#39;T&gt; -&gt; Map&lt;&#39;Key,&#39;T&gt; (requires comparison)<br /><br />Full name: Microsoft.FSharp.Collections.Map.ofSeq</div>
+<div class="tip" id="fs154">val executeTests : path:string -&gt; func:(Map&lt;string,string&gt; -&gt; bool) -&gt; string<br /><br />Full name: FsEmulation.Utilities.executeTests</div>
+<div class="tip" id="fs155">val func : (Map&lt;string,string&gt; -&gt; bool)</div>
+<div class="tip" id="fs156">val data : string list list</div>
+<div class="tip" id="fs157">val testData : Map&lt;string,string&gt; list</div>
+<div class="tip" id="fs158">val tail : list:&#39;T list -&gt; &#39;T list<br /><br />Full name: Microsoft.FSharp.Collections.List.tail</div>
+<div class="tip" id="fs159">val head : list:&#39;T list -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Collections.List.head</div>
+<div class="tip" id="fs160">val execute : ((&#39;a -&gt; bool) -&gt; &#39;a list -&gt; int -&gt; string)</div>
+<div class="tip" id="fs161">val func : (&#39;a -&gt; bool)</div>
+<div class="tip" id="fs162">val testData : &#39;a list</div>
+<div class="tip" id="fs163">val num : int</div>
+<div class="tip" id="fs164">val case : &#39;a</div>
+<div class="tip" id="fs165">val rest : &#39;a list</div>
+<div class="tip" id="fs166">val sprintf : format:Printf.StringFormat&lt;&#39;T&gt; -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Core.ExtraTopLevelOperators.sprintf</div>
+<div class="tip" id="fs167">val andTest : case:Map&lt;string,string&gt; -&gt; bool<br /><br />Full name: FsEmulation.Utilities.andTest</div>
+<div class="tip" id="fs168">val case : Map&lt;string,string&gt;</div>
+<div class="tip" id="fs169">val IncTest : case:Map&lt;string,string&gt; -&gt; bool<br /><br />Full name: FsEmulation.Utilities.IncTest</div>
+<div class="tip" id="fs170">val toArray : source:seq&lt;&#39;T&gt; -&gt; &#39;T []<br /><br />Full name: Microsoft.FSharp.Collections.Seq.toArray</div>
+<div class="tip" id="fs171">val toBinary : i:int -&gt; int []<br /><br />Full name: FsEmulation.Utilities.toBinary</div>
+<div class="tip" id="fs172">val convert : (int -&gt; int list -&gt; int list)</div>
+<div class="tip" id="fs173">val acc : int list</div>
+<div class="tip" id="fs174">val rev : list:&#39;T list -&gt; &#39;T list<br /><br />Full name: Microsoft.FSharp.Collections.List.rev</div>
+<div class="tip" id="fs175">val flipBits : b:seq&lt;int&gt; -&gt; int []<br /><br />Full name: FsEmulation.Utilities.flipBits</div>
+<div class="tip" id="fs176">val b : seq&lt;int&gt;</div>
+<div class="tip" id="fs177">val convert : (int list -&gt; int list -&gt; int list)</div>
+<div class="tip" id="fs178">val b : int list</div>
+<div class="tip" id="fs179">val h : int</div>
+<div class="tip" id="fs180">val t : int list</div>
+<div class="tip" id="fs181">val ofSeq : source:seq&lt;&#39;T&gt; -&gt; &#39;T list<br /><br />Full name: Microsoft.FSharp.Collections.List.ofSeq</div>
+<div class="tip" id="fs182">val padBits : length:int -&gt; bits:int array -&gt; int []<br /><br />Full name: FsEmulation.Utilities.padBits</div>
+<div class="tip" id="fs183">val length : int</div>
+<div class="tip" id="fs184">val bits : int array</div>
+<div class="tip" id="fs185">Multiple items<br />val int : value:&#39;T -&gt; int (requires member op_Explicit)<br /><br />Full name: Microsoft.FSharp.Core.Operators.int<br /><br />--------------------<br />type int = int32<br /><br />Full name: Microsoft.FSharp.Core.int<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; = int<br /><br />Full name: Microsoft.FSharp.Core.int&lt;_&gt;</div>
+<div class="tip" id="fs186">val padding : int []</div>
+<div class="tip" id="fs187">property Array.Length: int</div>
+<div class="tip" id="fs188">val concat : arrays:seq&lt;&#39;T []&gt; -&gt; &#39;T []<br /><br />Full name: Microsoft.FSharp.Collections.Array.concat</div>
+<div class="tip" id="fs189">val toTwosCompliment : i:int -&gt; b:int -&gt; int []<br /><br />Full name: FsEmulation.Utilities.toTwosCompliment</div>
+<div class="tip" id="fs190">val b : int</div>
+<div class="tip" id="fs191">val abs : value:&#39;T -&gt; &#39;T (requires member Abs)<br /><br />Full name: Microsoft.FSharp.Core.Operators.abs</div>
+<div class="tip" id="fs192">val toBase10 : b:int [] -&gt; int<br /><br />Full name: FsEmulation.Utilities.toBase10</div>
+<div class="tip" id="fs193">val b : int []</div>
+<div class="tip" id="fs194">val convert : (int list -&gt; float -&gt; float -&gt; float)</div>
+<div class="tip" id="fs195">val i : float</div>
+<div class="tip" id="fs196">val acc : float</div>
+<div class="tip" id="fs197">Multiple items<br />val float : value:&#39;T -&gt; float (requires member op_Explicit)<br /><br />Full name: Microsoft.FSharp.Core.Operators.float<br /><br />--------------------<br />type float = Double<br /><br />Full name: Microsoft.FSharp.Core.float<br /><br />--------------------<br />type float&lt;&#39;Measure&gt; = float<br /><br />Full name: Microsoft.FSharp.Core.float&lt;_&gt;</div>
+<div class="tip" id="fs198">val toDecimal : b:int -&gt; binary:int array -&gt; int<br /><br />Full name: FsEmulation.Utilities.toDecimal</div>
+<div class="tip" id="fs199">val binary : int array</div>
+<div class="tip" id="fs200">module tests<br /><br />from FsEmulation</div>
+<div class="tip" id="fs201">module Utilities<br /><br />from FsEmulation</div>
+<div class="tip" id="fs202">val a : bool []<br /><br />Full name: FsEmulation.tests.a</div>
+<div class="tip" id="fs203">val b : bool []<br /><br />Full name: FsEmulation.tests.b</div>
+<div class="tip" id="fs204">val result : int<br /><br />Full name: FsEmulation.tests.result</div>
+<div class="tip" id="fs205">val negative : bool []<br /><br />Full name: FsEmulation.tests.negative</div>
+<div class="tip" id="fs206">val negativePlus1 : int</div>
+<div class="tip" id="fs207">val using : resource:&#39;T -&gt; action:(&#39;T -&gt; &#39;U) -&gt; &#39;U (requires &#39;T :&gt; System.IDisposable)<br /><br />Full name: Microsoft.FSharp.Core.Operators.using</div>
+
