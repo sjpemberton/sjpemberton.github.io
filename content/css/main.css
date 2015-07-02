@@ -391,22 +391,23 @@ p code {
     border-radius: 3px;
 }
 
-span.expandPrompt{
-  color:#bf616a; 
+a.expandPrompt{
+  cursor: pointer;
   font-weight: bold; 
 }
 
-span.expandPrompt:hover + div.hoverPopup{
+a.expandPrompt:hover + div.hoverPopup{
     display: block;
     position: absolute;
-    background-color: #ccc;
+    background-color: #fff;
     padding: 1em;
 }
 
 .hoverPopup{
     display: none;
     position: absolute;
-    background-color: #ccc;
+    border: 1px solid #ccc;
+    background:#fff;
     padding: 1em;
 }
 
