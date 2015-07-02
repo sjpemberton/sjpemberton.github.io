@@ -90,14 +90,16 @@ The order is only important so that we can use each of the implementations in su
 In addition there are some Multi bit versions of these gates, and a multi way OR. We'll look at these in more detail when we get to them.
 
 The following are implementations of the first six gates, made up of only previously defined gates (as per the books instructions).  
-I have included a truth table and circuit diagram for each of them, but to save space and keep the post concise (well, a bit shorter), they are initially hidden, just hover or click the prompt to view them.
+I have included a truth table and circuit diagram for each of them. The circuit diagrams are created using only previously defined gates, as the book intended.   
+In order to save space and keep the post concise (well, shorter at least), they are initially hidden, just hover or click the prompt to view them.
 *)
+
 (**
-<span class="expandPrompt">Not Gate Details</span>
+<span class="expandPrompt">NOT Gate Details</span>
 <div class="hoverPopup" >
 
     [lang=output]
-        NOT GATE
+    NOT GATE
     |   a   |  out  |
     |   0   |   1   |
     |   1   |   0   |
@@ -110,18 +112,107 @@ I have included a truth table and circuit diagram for each of them, but to save 
 let Not a = 
     Nand a a
 
+(**
+<span class="expandPrompt">AND Gate Details</span>
+<div class="hoverPopup" >
+
+    [lang=output]
+    AND GATE
+    |   a   |   b   |  out  |
+    |   0   |   0   |   0   |
+    |   1   |   0   |   0   |
+    |   0   |   1   |   0   |
+    |   1   |   1   |   1   |
+
+<img src="/content/images/post-images/AND.png" alt="AND Gate" style="float:right; margin:20px;"/>
+
+</div>
+*)
+
 let And a b = 
     Nand a b 
     |> Not
 
+(**
+<span class="expandPrompt">OR Gate Details</span>
+<div class="hoverPopup" >
+
+    [lang=output]
+    OR GATE
+    |   a   |   b   |  out  |
+    |   0   |   0   |   0   |
+    |   1   |   0   |   1   |
+    |   0   |   1   |   1   |
+    |   1   |   1   |   1   |
+
+<img src="/content/images/post-images/OR.png" alt="OR Gate" style="float:right; margin:20px;"/>
+
+</div>
+*)
+
 let Or a b =
     Nand (Nand a a) (Nand b b)
+
+(**
+<span class="expandPrompt">XOR Gate Details</span>
+<div class="hoverPopup" >
+
+    [lang=output]
+    AND GATE
+    |   a   |   b   |  out  |
+    |   0   |   0   |   0   |
+    |   1   |   0   |   1   |
+    |   0   |   1   |   1   |
+    |   1   |   1   |   0   |
+
+<img src="/content/images/post-images/XOR.png" alt="XOR Gate" style="float:right; margin:20px;"/>
+
+</div>
+*)
 
 let Xor a b = 
     Or (And a (Not b)) (And (Not a) b) 
 
+(**
+<span class="expandPrompt">MUX Gate Details</span>
+<div class="hoverPopup" >
+
+    [lang=output]
+    MUX GATE
+    |  sel  |   a   |   b   |  out  |
+    |   0   |   0   |   0   |   0   |
+    |   0   |   0   |   1   |   0   |
+    |   0   |   1   |   0   |   1   |
+    |   0   |   1   |   1   |   1   |
+    |   1   |   0   |   0   |   0   |
+    |   1   |   0   |   1   |   1   |
+    |   1   |   1   |   0   |   0   |
+    |   1   |   1   |   1   |   1   |
+
+<img src="/content/images/post-images/MUX.png" alt="MUX Gate" style="float:right; margin:20px;"/>
+
+</div>
+*)
+
 let Mux sel a b =
     Nand (Nand a sel) (Nand (Not sel) b)    
+
+(**
+<span class="expandPrompt">DMUX Gate Details</span>
+<div class="hoverPopup" >
+
+    [lang=output]
+    DMUX GATE
+    |  sel  |   in   |  outA  |  outB  |
+    |   0   |   0    |   0    |   0    |
+    |   1   |   0    |   0    |   0    |
+    |   0   |   1    |   1    |   0    |
+    |   1   |   1    |   0    |   1    |
+
+<img src="/content/images/post-images/DMUX.png" alt="DMUX Gate" style="float:right; margin:20px;"/>
+
+</div>
+*)
 
 let DMux a sel =
     (And a (Not a), And a sel)
