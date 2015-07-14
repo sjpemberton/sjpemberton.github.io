@@ -1,0 +1,33 @@
+<div class="centered main">
+	<h1>Posts in the series: "{{ include.series }}"</h1>
+    <div class="posts-list">
+        {% assign posts = (site.posts | where: "seriesId" , include.seriesId | sort: "series-post-number", 'last')  %}
+		{% for post in posts  %}
+
+        Post Number: {{post.series-post-number}}
+			<div class="post">
+				<div class="post-title">
+					<a  href="{{post.url}}"><h1 >{{ post.title }}</h1></a>
+				</div>
+				
+				{% include postmeta.html %}
+				
+				<div class="post-excerpt">
+					{{post.excerpt}}
+				</div>
+				
+				<div class="more-link">
+					 <a href="{{ post.url }}">Read more...</a><br><br>
+				</div>
+			</div>
+
+			{% endfor %}
+		</div>
+	<!--<div class="blog-container">
+		<ul>
+		{% for post in site.tags[include.tag] %}
+		    	<li><span>{{ post.date | date: "%d %B %Y" }} : </span><a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a></li>
+		{% endfor %}
+		</ul>
+	</div>-->
+</div>

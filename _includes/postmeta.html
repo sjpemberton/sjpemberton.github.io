@@ -18,4 +18,11 @@
 		{% endfor %}
 	</div>
 	{% endif %}
+    {% if post.series  %}
+    <div class="catagory">
+		<b>Series:</b>
+		<a class="meta-link" href="/archive/series/{{post.seriesId}}.html">{{post.series}}</a>
+	</div>
+	{% endif %}
+
 </div>

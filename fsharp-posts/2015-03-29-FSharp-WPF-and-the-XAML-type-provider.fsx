@@ -355,6 +355,7 @@ comments: true
 tags: ["fsharp","WPF"]
 catagories: ["guides","examples"]
 series: F# and WPF
+seriesId: FSharpWPF
 series-post-number: 1
 meta: Exploring the use of FSharp and WPF to create applications
 --- 
