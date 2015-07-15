@@ -234,12 +234,12 @@ nav ul{
 	margin:1em 0;
 	border-bottom: 1px solid #ccc;
 }
-.post-title a, .post-title h1, .tag-link, .tag-link h2{
+.post-title a, .post-title h1, .post-title h2, .tag-link, .tag-link h2{
 	color:#111;
 	text-decoration:none;
 	transition: color 0.4s ease;
 }
-#home .post-title:hover h1, .tag-link:hover h2{color:#028fcc;}
+#home .post-title:hover h1, .post-title:hover h2, .tag-link:hover h2{color:#028fcc;}
 .post-title h1 {
 	font-size: 3em;
 	line-height:1.3em;
@@ -324,7 +324,7 @@ footer .centered {
 .footer-about a:hover{color:#028fcc;}
 
 
-.archive-links, .post-nav{
+.archive-links, .post-nav, .series-links{
     margin-top:3em;
     text-align: center;
 }
@@ -333,6 +333,7 @@ footer .centered {
     color: #1e1e1e;
     text-decoration: none;
     font-weight: bold;
+    margin: 0 10px 0 10px;
     font-size: 1.5em;
     text-decoration: none;
     transition: color 0.4s ease;
@@ -413,4 +414,25 @@ a.expandPrompt:hover + div.hoverPopup{
 
 .hoverPopup:hover{
     display: block;
+}
+
+/*Series Post Tiles*/
+
+.series-title {
+    text-align: center;
+}
+
+.series-tile .post-title  {
+    border-bottom: none;
+}
+
+.series-tile {
+    margin: 2em;
+    border-bottom:1px solid #ccc;
+}
+
+.series-post-index {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #888;
 }

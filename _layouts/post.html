@@ -44,6 +44,13 @@
             <a href="{{page.next.url}}">Next Post</a>
             {% endif %} 
         </div>
+            
+        {% if post.seriesId%}
+            <div class="series-links">
+                <a class="meta-link" href="/archive/series/{{post.seriesId}}.html">View more posts in this series</a>
+            </div>
+    	{% endif %} 
+
 
         {% include comments.html %}
         </div>

@@ -970,7 +970,7 @@ date: 02/07/2015
 comments: true
 tags: ["fsharp","Emulation"]
 catagories: ["Exploration","examples"]
-series: F# and The Elements of Computing Systems
+seriesId: FSharpLogic
 series-post-number: 1
 meta: The elements of computing systems using FSharp for Boolean Logic and Arithmetic Emulation
 ---
