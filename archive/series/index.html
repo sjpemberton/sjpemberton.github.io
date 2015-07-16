@@ -1,0 +1,30 @@
+---
+layout: default
+title: Steven Pemberton.Net - Tags
+id: blog
+---
+
+<div class="centered main">
+
+	<h1>Blog Archive</h1>
+	<h3 style="display:inline-block;">Posts by series</h3><a style="display:inline-block; margin-left:2em;" href="/archive">View by date</a> <a style="display:inline-block; margin-left:2em;" href="/archive/tags">View by tag</a><br><br>
+
+	<div class="blog-container">
+	{% capture cats %}
+	  	{% for series in site.data.series %}
+	    	{{ series[0] }}
+	  	{% endfor %}
+	{% endcapture %}
+	{% assign sortedcats = cats | split:' ' | sort %}
+
+	{% for series in sortedcats %}
+	  	<a class="tag-link" href="/archive/series/{{series}}.html"><h2 class="archive-year">{{ site.data.series[series] }}</h2></a>
+	  	<ul>
+	  	    {% assign posts = (site.posts | where: "seriesId" , series | sort: "series-post-number", 'last')  %}
+	  		{% for post in posts %}
+	    		<li><span>{{ post.date | date: "%d %B %Y" }} : </span><a href="{{ post.url }}" title="{{ post.title }}">{{ post.title }}</a></li>
+	    	{% endfor %}
+	  	</ul>
+	{% endfor %}
+	</div>
+</div>
