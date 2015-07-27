@@ -215,7 +215,7 @@ let Mux sel a b =
 *)
 
 let DMux a sel =
-    (And a (Not a), And a sel)
+    (And a (Not sel), And a sel)
 
 
 
