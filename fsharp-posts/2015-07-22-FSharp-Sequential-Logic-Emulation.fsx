@@ -15,8 +15,8 @@ Everything in this post can be taken separately from my [previous post], however
 The main goal of chapter three of the book is to create some constructs that can store state.  
 Starting with registers and building up into RAM arrays.
 
-There are various parts the book skips, relying on the emulator it suggests using to fill in the gaps.  
-This required me to fill these gaps in by emulating some areas not discussed in detail in the book.
+There are various parts the book skips, relying on the hardware emulator to fill in the gaps.  
+This required me to fill these gaps in myself by emulating some areas not discussed in detail in the book.
 
 Fun!
 
@@ -30,7 +30,7 @@ So what do I mean by Flip Flops!?
 A Flip Flop is a mechanism for storing state in a electronic circuit. 
 It, does this through the use of various techniques, including latches (We'll get to these shortly) and the use of a 'clock'.
 
-In a real-world electronic, analogue circuit, things do not happen instantly. It takes time for the combinational logic gates to 'settle' into their result.  
+In a real-world analogue, electronic circuit, things do not happen instantly. It takes time for the combinational logic gates to 'settle' into their result.  
 This is known as Propagation Delay.  
 
 This delay plays a big part in logic circuits and I will aim to model this as best as my brain can.  
@@ -43,11 +43,13 @@ In the book, the flip flop is provided for us.
 However, this left a void in my understanding that I couldn't live with and so I went about looking up how to implement a Data Flip Flop (DFF) from combinatorial components.
 
 The basic principle is to create a *series* of gates that have the side effect of returning the state of the previous clock cycle.  
-This, allows us to store state for a single cycle, and as the current is constant, this state will hold indefinitely until either the current stops, or the inputs change.
+This allows us to store state for a single cycle, and as the current is constant, this state will hold indefinitely until either the current stops, or the inputs change.
 
 ###The Set-Reset Latch
 
 The SR latch is the base point of the DFF implementation and can be implement using NAND chips alone (There are other implementations; This seems to be the most common).  
+
+TODO - describe the latch
 
 Now, we have a problem representing a latch in code as one input of each NAND gate, comes from the output of the other, hence giving us an inherent race condition.  
 In the real-world (electronic circuitry), this isn't a problem as we just wait for the current to flow - The propagation delay is clearly observed here.
@@ -70,6 +72,47 @@ type SRLatch() =
 
 (**
 
+TODO - Show tests 
+
+TODO - discuss test harness
+
+The biggest problem in real SRLatches is that they are succeptable to signal glitches.  
+In order to get around these glitches, we need to enforce *when* the latch can be updated. 
+
+###The Clocked Set-Reset Latch
+
+We do this by introducing the system clock. In particular, an oscilating clock.  
+We can then ensure that the latch is only ever set when the clock is 'high' (AKA tock).
+
+To do this we simply insert two more NAND gates into our design.  
+These gates effectively invert the S and R inputs pasiing them onto our latch. However it will only do this when the clock is high.  
+When it is low, the two NAND gates will always produce a result of 'true'.
+
+Here is the implementation in F#
+
+*)
+
+type ClockedSRLatch() =
+    let mutable state = (false,false)
+    member x.execute s r clk =
+        let (ns, nr) = (Nand s clk, Nand r clk)
+        state <- (Nand ns (snd state),
+                  Nand (fst state) nr)
+        state
+
+
+(**
+
+To further reduce glitches, we can introduce a master-slave latch configuration.  
+This results in a Set-Reset Flip Flop, that has the entire clock cycle to settle in to it's new state.
+
+###The Set-Reset Flip Flop
+
+*)
+
+
+
+(**
 
 *)
 
