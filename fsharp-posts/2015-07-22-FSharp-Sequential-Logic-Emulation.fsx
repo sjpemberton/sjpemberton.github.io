@@ -4,8 +4,8 @@ module FsEmulation
 
 let Nand a b = 
     match a, b with
-    | true, true -> false
-    | _, _ -> true
+    | 1s, 1s -> 0s
+    | _, _ -> 1s
 
 (**
 This post relates to chapter three of the book 'The Elements of Computing Systems' and revolves around emulated sequential logic chips in F#.
@@ -56,7 +56,7 @@ In the real-world (electronic circuitry), this isn't a problem as we just wait f
 
 In code, we need to implement this delay ourselves. 
 The simplest way I concluded to do this, was to wrap the Latch in a type which holds the state as a mutable variable.  
-The state is initialised to 0,0 (no current), and on each execute of the Latch function, the state is used to feed the NAND gates with the required inputs.  
+The state is initialised to 0,0 (no current), and on each execution of the Latch function, the state is used to feed the NAND gates with the required inputs.  
 Likewise, the corresponding outputs are stored back in the state variable for next time.
 
 This gives us just what we need. A way to mimic a propagation delay per execution of a function.
@@ -76,16 +76,16 @@ TODO - Show tests
 
 TODO - discuss test harness
 
-The biggest problem in real SRLatches is that they are succeptable to signal glitches.  
+The biggest problem in real SRLatches is that they are susceptible to signal glitches.  
 In order to get around these glitches, we need to enforce *when* the latch can be updated. 
 
 ###The Clocked Set-Reset Latch
 
-We do this by introducing the system clock. In particular, an oscilating clock.  
+We do this by introducing the system clock. In particular, an oscillating clock.  
 We can then ensure that the latch is only ever set when the clock is 'high' (AKA tock).
 
 To do this we simply insert two more NAND gates into our design.  
-These gates effectively invert the S and R inputs pasiing them onto our latch. However it will only do this when the clock is high.  
+These gates effectively invert the S and R inputs passing them onto our latch. However it will only do this when the clock is high.  
 When it is low, the two NAND gates will always produce a result of 'true'.
 
 Here is the implementation in F#
@@ -108,9 +108,33 @@ This results in a Set-Reset Flip Flop, that has the entire clock cycle to settle
 
 ###The Set-Reset Flip Flop
 
+
+####Introducing a base class
+
+To represent a base Chip. We can use a based class that will represent our simple electronic chips API.  
+
+
 *)
 
+[<AbstractClass>]
+type Chip() =
+    //member val inputs: int16 array = Array.empty with get, set
+    member val outputs : int16 array = Array.empty with get, set
+    abstract member doWork: clk -> int16 array -> int16 array
+    member x.execute clk inputs = 
+        let outcome = x.doWork clk inputs
+        x.outputs <- outcome
+        outcome
 
+type RsFlipFlop() =
+    inherit Chip()
+    let mutable state = (0s,0s)
+    let master = new ClockedSRLatch()
+    let slave = new ClockedSRLatch()
+    override x.doWork clk inputs = 
+        inputs
+        |> master.execute clk
+        |> slave.execute (clk |> flip)
 
 (**
 
