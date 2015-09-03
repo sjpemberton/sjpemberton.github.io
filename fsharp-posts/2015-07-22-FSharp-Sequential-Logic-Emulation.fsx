@@ -63,18 +63,19 @@ This gives us just what we need. A way to mimic a propagation delay per executio
 
 *)
 
-type SRLatch() =
-    let mutable state = (false,false)
-    member x.execute s r = 
-        state <- (Nand s (snd state),
-                  Nand (fst state) r)
-        state
+(*** hide ***)
+module Chips1 =
+
+(***)
+
+    type SRLatch() =
+        let mutable state = (0s,0s)
+        member x.execute s r = 
+            state <- (Nand s (snd state),
+                      Nand (fst state) r)
+            state
 
 (**
-
-TODO - Show tests 
-
-TODO - discuss test harness
 
 The biggest problem in real SRLatches is that they are susceptible to signal glitches.  
 In order to get around these glitches, we need to enforce *when* the latch can be updated. 
@@ -92,13 +93,13 @@ Here is the implementation in F#
 
 *)
 
-type ClockedSRLatch() =
-    let mutable state = (false,false)
-    member x.execute s r clk =
-        let (ns, nr) = (Nand s clk, Nand r clk)
-        state <- (Nand ns (snd state),
-                  Nand (fst state) nr)
-        state
+    type ClockedSRLatch() =
+        let mutable state = (0s,0s)
+        member x.execute s r clk =
+            let (ns, nr) = (Nand s clk, Nand r clk)
+            state <- (Nand ns (snd state),
+                      Nand (fst state) nr)
+            state
 
 
 (**
@@ -106,25 +107,73 @@ type ClockedSRLatch() =
 To further reduce glitches, we can introduce a master-slave latch configuration.  
 This results in a Set-Reset Flip Flop, that has the entire clock cycle to settle in to it's new state.
 
-###The Set-Reset Flip Flop
+###Introducing a base class
 
+At this point, I thought it would be useful to create an abstract base class for our chips.  
+This type will represent our simple electronic chips API.  
+It will have inputs, outputs and a single public member, execute. The unique logic of each chip is supplied by overriding the doWork function of the base chip.
 
-####Introducing a base class
+At the same time, I decided to alter my previous chips to all use `int16` instead of `Boolean` parameters.  
+This allows me to specify every parameter (even those that were expecting Boolean arrays) as an integer, therefore allowing me to specify the inputs and outputs for the base chip as an int16 array 
 
-To represent a base Chip. We can use a based class that will represent our simple electronic chips API.  
-
-
+The great thing about the object oriented side of F# is how concise it is.  
+Below is the code for our new abstract base class, Chip.
 *)
+
+type clk =
+    | Tick = 0s
+    | Tock = 1s
+    
+let flip = function
+    | clk.Tick -> clk.Tock
+    | _ -> clk.Tick
+
 
 [<AbstractClass>]
 type Chip() =
-    //member val inputs: int16 array = Array.empty with get, set
     member val outputs : int16 array = Array.empty with get, set
     abstract member doWork: clk -> int16 array -> int16 array
     member x.execute clk inputs = 
         let outcome = x.doWork clk inputs
         x.outputs <- outcome
         outcome
+
+(*** hide ***)
+
+type SRLatch() = 
+    inherit Chip()
+    let mutable state = (0s,0s)
+    override x.doWork clk inputs = 
+        let (s,r) = (inputs.[0], inputs.[1])
+        state <- (Nand s (snd state),
+                  Nand (fst state) r)
+        [|fst state; snd state;|]
+
+type ClockedSRLatch() =
+    inherit Chip()
+    let srLatch = SRLatch()
+    override x.doWork clk inputs =
+        let (s,r,clk2) = (inputs.[0], inputs.[1], clk |> int16 )
+        [|Nand s clk2; Nand r clk2|] |> srLatch.execute clk
+
+(**
+
+As you can see, there's not much to it, but it gets the job done.  
+It will also allow me to knock up a quick test harness to test my chips. Let's look at this next.
+
+###Testing the chips
+
+TODO - Show tests 
+
+TODO - discuss test harness
+
+*)
+
+(**
+
+###The Set-Reset Flip Flop
+
+*)
 
 type RsFlipFlop() =
     inherit Chip()
@@ -145,14 +194,14 @@ type RsFlipFlop() =
 *)
 
 (*** hide ***)
----
-layout: post
-title: Sequential Logic and RAM Emulation with F#
-date: 02/07/2015
-comments: true
-tags: ["fsharp","Emulation"]
-catagories: ["Exploration","examples"]
-seriesId: FSharpLogic
-series-post-number: 2
-meta: The elements of computing systems using FSharp for Boolean Logic and Arithmetic Emulation
----
+//---
+//layout: post
+//title: Sequential Logic and RAM Emulation with F#
+//date: 02/07/2015
+//comments: true
+//tags: ["fsharp","Emulation"]
+//catagories: ["Exploration","examples"]
+//seriesId: FSharpLogic
+//series-post-number: 2
+//meta: The elements of computing systems using FSharp for Boolean Logic and Arithmetic Emulation
+//---
