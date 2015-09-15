@@ -99,8 +99,7 @@ Here is the implementation in F#
             let (ns, nr) = (Nand s clk, Nand r clk)
             state <- (Nand ns (snd state),
                       Nand (fst state) nr)
-            state
-
+            
 
 (**
 
@@ -138,16 +137,40 @@ type Chip() =
         x.outputs <- outcome
         outcome
 
-(*** hide ***)
+
+(**
+
+As you can see, there's not much to it, but it gets the job done.  
+It will also allow me to knock up a quick test harness to test my chips. Let's look at this next.
+
+I have included the re-worked version of the Set Reset Latch below.  
+This implementation includes a bit of extra logic in order to force the execution of one of the NAND gates before the other.  
+This aims to alleviate two problems.
+
+1. When first using an un initialised latch, it is entirely possible to get the output stuck in an oscillation cycle.  
+This wouldn't happen in reality as the chips state would eventually settle (assuming that both of the inputs were not true)
+
+2. When both of the inputs are true, which is an invalid state, the output oscillates. 
+Again, in the real world it is likely that one NAND would execute first, but the output would be indeterminate.
+This point wasn't such a problem as we will want to avoid this invalid state anyway.
+
+ We will see this in action shortly.
+
+*)
 
 type SRLatch() = 
     inherit Chip()
-    let mutable state = (0s,0s)
+    let state = [|0s; 0s|]
     override x.doWork clk inputs = 
-        let (s,r) = (inputs.[0], inputs.[1])
-        state <- (Nand s (snd state),
-                  Nand (fst state) r)
-        [|fst state; snd state;|]
+        let rand = new System.Random()
+        match rand.Next(2) with
+        | 0 -> state.[0] <- Nand inputs.[0] state.[1]
+               state.[1] <- Nand inputs.[1] state.[0]
+        | _ -> state.[1] <- Nand inputs.[1] state.[0]
+               state.[0] <- Nand inputs.[0] state.[1]
+        state 
+
+(*** hide ***)
 
 type ClockedSRLatch() =
     inherit Chip()
@@ -157,9 +180,6 @@ type ClockedSRLatch() =
         [|Nand s clk2; Nand r clk2|] |> srLatch.execute clk
 
 (**
-
-As you can see, there's not much to it, but it gets the job done.  
-It will also allow me to knock up a quick test harness to test my chips. Let's look at this next.
 
 ###Testing the chips
 
