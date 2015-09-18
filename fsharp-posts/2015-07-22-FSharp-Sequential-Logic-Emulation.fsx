@@ -7,6 +7,10 @@ let Nand a b =
     | 1s, 1s -> 0s
     | _, _ -> 1s
 
+let Not = function
+    | 1s -> 0s
+    | _ -> 1s
+
 (**
 This post relates to chapter three of the book 'The Elements of Computing Systems' and revolves around emulated sequential logic chips in F#.
 
@@ -143,32 +147,19 @@ type Chip() =
 As you can see, there's not much to it, but it gets the job done.  
 It will also allow me to knock up a quick test harness to test my chips. Let's look at this next.
 
-I have included the re-worked version of the Set Reset Latch below.  
-This implementation includes a bit of extra logic in order to force the execution of one of the NAND gates before the other.  
-This aims to alleviate two problems.
+I have included the re-worked version of the Set Reset Latch below so you can see it's usage.  
 
-1. When first using an un initialised latch, it is entirely possible to get the output stuck in an oscillation cycle.  
-This wouldn't happen in reality as the chips state would eventually settle (assuming that both of the inputs were not true)
-
-2. When both of the inputs are true, which is an invalid state, the output oscillates. 
-Again, in the real world it is likely that one NAND would execute first, but the output would be indeterminate.
-This point wasn't such a problem as we will want to avoid this invalid state anyway.
-
- We will see this in action shortly.
+I think it's about time we got round to some testing.
 
 *)
 
 type SRLatch() = 
     inherit Chip()
-    let state = [|0s; 0s|]
-    override x.doWork clk inputs = 
-        let rand = new System.Random()
-        match rand.Next(2) with
-        | 0 -> state.[0] <- Nand inputs.[0] state.[1]
-               state.[1] <- Nand inputs.[1] state.[0]
-        | _ -> state.[1] <- Nand inputs.[1] state.[0]
-               state.[0] <- Nand inputs.[0] state.[1]
-        state 
+    let mutable state = [|0s; 0s|]
+    override x.doWork clk inputs =
+        state <- [|Nand inputs.[0] state.[1];
+                   Nand inputs.[1] state.[0]|]
+        state
 
 (*** hide ***)
 
@@ -207,101 +198,77 @@ let executeChips harness clk =
 (**
 
 And finally, we need a function to simulate applying a current to the chips for a period of time.  
-I chose to model this as clock cycles as opposed to time. This way, we can execute a chip (or set of chips) for a set amount of cycles, change the inputs and then continue executing.
-
-My cycle function is shown below. Note it contains logic to call the chips twice per cycle, alternating the clk frequency.  
-This simulates the tick-tock of a digital clk cycle.  
+In this case, time is a loose term as what we are actually going to do is simply execute the function a few times iteratively in order to mimic the chips constantly being applied with a current.
  
 *)
 
-let cycle iterations (harness : TestHarness) = 
-    printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
-    let rec iterate i clk state = 
-        match i with
-        | 0 -> state
-        | _ -> 
-            let result = { state with outputs = executeChips state clk }
-            printfn "Cycle %i - clk: %A - outputs: %A" (iterations - i + 1) clk result.outputs
-            match clk with
-            | clk.Tick -> iterate i (flip clk) result
-            | _ -> iterate (i - 1) (flip clk) result
-    iterate iterations clk.Tick harness
+let rec iterate i clk state = 
+    match i with
+    | 0 -> state
+    | _ -> 
+        let result = { state with outputs = executeChips state clk }
+        printfn "clk: %A - outputs: %A" clk result.outputs
+        iterate (i - 1) clk result
+
+
 
 (**
 
 So, now that we are in a position to test some latches, let's see what they can do.  
 First off, let's look at the Set-Reset latch.  
 
-This chip ignores the clk input, but does visibly show the propagation delay when changing the input values. 
+This chip ignores the clk input, but does visibly show the propagation delay when changing the input values.  
+This propagation delay in the real world is caused by the physical current applied to the chips and means we have to wait (very very briefly!) for the chips to settle into a consistent state.  
+In our simulation however, it shows up as simply an extra execution or two.
 
-We need to reset the latch first to ensure a consistent state so cycle with the reset pin set (Remember, the SRLatch pins are active low).
-We then hold the state for 2 cycles.
-Finally we change the inputs again to activate the set pin and witness the outputs change correctly.  
-
-*Note that we may not see the propagation delay due to the way I added the logic to the chip to mimic it.  
- There is a chance the correct NAND chip wins first time. Either way, this highlights the fact that not being able to control when the change occurs, is a problem*
+To reset the latch and ensure a consistent state we execute the chip a few times with the reset pin set (Remember, the SRLatch pins are active low).  
+After which, we flip the inputs and again witness the prop delay.
 *)
 
-let harness = {inputs = [|1s;0s|]; outputs = Array.empty; chips = [|new SRLatch()|]}
-harness 
-|> cycle 3 
-|> setInputs [|1s;1s|]
-|> cycle 2
+{inputs = [|1s;0s|]; outputs = Array.empty; chips = [|new SRLatch()|]}
+|> iterate 3 clk.Tick
 |> setInputs [|0s;1s|]
-|> cycle 3
-
+|> iterate 3 clk.Tick
 
 (**
+
     [lang=output]
     //FSI Output
-    Executing 3 cycles with inputs = [|1s; 0s|]
-       Cycle 1 - clk: Tick - outputs: [|1s; 1s|]
-       Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
-       Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
-       Cycle 3 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 3 - clk: Tock - outputs: [|0s; 1s|]
-    Executing 2 cycles with inputs = [|1s; 1s|]
-       Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
-       Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
-    Executing 3 cycles with inputs = [|0s; 1s|]
-       Cycle 1 - clk: Tick - outputs: [|1s; 1s|]
-       Cycle 1 - clk: Tock - outputs: [|1s; 0s|]
-       Cycle 2 - clk: Tick - outputs: [|1s; 0s|]
-       Cycle 2 - clk: Tock - outputs: [|1s; 0s|]
-       Cycle 3 - clk: Tick - outputs: [|1s; 0s|]
-       Cycle 3 - clk: Tock - outputs: [|1s; 0s|]
-
-The above output happens to show the propagation delay twice.
+    clk: Tick - outputs: [|1s; 1s|]
+    clk: Tick - outputs: [|0s; 1s|]
+    clk: Tick - outputs: [|0s; 1s|]
+    clk: Tick - outputs: [|1s; 1s|]
+    clk: Tick - outputs: [|1s; 0s|]
+    clk: Tick - outputs: [|1s; 0s|]
 
 Next up, The clocked Set-Reset latch.  
 The output for this latch is much like the former with one difference, the inputs are only applied when the clock tocks.  
-This can be seen below when the inputs are set to `[|1s; 0s|]` at the start of our third set of iterations.  
-*Note that the initial settling into a stable state happens regardless of clk value*
+This can be seen below when the inputs are set to `[|1s; 0s|]` at the start of our second set of iterations.  
+*Note that we see the now familiar propagation delay*
+
+*)
+
+{inputs = [|0s;1s|]; outputs = Array.empty; chips = [|new ClockedSRLatch()|]}
+|> iterate 3 clk.Tock
+|> setInputs [|1s;0s|]
+|> iterate 3 clk.Tick
+|> iterate 3 clk.Tock
+
+(**
 
     [lang=output]
     //FSI Output
-    Executing 3 cycles with inputs = [|0s; 1s|]
-       Cycle 1 - clk: Tick - outputs: [|1s; 0s|]
-       Cycle 1 - clk: Tock - outputs: [|1s; 1s|]
-       Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
-       Cycle 3 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 3 - clk: Tock - outputs: [|0s; 1s|]
-    Executing 2 cycles with inputs = [|0s; 0s|]
-       Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
-       Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
-    Executing 3 cycles with inputs = [|1s; 0s|]
-       Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 1 - clk: Tock - outputs: [|1s; 0s|]
-       Cycle 2 - clk: Tick - outputs: [|1s; 0s|]
-       Cycle 2 - clk: Tock - outputs: [|1s; 0s|]
-       Cycle 3 - clk: Tick - outputs: [|1s; 0s|]
-       Cycle 3 - clk: Tock - outputs: [|1s; 0s|]
+    clk: Tock - outputs: [|1s; 1s|]
+    clk: Tock - outputs: [|0s; 1s|]
+    clk: Tock - outputs: [|0s; 1s|]
+    clk: Tick - outputs: [|0s; 1s|]
+    clk: Tick - outputs: [|0s; 1s|]
+    clk: Tick - outputs: [|0s; 1s|]
+    clk: Tock - outputs: [|1s; 1s|]
+    clk: Tock - outputs: [|1s; 0s|]
+    clk: Tock - outputs: [|1s; 0s|]
+
+Above we can clearly see that the output only changes when the clk is high (Tock).  
 
 The clocked Set-Reset Latch can be further improved by creating a Set-Reset Flip Flop.
 
@@ -325,31 +292,136 @@ type RsFlipFlop() =
 
 (**
 
-The below is output of running the same sequence of functions as before.  
+The below code highlights how the output only changes on the falling edge of the clock.  
+It is worth noting however that the propagation delay to settle into a stable state shows the output oscillating. This is an artefact of the simulation.
 We can see the built in delay in both the initial settling and the second change of state.
+
+*)
+
+{inputs = [|0s;1s|]; outputs = Array.empty; chips = [|new RsFlipFlop()|]}
+|> iterate 3 clk.Tock
+|> iterate 3 clk.Tick
+|> setInputs [|1s;0s|]
+|> iterate 3 clk.Tock
+|> iterate 3 clk.Tick
+
+(**
 
     [lang=output]
     //FSI Output
-    Executing 3 cycles with inputs = [|0s; 1s|]
-       Cycle 1 - clk: Tick - outputs: [|1s; 0s|]
-       Cycle 1 - clk: Tock - outputs: [|1s; 0s|]
-       Cycle 2 - clk: Tick - outputs: [|1s; 1s|]
+    clk: Tock - outputs: [|1s; 1s|]
+    clk: Tock - outputs: [|0s; 0s|]
+    clk: Tock - outputs: [|1s; 1s|]
+    clk: Tick - outputs: [|0s; 1s|]
+    clk: Tick - outputs: [|0s; 1s|]
+    clk: Tick - outputs: [|0s; 1s|]
+    clk: Tock - outputs: [|0s; 1s|]
+    clk: Tock - outputs: [|0s; 1s|]
+    clk: Tock - outputs: [|0s; 1s|]
+    clk: Tick - outputs: [|1s; 1s|]
+    clk: Tick - outputs: [|1s; 0s|]
+    clk: Tick - outputs: [|1s; 0s|]
+
+
+#### The clock cycle
+
+The previous tests have shown that out latches successfully mimic propagation delay, and eventually settle into their stable states.  
+The next step is to create a function that handles the oscillation of the system clock.  
+
+To do this we simply call our iterate function, supplying a suitable amount of iterations in order to not flip the clock before the propagation delay has had time to expire.
+This is a very crude version of clock speed. In a real world digital circuit, the clock period must be greater than that of the max propagation delay.   
+
+For our current purposes, four iterations is enough to settle between ticks.
+
+My cycle function is shown below. Note it calls the iterate function a given number of times per cycle and alternates the clk frequency appropriately.  
+This simulates the tick-tock of a digital clk cycle.  
+*)
+
+let cycle iterations clkIters (harness : TestHarness) = 
+    printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
+    let rec doCycle i clk harness =
+        match i with
+        | 0 -> harness
+        | _ ->
+            let result = iterate clkIters clk harness
+            printfn "   Cycle %i - clk: %A - outputs: %A" (iterations - i + 1) clk result.outputs 
+            match clk with
+                | clk.Tick -> doCycle i (flip clk) result
+                | _ -> doCycle (i-1) (flip clk) result
+    doCycle iterations clk.Tick harness
+
+(**
+
+Now we have the clock cycle simulated (albeit incredibly crudely) lets re-test our Set-Reset Flip Flop.  
+
+*)
+
+{inputs = [|0s;1s|]; outputs = Array.empty; chips = [|new RsFlipFlop()|]}
+|> cycle 2 4
+|> setInputs [|0s;0s|]
+|> cycle 2 4
+|> setInputs [|1s;0s|]
+|> cycle 2 4
+
+(**
+
+The above code shows how the output only changes when on the falling edge of the clock.  
+We can see how we have to state changes, and a hold period inbetween.
+
+    [lang=output]
+    //FSI Output
+    Executing 2 cycles with inputs = [|0s; 1s|]
+       Cycle 1 - clk: Tick - outputs: [|0s; 0s|]
+       Cycle 1 - clk: Tock - outputs: [|0s; 0s|]
+       Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
        Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
-       Cycle 3 - clk: Tick - outputs: [|0s; 1s|]
-       Cycle 3 - clk: Tock - outputs: [|0s; 1s|]
     Executing 2 cycles with inputs = [|0s; 0s|]
        Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
        Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
        Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
        Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
-    Executing 3 cycles with inputs = [|1s; 0s|]
+    Executing 2 cycles with inputs = [|1s; 0s|]
        Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
        Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
        Cycle 2 - clk: Tick - outputs: [|1s; 0s|]
        Cycle 2 - clk: Tock - outputs: [|1s; 0s|]
-       Cycle 3 - clk: Tick - outputs: [|1s; 0s|]
-       Cycle 3 - clk: Tock - outputs: [|1s; 0s|]
 
+Nearly there now!  
+We have one more chip left, the Data Flip Flop itself.  
+
+In fact, a data flip flop is just an RS Flip Flop with a single input negated to supply both pins.
+
+*)
+
+type DFlipFlop() =
+    inherit Chip()
+    let ff = new RsFlipFlop()
+    override x.doWork clk inputs =
+         [|inputs.[0]; (Not inputs.[0])|]
+         |> ff.execute clk
+
+(**
+If we run the same test as for the RS Flip Flop on this DFF, we get the same output.  
+
+Success! My curiosity has been satisfied. I suppose I should get back on track and tackle the chips discussed in the book.
+
+Now we have created the DFF the long winded way, I'll redefine it in a short circuited way like so.  
+
+*)
+
+type DFF() =
+    inherit Chip()
+    let mutable state = 0s
+    let mutable pState = 0s
+    override x.doWork clk inputs =
+        match clk with //Only set the state on a tick - The falling edge
+        | clk.Tick -> state <- pState
+        | _ -> pState <- inputs.[0]
+        [|state|]
+
+(**
+It's worth noting that this does what the book asks.  
+Takes and returns a single bit, returning the state from the previous clock cycle. Job done.
 *)
 
 (**
