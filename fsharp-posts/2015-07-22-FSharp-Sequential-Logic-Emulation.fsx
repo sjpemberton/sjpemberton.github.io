@@ -22,6 +22,8 @@ Starting with registers and building up into RAM arrays.
 There are various parts the book skips, relying on the hardware emulator to fill in the gaps.  
 This required me to fill these gaps in myself by emulating some areas not discussed in detail in the book.
 
+This post is dedicated to those areas and my learning outside of the book.
+
 Fun!
 
 <!--more-->
@@ -32,13 +34,13 @@ Well now, it's not every day those words become a heading.
 So what do I mean by Flip Flops!?
 
 A Flip Flop is a mechanism for storing state in a electronic circuit. 
-It, does this through the use of various techniques, including latches (We'll get to these shortly) and the use of a 'clock'.
+It does this through the use of various techniques, including latches (We'll get to these shortly) and the use of a 'clock'.
 
-In a real-world analogue, electronic circuit, things do not happen instantly. It takes time for the combinational logic gates to 'settle' into their result.  
+In a real-world, analogue electronic circuit, things do not happen instantly. It takes time for the combinational logic gates to 'settle' into their result.  
 This is known as Propagation Delay.  
 
 This delay plays a big part in logic circuits and I will aim to model this as best as my brain can.  
-Ultimately, it will relate to Clock cycles, with a low-high (tick-tock) oscillation and the effect this has on some of our chips. Most importantly, the flip flop!
+Ultimately, it will relate to function (our chips) execution and clock cycles, with a low-high (tick-tock) oscillation and the effect this has on some of our chips. Most importantly, the flip flop!
 
 
 ##The Flip Flop
@@ -46,24 +48,36 @@ Ultimately, it will relate to Clock cycles, with a low-high (tick-tock) oscillat
 In the book, the flip flop is provided for us.  
 However, this left a void in my understanding that I couldn't live with and so I went about looking up how to implement a Data Flip Flop (DFF) from combinatorial components.
 
+This is what this blog post is about. I have decided to separate this investigation from the actual work in chapter three of the book to prevent me from waffling on for days!
+
+So let's take a look at what constitutes a flip flop.  
+
 The basic principle is to create a *series* of gates that have the side effect of returning the state of the previous clock cycle.  
 This allows us to store state for a single cycle, and as the current is constant, this state will hold indefinitely until either the current stops, or the inputs change.
+*That's a very simplistic way of looking at it but I think it helps to strip it back*
+
+The first building block of a DFF, is a Set-Reset latch.
 
 ###The Set-Reset Latch
 
-The SR latch is the base point of the DFF implementation and can be implement using NAND chips alone (There are other implementations; This seems to be the most common).  
+The SR latch is the base point of the DFF implementation and can be implemented using NAND chips alone (There are other implementations; This seems to be a common choice and fitsa well with the books outlook).  
 
-TODO - describe the latch
+An SR latch is created by feeding the output of two NAND gates into an input of the other, creating a 'latched' circuit.  
+This has the effect that a low (0) output from one of the NAND gates forces the others output to be high (1).  
 
-Now, we have a problem representing a latch in code as one input of each NAND gate, comes from the output of the other, hence giving us an inherent race condition.  
-In the real-world (electronic circuitry), this isn't a problem as we just wait for the current to flow - The propagation delay is clearly observed here.
+In order to achieve such a low output from one of the NAND gates, it's explicit input (S or R in this case) must be high (and the other low).
+Therefore the inputs should be considered active high.  
+In addition, both inputs should not be set active at the same time as this will cause the output to be indeterminate! //EXPAND!!!
+
+Now, we have a problem representing a latch in code as one input of each NAND gate comes from the output of the other, hence giving us an inherent race condition.  
+In the real-world (electronic circuitry), this isn't a problem as we just wait for the current to flow - Propagation delay can clearly be observed in this situation.
 
 In code, we need to implement this delay ourselves. 
 The simplest way I concluded to do this, was to wrap the Latch in a type which holds the state as a mutable variable.  
-The state is initialised to 0,0 (no current), and on each execution of the Latch function, the state is used to feed the NAND gates with the required inputs.  
+The state is initialised to 0,0 (no current - I could have gone with an option but it really doesn't matter here), and on each execution of the Latch function, the state is used to feed the NAND gates with the required inputs.  
 Likewise, the corresponding outputs are stored back in the state variable for next time.
 
-This gives us just what we need. A way to mimic a propagation delay per execution of a function.
+This gives us just what we need. A way to mimic propagation delay per execution of a function.
 
 *)
 
@@ -89,9 +103,9 @@ In order to get around these glitches, we need to enforce *when* the latch can b
 We do this by introducing the system clock. In particular, an oscillating clock.  
 We can then ensure that the latch is only ever set when the clock is 'high' (AKA tock).
 
-To do this we simply insert two more NAND gates into our design.  
-These gates effectively invert the S and R inputs passing them onto our latch. However it will only do this when the clock is high.  
-When it is low, the two NAND gates will always produce a result of 'true'.
+This is achieved by simply insert two more NAND gates into our design.  
+These gates effectively invert the S and R inputs passing them onto our latch. However it will only do this when the clock signal is high.  
+When it is low, the first two NAND gates will always produce a result of 'true', resulting in the output of the clocked latch staying stable.
 
 Here is the implementation in F#
 
@@ -107,8 +121,10 @@ Here is the implementation in F#
 
 (**
 
-To further reduce glitches, we can introduce a master-slave latch configuration.  
-This results in a Set-Reset Flip Flop, that has the entire clock cycle to settle in to it's new state.
+To further reduce these glitches, we can introduce a master-slave latch configuration.  
+This is known as a Set-Reset Flip Flop, that has the entire clock cycle to settle in to it's new state.
+
+Before we get to that though, lets make things a little simpler.
 
 ###Introducing a base class
 
@@ -148,9 +164,6 @@ As you can see, there's not much to it, but it gets the job done.
 It will also allow me to knock up a quick test harness to test my chips. Let's look at this next.
 
 I have included the re-worked version of the Set Reset Latch below so you can see it's usage.  
-
-I think it's about time we got round to some testing.
-
 *)
 
 type SRLatch() = 
@@ -171,6 +184,7 @@ type ClockedSRLatch() =
         [|Nand s clk2; Nand r clk2|] |> srLatch.execute clk
 
 (**
+Right, I think it's about time we got round to some testing.
 
 ###Testing the chips
 
@@ -218,11 +232,11 @@ So, now that we are in a position to test some latches, let's see what they can 
 First off, let's look at the Set-Reset latch.  
 
 This chip ignores the clk input, but does visibly show the propagation delay when changing the input values.  
-This propagation delay in the real world is caused by the physical current applied to the chips and means we have to wait (very very briefly!) for the chips to settle into a consistent state.  
+As we know, propagation delay in the real world is caused by the physical current applied to the chips and means we have to wait (very very briefly!) for the chips to settle into a consistent state.  
 In our simulation however, it shows up as simply an extra execution or two.
 
 To reset the latch and ensure a consistent state we execute the chip a few times with the reset pin set (Remember, the SRLatch pins are active low).  
-After which, we flip the inputs and again witness the prop delay.
+After which, we flip the inputs and again witness the propagation delay.
 *)
 
 {inputs = [|1s;0s|]; outputs = Array.empty; chips = [|new SRLatch()|]}
@@ -240,6 +254,8 @@ After which, we flip the inputs and again witness the prop delay.
     clk: Tick - outputs: [|1s; 1s|]
     clk: Tick - outputs: [|1s; 0s|]
     clk: Tick - outputs: [|1s; 0s|]
+
+Simples, the latch behaves as needed.
 
 Next up, The clocked Set-Reset latch.  
 The output for this latch is much like the former with one difference, the inputs are only applied when the clock tocks.  
@@ -293,7 +309,7 @@ type RsFlipFlop() =
 (**
 
 The below code highlights how the output only changes on the falling edge of the clock.  
-It is worth noting however that the propagation delay to settle into a stable state shows the output oscillating. This is an artefact of the simulation.
+It is worth noting however that the propagation delay to settle into a stable state shows the output oscillating. This is an artefact of the simulation due to the non linear execution of our NAND chips.
 We can see the built in delay in both the initial settling and the second change of state.
 
 *)
@@ -325,7 +341,7 @@ We can see the built in delay in both the initial settling and the second change
 
 #### The clock cycle
 
-The previous tests have shown that out latches successfully mimic propagation delay, and eventually settle into their stable states.  
+The previous tests have shown that our latches successfully mimic propagation delay, and eventually settle into their stable states.  
 The next step is to create a function that handles the oscillation of the system clock.  
 
 To do this we simply call our iterate function, supplying a suitable amount of iterations in order to not flip the clock before the propagation delay has had time to expire.
@@ -337,7 +353,7 @@ My cycle function is shown below. Note it calls the iterate function a given num
 This simulates the tick-tock of a digital clk cycle.  
 *)
 
-let cycle iterations clkIters (harness : TestHarness) = 
+let cycle iterations clkIters harness = 
     printfn "Executing %i cycles with inputs = %A" iterations harness.inputs
     let rec doCycle i clk harness =
         match i with
@@ -366,7 +382,7 @@ Now we have the clock cycle simulated (albeit incredibly crudely) lets re-test o
 (**
 
 The above code shows how the output only changes when on the falling edge of the clock.  
-We can see how we have to state changes, and a hold period inbetween.
+We can see how we have two state changes, and a hold period in between.
 
     [lang=output]
     //FSI Output
@@ -401,28 +417,44 @@ type DFlipFlop() =
          |> ff.execute clk
 
 (**
-If we run the same test as for the RS Flip Flop on this DFF, we get the same output.  
-
-Success! My curiosity has been satisfied. I suppose I should get back on track and tackle the chips discussed in the book.
-
-Now we have created the DFF the long winded way, I'll redefine it in a short circuited way like so.  
+If we run the same test as for the RS Flip Flop (albeit with one inpuit) on this DFF, we get the same output.  
 
 *)
 
-type DFF() =
-    inherit Chip()
-    let mutable state = 0s
-    let mutable pState = 0s
-    override x.doWork clk inputs =
-        match clk with //Only set the state on a tick - The falling edge
-        | clk.Tick -> state <- pState
-        | _ -> pState <- inputs.[0]
-        [|state|]
+{inputs = [|0s|]; outputs = Array.empty; chips = [|new DFlipFlop()|]}
+|> cycle 2 4
+|> setInputs [|0s|]
+|> cycle 2 4
+|> setInputs [|1s|]
+|> cycle 2 4
 
 (**
-It's worth noting that this does what the book asks.  
-Takes and returns a single bit, returning the state from the previous clock cycle. Job done.
+
+    [lang=output]
+    //FSI Output
+    Executing 2 cycles with inputs = [|0s|]
+       Cycle 1 - clk: Tick - outputs: [|0s; 0s|]
+       Cycle 1 - clk: Tock - outputs: [|0s; 0s|]
+       Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
+       Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
+    Executing 2 cycles with inputs = [|0s|]
+       Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
+       Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
+       Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
+       Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
+    Executing 2 cycles with inputs = [|1s|]
+       Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
+       Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
+       Cycle 2 - clk: Tick - outputs: [|1s; 0s|]
+       Cycle 2 - clk: Tock - outputs: [|1s; 0s|]
+
+
+Success! My curiosity has been satisfied. I suppose I should get back on track and tackle the chips discussed in the book.
+I'll do that in a subsequent post!
+
 *)
+
+
 
 (**
 [previous post]: http://stevenpemberton.net/blog/2015/07/02/FSharp-Logic-Emulation/
