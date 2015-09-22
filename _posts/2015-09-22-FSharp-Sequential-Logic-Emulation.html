@@ -1,0 +1,704 @@
+---
+meta: The elements of computing systems using FSharp for Boolean Logic and Arithmetic Emulation
+series-post-number: 2
+seriesId: FSharpLogic
+catagories: ["Exploration","examples"]
+tags: ["fsharp","Emulation"]
+comments: true
+date: 22/09/2015
+title: Sequential Logic Emulation with F#
+layout: post
+---
+<p>This post (and the next) relate to chapter three of the book 'The Elements of Computing Systems' and revolve around emulating sequential logic chips in F#.</p>
+
+<p>Everything in this post can be taken separately from my <a href="http://stevenpemberton.net/blog/2015/07/02/FSharp-Logic-Emulation/">previous post</a>, however, I do make use of some code/concepts discussed there.</p>
+
+<p>The main goal of chapter three of the book is to create some constructs that can store state.<br />
+Starting with registers and building up into RAM arrays.</p>
+
+<p>There are various parts the book skips, relying on the hardware emulator to fill in the gaps.<br />
+This required me to do some research and teach myself the basics of the areas not discussed in the book.</p>
+
+<p>This post is dedicated to those areas, my learning outside of the book and how we can emulate simple sequential logic constructs using F#.</p>
+
+<!-- more -->
+
+<h1>Flip Flops, Propagation Delay and State</h1>
+
+<p>Well now, it's not every day those words become a heading.<br />
+So what do we mean by Flip Flops!?</p>
+
+<p>A Flip Flop is a mechanism for storing state in an electronic circuit. 
+It does this through the use of various techniques, including latches (We'll get to these shortly) and the use of a 'clock' to add some control.</p>
+
+<p>In a real-world, analogue electronic circuit, things do not happen instantly. It takes time for the combinational logic gates to 'settle' into their result.<br />
+This is known as Propagation Delay.</p>
+
+<p>This delay plays a big part in logic circuits and I will aim to model this as best as my brain can.<br />
+Ultimately, it will relate to function (our chips) execution and clock cycles, with a low-high (tick-tock) oscillation and the effect this has on some of our chips. Most importantly, the flip flop!</p>
+
+<h2>The Flip Flop</h2>
+
+<p>In the book, the flip flop is provided for us.<br />
+However, this left a void in my understanding that I couldn't live with and so I went about looking up how to implement a Data Flip Flop (DFF) from combinatorial components.</p>
+
+<p>I have decided to separate this investigation from the actual work in chapter three of the book to prevent another mammoth post (and make things simpler to follow).
+Therefore this post is focused solely around creating a representation of a Data Flip Flop using F# while drawing on the Boolean logic from the previous post.</p>
+
+<p>So let's take a look at what constitutes a flip flop.</p>
+
+<p>The basic principle is to create a <em>series</em> of gates that have the side effect of returning the state of the previous clock cycle. obeying the formula <code>out(t) = in(t - 1)</code><br />
+This allows us to store state for a single cycle and thus indefinitely until either the current stops, or the inputs change (which control when and what state to store).</p>
+
+<p><em>That's a very simplistic way of looking at it but it accurately describes what the DFF does and how it is the building block of volatile memory.</em></p>
+
+<p>The first step toward creating a DFF, is to create a Set-Reset Latch (SRLatch).</p>
+
+<h2>The Set-Reset Latch</h2>
+
+<p>The Set-Reset latch is the base of the DFF implementation and can be implemented using NAND chips alone (There are other implementations but using NAND fits well with the books teachings).</p>
+
+<p>A Set-Reset latch is created by feeding the output from two NAND gates back into one of the inputs of the other, creating a 'latched' circuit.<br />
+This has the effect that a low (0) output from one of the NAND gates forces the others output to be high (1). Meaning that the outputs should always be inverse.<br />
+<em>A circuit diagram will be included shortly</em></p>
+
+<p>The inputs to this latch should be considered active low, meaning setting either of the inputs to zero (and other to one) will cause it's output to be high.<br />
+In addition, both inputs should not be set active at the same time as this will cause the output to be indeterminate! 
+One gate would likely win in the real world but we wouldn't be able to tell without testing it.</p>
+
+<p>Now, we have a problem representing a latch in code due to one input of each NAND gate being fed from the output of the other, hence giving us an inherent race condition.<br />
+In the real-world of electronic circuits, this isn't a problem as we just wait for the current to flow - Propagation delay can clearly be observed in this situation.</p>
+
+<p>In code, we need to implement this delay ourselves. 
+The simplest way I concluded to do this was to wrap the Latch in a type which holds the state as a mutable variable.<br />
+The state is initialised to 0,0 (no current - I could have gone with an option but it really doesn't matter here), and on each execution of the Latch function, the state is used to feed the NAND gates with the required inputs.<br />
+Likewise, the corresponding outputs are stored back in the state variable for next time.</p>
+
+<p>This gives us just what we need. A way to mimic propagation delay per execution of a function.</p>
+
+<p>So, now that we have the basic concept, let's look at some code.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs6', 8)" onmouseover="showTip(event, 'fs6', 8)" class="i">SRLatch</span>() <span class="o">=</span>
+        <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs7', 9)" onmouseover="showTip(event, 'fs7', 9)" class="i">state</span> <span class="o">=</span> (<span class="n">0s</span>,<span class="n">0s</span>)
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs8', 10)" onmouseover="showTip(event, 'fs8', 10)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs9', 11)" onmouseover="showTip(event, 'fs9', 11)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs10', 12)" onmouseover="showTip(event, 'fs10', 12)" class="i">s</span> <span onmouseout="hideTip(event, 'fs11', 13)" onmouseover="showTip(event, 'fs11', 13)" class="i">r</span> <span class="o">=</span> 
+            <span onmouseout="hideTip(event, 'fs7', 14)" onmouseover="showTip(event, 'fs7', 14)" class="i">state</span> <span class="o">&lt;-</span> (<span onmouseout="hideTip(event, 'fs2', 15)" onmouseover="showTip(event, 'fs2', 15)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs10', 16)" onmouseover="showTip(event, 'fs10', 16)" class="i">s</span> (<span onmouseout="hideTip(event, 'fs12', 17)" onmouseover="showTip(event, 'fs12', 17)" class="i">snd</span> <span onmouseout="hideTip(event, 'fs7', 18)" onmouseover="showTip(event, 'fs7', 18)" class="i">state</span>),
+                      <span onmouseout="hideTip(event, 'fs2', 19)" onmouseover="showTip(event, 'fs2', 19)" class="i">Nand</span> (<span onmouseout="hideTip(event, 'fs13', 20)" onmouseover="showTip(event, 'fs13', 20)" class="i">fst</span> <span onmouseout="hideTip(event, 'fs7', 21)" onmouseover="showTip(event, 'fs7', 21)" class="i">state</span>) <span onmouseout="hideTip(event, 'fs11', 22)" onmouseover="showTip(event, 'fs11', 22)" class="i">r</span>)
+            <span onmouseout="hideTip(event, 'fs7', 23)" onmouseover="showTip(event, 'fs7', 23)" class="i">state</span></pre>
+</td>
+</tr>
+</table>
+
+<a class="expandPrompt">Set-Reset Latch Diagram</a>
+<div class="hoverPopup" >
+
+<img src="/content/images/post-images/Set-Reset-Latch.png" alt="Set-Reset Latch Diagram" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<p>There we have it. It's a beautifully simple design considering what it achieves.</p>
+
+<p>One problem in real Set-Reset Latches is that they are susceptible to signal glitches which can cause the output to change when we don't want it to.<br />
+In order to get around these glitches, we need to enforce <em>when</em> the latch can be updated.</p>
+
+<h2>The Clocked Set-Reset Latch</h2>
+
+<p>We can control when the latch state is updated by introducing an additional input.<br />
+This input is the used to set whether or not the latch is enabled. Hence, it is often called the 'enable pin'.</p>
+
+<p>In our system, this input will eventually be controlled by the system clock which is an oscillating signal, providing alternating high(<code>tock</code>) and low(<code>Tick</code>) values (this can be generated ourselves; Maybe I'll do that in another post).
+Using the clock will ensure that the latch is only ever set when the clock is 'high' (AKA a tock).</p>
+
+<p>To achieve the clocked (or gated) latch, we simply insert two more NAND gates into our design.<br />
+These two gates effectively invert the S and R inputs passing them onto our latch. However, it will only do this when the clock signal is high, thus giving us the enabling control.<br />
+When the clock is low, the first two NAND gates will always produce a result of 'true', resulting in the output of the clocked latch staying stable.</p>
+
+<p>Here is the implementation in F#.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+    <span class="k">type</span> <span onmouseout="hideTip(event, 'fs14', 24)" onmouseover="showTip(event, 'fs14', 24)" class="i">ClockedSRLatch</span>() <span class="o">=</span>
+        <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs7', 25)" onmouseover="showTip(event, 'fs7', 25)" class="i">state</span> <span class="o">=</span> (<span class="n">0s</span>,<span class="n">0s</span>)
+        <span class="k">member</span> <span onmouseout="hideTip(event, 'fs15', 26)" onmouseover="showTip(event, 'fs15', 26)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs16', 27)" onmouseover="showTip(event, 'fs16', 27)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs10', 28)" onmouseover="showTip(event, 'fs10', 28)" class="i">s</span> <span onmouseout="hideTip(event, 'fs11', 29)" onmouseover="showTip(event, 'fs11', 29)" class="i">r</span> <span onmouseout="hideTip(event, 'fs17', 30)" onmouseover="showTip(event, 'fs17', 30)" class="i">clk</span> <span class="o">=</span>
+            <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs18', 31)" onmouseover="showTip(event, 'fs18', 31)" class="i">ns</span>, <span onmouseout="hideTip(event, 'fs19', 32)" onmouseover="showTip(event, 'fs19', 32)" class="i">nr</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs2', 33)" onmouseover="showTip(event, 'fs2', 33)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs10', 34)" onmouseover="showTip(event, 'fs10', 34)" class="i">s</span> <span onmouseout="hideTip(event, 'fs17', 35)" onmouseover="showTip(event, 'fs17', 35)" class="i">clk</span>, <span onmouseout="hideTip(event, 'fs2', 36)" onmouseover="showTip(event, 'fs2', 36)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs11', 37)" onmouseover="showTip(event, 'fs11', 37)" class="i">r</span> <span onmouseout="hideTip(event, 'fs17', 38)" onmouseover="showTip(event, 'fs17', 38)" class="i">clk</span>)
+            <span onmouseout="hideTip(event, 'fs7', 39)" onmouseover="showTip(event, 'fs7', 39)" class="i">state</span> <span class="o">&lt;-</span> (<span onmouseout="hideTip(event, 'fs2', 40)" onmouseover="showTip(event, 'fs2', 40)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs18', 41)" onmouseover="showTip(event, 'fs18', 41)" class="i">ns</span> (<span onmouseout="hideTip(event, 'fs12', 42)" onmouseover="showTip(event, 'fs12', 42)" class="i">snd</span> <span onmouseout="hideTip(event, 'fs7', 43)" onmouseover="showTip(event, 'fs7', 43)" class="i">state</span>),
+                      <span onmouseout="hideTip(event, 'fs2', 44)" onmouseover="showTip(event, 'fs2', 44)" class="i">Nand</span> (<span onmouseout="hideTip(event, 'fs13', 45)" onmouseover="showTip(event, 'fs13', 45)" class="i">fst</span> <span onmouseout="hideTip(event, 'fs7', 46)" onmouseover="showTip(event, 'fs7', 46)" class="i">state</span>) <span onmouseout="hideTip(event, 'fs19', 47)" onmouseover="showTip(event, 'fs19', 47)" class="i">nr</span>)
+            </pre>
+</td>
+</tr>
+</table>
+
+<a class="expandPrompt">Clocked Set-Reset Latch Diagram</a>
+<div class="hoverPopup" >
+
+<img src="/content/images/post-images/Clocked-Set-Reset-Latch.png" alt="Clocked Set-Reset Latch Diagram" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<p>To further reduce glitches and control exactly when the gates output changes, we can introduce a master-slave latch configuration.<br />
+This is known as a Set-Reset Flip Flop.</p>
+
+<p>The master-slave configuration causes the gate to have the entire clock cycle to settle into its new state.</p>
+
+<p>Before we get to that though, lets make things a little simpler.</p>
+
+<h2>Introducing a base class</h2>
+
+<p>At this point, I thought it would be useful to create an abstract base class for our chips.<br />
+This type will represent our simple electronic chips API.<br />
+It will have inputs, outputs and a single public member, execute. The unique logic of each chip is supplied by overriding the doWork function of the base chip.</p>
+
+<p>At the same time, I decided to alter my previous chips to all use <code>int16</code> instead of <code>Boolean</code> parameters.<br />
+This allows me to specify every parameter (even those that were expecting Boolean arrays) as an integer, therefore allowing me to specify the inputs and outputs for the base chip as an int16 array.</p>
+
+<p>The great thing about the object oriented side of F# is how concise it is.<br />
+This conciseness brings with it the benefit of rapid development and prototyping. Just what we need!</p>
+
+<p>Below is the code for our representation of the clock and the new abstract base class, Chip.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs20', 48)" onmouseover="showTip(event, 'fs20', 48)" class="i">clk</span> <span class="o">=</span>
+    | <span onmouseout="hideTip(event, 'fs21', 49)" onmouseover="showTip(event, 'fs21', 49)" class="i">Tick</span> <span class="o">=</span> <span class="n">0s</span>
+    | <span onmouseout="hideTip(event, 'fs22', 50)" onmouseover="showTip(event, 'fs22', 50)" class="i">Tock</span> <span class="o">=</span> <span class="n">1s</span>
+    
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs23', 51)" onmouseover="showTip(event, 'fs23', 51)" class="i">flip</span> <span class="o">=</span> <span class="k">function</span>
+    | <span onmouseout="hideTip(event, 'fs20', 52)" onmouseover="showTip(event, 'fs20', 52)" class="i">clk</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs21', 53)" onmouseover="showTip(event, 'fs21', 53)" class="i">Tick</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs20', 54)" onmouseover="showTip(event, 'fs20', 54)" class="i">clk</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs22', 55)" onmouseover="showTip(event, 'fs22', 55)" class="i">Tock</span>
+    | _ <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs20', 56)" onmouseover="showTip(event, 'fs20', 56)" class="i">clk</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs21', 57)" onmouseover="showTip(event, 'fs21', 57)" class="i">Tick</span>
+
+[&lt;<span onmouseout="hideTip(event, 'fs24', 58)" onmouseover="showTip(event, 'fs24', 58)" class="i">AbstractClass</span>&gt;]
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs25', 59)" onmouseover="showTip(event, 'fs25', 59)" class="i">Chip</span>() <span class="o">=</span>
+    <span class="k">member</span> <span class="k">val</span> <span class="i">outputs</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs26', 60)" onmouseover="showTip(event, 'fs26', 60)" class="i">int16</span> <span onmouseout="hideTip(event, 'fs27', 61)" onmouseover="showTip(event, 'fs27', 61)" class="i">array</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs28', 62)" onmouseover="showTip(event, 'fs28', 62)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs29', 63)" onmouseover="showTip(event, 'fs29', 63)" class="i">empty</span> <span class="k">with</span> <span class="i">get</span>, <span onmouseout="hideTip(event, 'fs30', 64)" onmouseover="showTip(event, 'fs30', 64)" class="i">set</span>
+    <span class="k">abstract</span> <span class="k">member</span> <span onmouseout="hideTip(event, 'fs31', 65)" onmouseover="showTip(event, 'fs31', 65)" class="i">doWork</span><span class="o">:</span> <span onmouseout="hideTip(event, 'fs20', 66)" onmouseover="showTip(event, 'fs20', 66)" class="i">clk</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs26', 67)" onmouseover="showTip(event, 'fs26', 67)" class="i">int16</span> <span onmouseout="hideTip(event, 'fs27', 68)" onmouseover="showTip(event, 'fs27', 68)" class="i">array</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs26', 69)" onmouseover="showTip(event, 'fs26', 69)" class="i">int16</span> <span onmouseout="hideTip(event, 'fs27', 70)" onmouseover="showTip(event, 'fs27', 70)" class="i">array</span>
+    <span class="k">member</span> <span onmouseout="hideTip(event, 'fs32', 71)" onmouseover="showTip(event, 'fs32', 71)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs33', 72)" onmouseover="showTip(event, 'fs33', 72)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs34', 73)" onmouseover="showTip(event, 'fs34', 73)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs35', 74)" onmouseover="showTip(event, 'fs35', 74)" class="i">inputs</span> <span class="o">=</span> 
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs36', 75)" onmouseover="showTip(event, 'fs36', 75)" class="i">outcome</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs32', 76)" onmouseover="showTip(event, 'fs32', 76)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs37', 77)" onmouseover="showTip(event, 'fs37', 77)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs34', 78)" onmouseover="showTip(event, 'fs34', 78)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs35', 79)" onmouseover="showTip(event, 'fs35', 79)" class="i">inputs</span>
+        <span onmouseout="hideTip(event, 'fs32', 80)" onmouseover="showTip(event, 'fs32', 80)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs38', 81)" onmouseover="showTip(event, 'fs38', 81)" class="i">outputs</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs36', 82)" onmouseover="showTip(event, 'fs36', 82)" class="i">outcome</span>
+        <span onmouseout="hideTip(event, 'fs36', 83)" onmouseover="showTip(event, 'fs36', 83)" class="i">outcome</span></pre>
+</td>
+</tr>
+</table>
+
+<p>As you can see, there's not much to it, but it gets the job done.<br />
+I have included the re-worked version of the Set Reset Latch below so you can see it's usage.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs39', 84)" onmouseover="showTip(event, 'fs39', 84)" class="i">SRLatch</span>() <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs25', 85)" onmouseover="showTip(event, 'fs25', 85)" class="i">Chip</span>()
+    <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs40', 86)" onmouseover="showTip(event, 'fs40', 86)" class="i">state</span> <span class="o">=</span> [|<span class="n">0s</span>; <span class="n">0s</span>|]
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs8', 87)" onmouseover="showTip(event, 'fs8', 87)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs41', 88)" onmouseover="showTip(event, 'fs41', 88)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs34', 89)" onmouseover="showTip(event, 'fs34', 89)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs35', 90)" onmouseover="showTip(event, 'fs35', 90)" class="i">inputs</span> <span class="o">=</span>
+        <span onmouseout="hideTip(event, 'fs40', 91)" onmouseover="showTip(event, 'fs40', 91)" class="i">state</span> <span class="o">&lt;-</span> [|<span onmouseout="hideTip(event, 'fs2', 92)" onmouseover="showTip(event, 'fs2', 92)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs35', 93)" onmouseover="showTip(event, 'fs35', 93)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs40', 94)" onmouseover="showTip(event, 'fs40', 94)" class="i">state</span><span class="o">.</span>[<span class="n">1</span>];
+                   <span onmouseout="hideTip(event, 'fs2', 95)" onmouseover="showTip(event, 'fs2', 95)" class="i">Nand</span> <span onmouseout="hideTip(event, 'fs35', 96)" onmouseover="showTip(event, 'fs35', 96)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>] <span onmouseout="hideTip(event, 'fs40', 97)" onmouseover="showTip(event, 'fs40', 97)" class="i">state</span><span class="o">.</span>[<span class="n">0</span>]|]
+        <span onmouseout="hideTip(event, 'fs40', 98)" onmouseover="showTip(event, 'fs40', 98)" class="i">state</span></pre>
+</td>
+</tr>
+</table>
+
+<p>This common base class will also allow me to knock up a quick test harness to test my chips. Let's look at this next.</p>
+
+<h2>Testing the chips</h2>
+
+<p>In order to test these chips and any future chips in an easy way, I decided to create a record type to act as a crude test harness.<br />
+It will simply hold a collection of chips, current inputs to pass to the first chip, and the outputs from the last. For simplicity, I have declared the in and out arrays as arrays of <code>int16</code> as discussed above.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs47', 123)" onmouseover="showTip(event, 'fs47', 123)" class="i">TestHarness</span> <span class="o">=</span> 
+    { <span onmouseout="hideTip(event, 'fs48', 124)" onmouseover="showTip(event, 'fs48', 124)" class="i">inputs</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs26', 125)" onmouseover="showTip(event, 'fs26', 125)" class="i">int16</span> <span onmouseout="hideTip(event, 'fs27', 126)" onmouseover="showTip(event, 'fs27', 126)" class="i">array</span>
+      <span onmouseout="hideTip(event, 'fs49', 127)" onmouseover="showTip(event, 'fs49', 127)" class="i">outputs</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs26', 128)" onmouseover="showTip(event, 'fs26', 128)" class="i">int16</span> <span onmouseout="hideTip(event, 'fs27', 129)" onmouseover="showTip(event, 'fs27', 129)" class="i">array</span>
+      <span onmouseout="hideTip(event, 'fs50', 130)" onmouseover="showTip(event, 'fs50', 130)" class="i">chips</span> <span class="o">:</span> <span onmouseout="hideTip(event, 'fs25', 131)" onmouseover="showTip(event, 'fs25', 131)" class="i">Chip</span> <span onmouseout="hideTip(event, 'fs27', 132)" onmouseover="showTip(event, 'fs27', 132)" class="i">array</span> }</pre>
+</td>
+</tr>
+</table>
+
+<p>Next up, we need to declare some functions to utilise the test harness.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs51', 133)" onmouseover="showTip(event, 'fs51', 133)" class="i">setInputs</span> <span onmouseout="hideTip(event, 'fs52', 134)" onmouseover="showTip(event, 'fs52', 134)" class="i">i</span> <span onmouseout="hideTip(event, 'fs53', 135)" onmouseover="showTip(event, 'fs53', 135)" class="i">harness</span> <span class="o">=</span> 
+    {<span onmouseout="hideTip(event, 'fs53', 136)" onmouseover="showTip(event, 'fs53', 136)" class="i">harness</span> <span class="k">with</span> <span class="i">inputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs52', 137)" onmouseover="showTip(event, 'fs52', 137)" class="i">i</span>;}
+
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs54', 138)" onmouseover="showTip(event, 'fs54', 138)" class="i">executeChips</span> <span onmouseout="hideTip(event, 'fs53', 139)" onmouseover="showTip(event, 'fs53', 139)" class="i">harness</span> <span onmouseout="hideTip(event, 'fs34', 140)" onmouseover="showTip(event, 'fs34', 140)" class="i">clk</span> <span class="o">=</span>
+    <span onmouseout="hideTip(event, 'fs53', 141)" onmouseover="showTip(event, 'fs53', 141)" class="i">harness</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs50', 142)" onmouseover="showTip(event, 'fs50', 142)" class="i">chips</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs28', 143)" onmouseover="showTip(event, 'fs28', 143)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs55', 144)" onmouseover="showTip(event, 'fs55', 144)" class="i">fold</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs56', 145)" onmouseover="showTip(event, 'fs56', 145)" class="i">state</span> (<span onmouseout="hideTip(event, 'fs57', 146)" onmouseover="showTip(event, 'fs57', 146)" class="i">chip</span><span class="o">:</span> <span onmouseout="hideTip(event, 'fs25', 147)" onmouseover="showTip(event, 'fs25', 147)" class="i">Chip</span>) <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs57', 148)" onmouseover="showTip(event, 'fs57', 148)" class="i">chip</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs46', 149)" onmouseover="showTip(event, 'fs46', 149)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs34', 150)" onmouseover="showTip(event, 'fs34', 150)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs56', 151)" onmouseover="showTip(event, 'fs56', 151)" class="i">state</span>) <span onmouseout="hideTip(event, 'fs53', 152)" onmouseover="showTip(event, 'fs53', 152)" class="i">harness</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs48', 153)" onmouseover="showTip(event, 'fs48', 153)" class="i">inputs</span></pre>
+</td>
+</tr>
+</table>
+
+<p>And finally, we need a function to simulate applying a current to the chips for a period of time.<br />
+The use of the word <em>time</em> here is a bit of a stretch as what we are actually going to do is execute the function iteratively in order to mimic the chips constantly being applied with a current.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span class="k">rec</span> <span onmouseout="hideTip(event, 'fs58', 154)" onmouseover="showTip(event, 'fs58', 154)" class="i">iterate</span> <span onmouseout="hideTip(event, 'fs59', 155)" onmouseover="showTip(event, 'fs59', 155)" class="i">i</span> <span onmouseout="hideTip(event, 'fs34', 156)" onmouseover="showTip(event, 'fs34', 156)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs60', 157)" onmouseover="showTip(event, 'fs60', 157)" class="i">state</span> <span class="o">=</span> 
+    <span class="k">match</span> <span onmouseout="hideTip(event, 'fs59', 158)" onmouseover="showTip(event, 'fs59', 158)" class="i">i</span> <span class="k">with</span>
+    | <span class="n">0</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs60', 159)" onmouseover="showTip(event, 'fs60', 159)" class="i">state</span>
+    | _ <span class="k">-&gt;</span> 
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs61', 160)" onmouseover="showTip(event, 'fs61', 160)" class="i">result</span> <span class="o">=</span> { <span onmouseout="hideTip(event, 'fs60', 161)" onmouseover="showTip(event, 'fs60', 161)" class="i">state</span> <span class="k">with</span> <span class="i">outputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs54', 162)" onmouseover="showTip(event, 'fs54', 162)" class="i">executeChips</span> <span onmouseout="hideTip(event, 'fs60', 163)" onmouseover="showTip(event, 'fs60', 163)" class="i">state</span> <span onmouseout="hideTip(event, 'fs34', 164)" onmouseover="showTip(event, 'fs34', 164)" class="i">clk</span> }
+        <span onmouseout="hideTip(event, 'fs62', 165)" onmouseover="showTip(event, 'fs62', 165)" class="i">printfn</span> <span class="s">&quot;</span><span class="s">clk</span><span class="s">:</span><span class="s"> </span><span class="s">%</span><span class="s">A</span><span class="s"> </span><span class="s">-</span><span class="s"> </span><span class="s">outputs</span><span class="s">:</span><span class="s"> </span><span class="s">%</span><span class="s">A</span><span class="s">&quot;</span> <span onmouseout="hideTip(event, 'fs34', 166)" onmouseover="showTip(event, 'fs34', 166)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs61', 167)" onmouseover="showTip(event, 'fs61', 167)" class="i">result</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs49', 168)" onmouseover="showTip(event, 'fs49', 168)" class="i">outputs</span>
+        <span onmouseout="hideTip(event, 'fs58', 169)" onmouseover="showTip(event, 'fs58', 169)" class="i">iterate</span> (<span onmouseout="hideTip(event, 'fs59', 170)" onmouseover="showTip(event, 'fs59', 170)" class="i">i</span> <span class="o">-</span> <span class="n">1</span>) <span onmouseout="hideTip(event, 'fs34', 171)" onmouseover="showTip(event, 'fs34', 171)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs61', 172)" onmouseover="showTip(event, 'fs61', 172)" class="i">result</span></pre>
+</td>
+</tr>
+</table>
+
+<p>So, now that we are in a position to test some latches, let's see what they can do.<br />
+First off, let's look at the Set-Reset latch.</p>
+
+<p>This chip ignores the clk input, but does visibly show the propagation delay when changing the input values.<br />
+As we know, propagation delay in the real world is caused by the physical current applied to the chips and means we have to wait (very very briefly!) for the chips to settle into a consistent state.<br />
+In our simulation however, it shows up as simply an extra execution or two.</p>
+
+<p>To reset the latch and ensure a consistent state we execute the chip a few times with the reset pin set (Remember, the SRLatch pins are active low).<br />
+After which, we flip the inputs and again witness the propagation delay.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+{<span class="i">inputs</span> <span class="o">=</span> [|<span class="n">1s</span>;<span class="n">0s</span>|]; <span class="i">outputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs28', 173)" onmouseover="showTip(event, 'fs28', 173)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs29', 174)" onmouseover="showTip(event, 'fs29', 174)" class="i">empty</span>; <span class="i">chips</span> <span class="o">=</span> [|<span class="k">new</span> <span onmouseout="hideTip(event, 'fs39', 175)" onmouseover="showTip(event, 'fs39', 175)" class="i">SRLatch</span>()|]}
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 176)" onmouseover="showTip(event, 'fs58', 176)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs34', 177)" onmouseover="showTip(event, 'fs34', 177)" class="i">clk</span><span class="o">.</span><span class="i">Tick</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs51', 178)" onmouseover="showTip(event, 'fs51', 178)" class="i">setInputs</span> [|<span class="n">0s</span>;<span class="n">1s</span>|]
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 179)" onmouseover="showTip(event, 'fs58', 179)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs34', 180)" onmouseover="showTip(event, 'fs34', 180)" class="i">clk</span><span class="o">.</span><span class="i">Tick</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//FSI Output
+clk: Tick - outputs: [|1s; 1s|] //Propagation delay
+clk: Tick - outputs: [|0s; 1s|]
+clk: Tick - outputs: [|0s; 1s|]
+clk: Tick - outputs: [|1s; 1s|] //Propagation delay
+clk: Tick - outputs: [|1s; 0s|]
+clk: Tick - outputs: [|1s; 0s|]
+</pre></td></tr></table>
+
+<p>Simples, the latch behaves as needed.</p>
+
+<p>Next up, The clocked Set-Reset latch.<br />
+The output for this latch is much like the former with one difference, the inputs are only applied when the clock tocks.<br />
+This can be seen below when the inputs are set to <code>[|1s; 0s|]</code> at the start of our second set of iterations.<br />
+<em>Note that we see the now familiar propagation delay.</em></p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+{<span class="i">inputs</span> <span class="o">=</span> [|<span class="n">0s</span>;<span class="n">1s</span>|]; <span class="i">outputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs28', 181)" onmouseover="showTip(event, 'fs28', 181)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs29', 182)" onmouseover="showTip(event, 'fs29', 182)" class="i">empty</span>; <span class="i">chips</span> <span class="o">=</span> [|<span class="k">new</span> <span onmouseout="hideTip(event, 'fs42', 183)" onmouseover="showTip(event, 'fs42', 183)" class="i">ClockedSRLatch</span>()|]}
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 184)" onmouseover="showTip(event, 'fs58', 184)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs34', 185)" onmouseover="showTip(event, 'fs34', 185)" class="i">clk</span><span class="o">.</span><span class="i">Tock</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs51', 186)" onmouseover="showTip(event, 'fs51', 186)" class="i">setInputs</span> [|<span class="n">1s</span>;<span class="n">0s</span>|]
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 187)" onmouseover="showTip(event, 'fs58', 187)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs34', 188)" onmouseover="showTip(event, 'fs34', 188)" class="i">clk</span><span class="o">.</span><span class="i">Tick</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 189)" onmouseover="showTip(event, 'fs58', 189)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs34', 190)" onmouseover="showTip(event, 'fs34', 190)" class="i">clk</span><span class="o">.</span><span class="i">Tock</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//FSI Output
+clk: Tock - outputs: [|1s; 1s|] //Propagation delay
+clk: Tock - outputs: [|0s; 1s|]
+clk: Tock - outputs: [|0s; 1s|] //Inputs set after this iteration
+clk: Tick - outputs: [|0s; 1s|] //However the output doesn&#39;t change until the tock
+clk: Tick - outputs: [|0s; 1s|]
+clk: Tick - outputs: [|0s; 1s|]
+clk: Tock - outputs: [|1s; 1s|] //Output changes as clock is now high
+clk: Tock - outputs: [|1s; 0s|]
+clk: Tock - outputs: [|1s; 0s|]
+</pre></td></tr></table>
+
+<p>Above we can clearly see that the output only changes when the clk is high (Tock).</p>
+
+<p>Now that we are sure out initial latches are correct, we can move on to creating the Set-Reset Flip Flop.</p>
+
+<h3>The Set-Reset Flip Flop</h3>
+
+<p>This chip is basically two Set-Reset Latches in a sequence (master-slave), with the clock value negated in between.<br />
+This has the outcome of forcing the overall output to only change on the falling edge of the clock cycle. That is, when the clock changes from high to low (Tock to Tick).</p>
+
+<p>Effectively this means that the master latch has an entire clock cycle to settle into a stable value before the slave picks it up. 
+The composition of this chip is straight forward, like so:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs63', 191)" onmouseover="showTip(event, 'fs63', 191)" class="i">RsFlipFlop</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs25', 192)" onmouseover="showTip(event, 'fs25', 192)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs64', 193)" onmouseover="showTip(event, 'fs64', 193)" class="i">master</span> <span class="o">=</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs42', 194)" onmouseover="showTip(event, 'fs42', 194)" class="i">ClockedSRLatch</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs65', 195)" onmouseover="showTip(event, 'fs65', 195)" class="i">slave</span> <span class="o">=</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs42', 196)" onmouseover="showTip(event, 'fs42', 196)" class="i">ClockedSRLatch</span>()
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs66', 197)" onmouseover="showTip(event, 'fs66', 197)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs67', 198)" onmouseover="showTip(event, 'fs67', 198)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs34', 199)" onmouseover="showTip(event, 'fs34', 199)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs35', 200)" onmouseover="showTip(event, 'fs35', 200)" class="i">inputs</span> <span class="o">=</span> 
+        <span onmouseout="hideTip(event, 'fs35', 201)" onmouseover="showTip(event, 'fs35', 201)" class="i">inputs</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs64', 202)" onmouseover="showTip(event, 'fs64', 202)" class="i">master</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs46', 203)" onmouseover="showTip(event, 'fs46', 203)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs34', 204)" onmouseover="showTip(event, 'fs34', 204)" class="i">clk</span>
+        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs65', 205)" onmouseover="showTip(event, 'fs65', 205)" class="i">slave</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs46', 206)" onmouseover="showTip(event, 'fs46', 206)" class="i">execute</span> (<span onmouseout="hideTip(event, 'fs34', 207)" onmouseover="showTip(event, 'fs34', 207)" class="i">clk</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs23', 208)" onmouseover="showTip(event, 'fs23', 208)" class="i">flip</span>)</pre>
+</td>
+</tr>
+</table>
+
+<a class="expandPrompt">Set-Reset Flip Flop Diagram</a>
+<div class="hoverPopup" >
+
+<img src="/content/images/post-images/Set-Reset-Flip-Flop.png" alt="Set-Reset Flip Flop Diagram" style="float:right; margin:20px;width:300px"/>
+
+</div>
+
+<p>The below code highlights how the output only changes on the falling edge of the clock.<br />
+It is worth noting however that the initial propagation delay to settle into a stable state shows the output oscillating. This is an artefact of the simulation due to the way I modelled the use of the previous state in the execution of our NAND chips.
+We can see the built in delay in both the initial settling and the second change of state.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+{<span class="i">inputs</span> <span class="o">=</span> [|<span class="n">0s</span>;<span class="n">1s</span>|]; <span class="i">outputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs28', 209)" onmouseover="showTip(event, 'fs28', 209)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs29', 210)" onmouseover="showTip(event, 'fs29', 210)" class="i">empty</span>; <span class="i">chips</span> <span class="o">=</span> [|<span class="k">new</span> <span onmouseout="hideTip(event, 'fs63', 211)" onmouseover="showTip(event, 'fs63', 211)" class="i">RsFlipFlop</span>()|]}
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 212)" onmouseover="showTip(event, 'fs58', 212)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs20', 213)" onmouseover="showTip(event, 'fs20', 213)" class="i">clk</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs22', 214)" onmouseover="showTip(event, 'fs22', 214)" class="i">Tock</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 215)" onmouseover="showTip(event, 'fs58', 215)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs20', 216)" onmouseover="showTip(event, 'fs20', 216)" class="i">clk</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs21', 217)" onmouseover="showTip(event, 'fs21', 217)" class="i">Tick</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs51', 218)" onmouseover="showTip(event, 'fs51', 218)" class="i">setInputs</span> [|<span class="n">1s</span>;<span class="n">0s</span>|]
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 219)" onmouseover="showTip(event, 'fs58', 219)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs20', 220)" onmouseover="showTip(event, 'fs20', 220)" class="i">clk</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs22', 221)" onmouseover="showTip(event, 'fs22', 221)" class="i">Tock</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs58', 222)" onmouseover="showTip(event, 'fs58', 222)" class="i">iterate</span> <span class="n">3</span> <span onmouseout="hideTip(event, 'fs20', 223)" onmouseover="showTip(event, 'fs20', 223)" class="i">clk</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs21', 224)" onmouseover="showTip(event, 'fs21', 224)" class="i">Tick</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//FSI Output
+clk: Tock - outputs: [|1s; 1s|]
+clk: Tock - outputs: [|0s; 0s|]
+clk: Tock - outputs: [|1s; 1s|] 
+clk: Tick - outputs: [|0s; 1s|] //Slave picks up the now settled state
+clk: Tick - outputs: [|0s; 1s|]
+clk: Tick - outputs: [|0s; 1s|]
+clk: Tock - outputs: [|0s; 1s|] //Inputs set prior to this iteration
+clk: Tock - outputs: [|0s; 1s|]
+clk: Tock - outputs: [|0s; 1s|]
+clk: Tick - outputs: [|1s; 1s|] //Slave again picks up the changes as the clock falls
+clk: Tick - outputs: [|1s; 0s|]
+clk: Tick - outputs: [|1s; 0s|]
+</pre></td></tr></table>
+
+<h2>The clock cycle</h2>
+
+<p>The previous tests have shown that our latches successfully mimic propagation delay, and eventually settle into their stable states.</p>
+
+<p>The next step is to create a function that handles the oscillation of the system clock in order to facilitate testing at a slightly higher level.</p>
+
+<p>To do this we simply call our iterate function, supplying a suitable amount of iterations in order to not flip the clock before the propagation delay has had time to expire.
+This is a very crude version of clock speed. In a real world digital circuit, the clock period must be greater than that of the max propagation delay.</p>
+
+<p>For our current purposes, four iterations is enough to settle between ticks.</p>
+
+<p>My cycle function is shown below. Note it calls the iterate function a given number of times per cycle and alternates the clk frequency appropriately.<br />
+This simulates the tick-tock of a system clock.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs68', 225)" onmouseover="showTip(event, 'fs68', 225)" class="i">cycle</span> <span onmouseout="hideTip(event, 'fs69', 226)" onmouseover="showTip(event, 'fs69', 226)" class="i">iterations</span> <span onmouseout="hideTip(event, 'fs70', 227)" onmouseover="showTip(event, 'fs70', 227)" class="i">clkIters</span> <span onmouseout="hideTip(event, 'fs53', 228)" onmouseover="showTip(event, 'fs53', 228)" class="i">harness</span> <span class="o">=</span> 
+    <span onmouseout="hideTip(event, 'fs62', 229)" onmouseover="showTip(event, 'fs62', 229)" class="i">printfn</span> <span class="s">&quot;</span><span class="s">Executing</span><span class="s"> </span><span class="s">%</span><span class="s">i</span><span class="s"> </span><span class="s">cycles</span><span class="s"> </span><span class="s">with</span><span class="s"> </span><span class="s">inputs</span><span class="s"> </span><span class="s">=</span><span class="s"> </span><span class="s">%</span><span class="s">A</span><span class="s">&quot;</span> <span onmouseout="hideTip(event, 'fs69', 230)" onmouseover="showTip(event, 'fs69', 230)" class="i">iterations</span> <span onmouseout="hideTip(event, 'fs53', 231)" onmouseover="showTip(event, 'fs53', 231)" class="i">harness</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs48', 232)" onmouseover="showTip(event, 'fs48', 232)" class="i">inputs</span>
+    <span class="k">let</span> <span class="k">rec</span> <span onmouseout="hideTip(event, 'fs71', 233)" onmouseover="showTip(event, 'fs71', 233)" class="i">doCycle</span> <span onmouseout="hideTip(event, 'fs59', 234)" onmouseover="showTip(event, 'fs59', 234)" class="i">i</span> <span onmouseout="hideTip(event, 'fs34', 235)" onmouseover="showTip(event, 'fs34', 235)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs53', 236)" onmouseover="showTip(event, 'fs53', 236)" class="i">harness</span> <span class="o">=</span>
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs59', 237)" onmouseover="showTip(event, 'fs59', 237)" class="i">i</span> <span class="k">with</span>
+        | <span class="n">0</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs53', 238)" onmouseover="showTip(event, 'fs53', 238)" class="i">harness</span>
+        | _ <span class="k">-&gt;</span>
+            <span class="k">let</span> <span onmouseout="hideTip(event, 'fs61', 239)" onmouseover="showTip(event, 'fs61', 239)" class="i">result</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs58', 240)" onmouseover="showTip(event, 'fs58', 240)" class="i">iterate</span> <span onmouseout="hideTip(event, 'fs70', 241)" onmouseover="showTip(event, 'fs70', 241)" class="i">clkIters</span> <span onmouseout="hideTip(event, 'fs34', 242)" onmouseover="showTip(event, 'fs34', 242)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs53', 243)" onmouseover="showTip(event, 'fs53', 243)" class="i">harness</span>
+            <span onmouseout="hideTip(event, 'fs62', 244)" onmouseover="showTip(event, 'fs62', 244)" class="i">printfn</span> <span class="s">&quot;</span><span class="s">   </span><span class="s">Cycle</span><span class="s"> </span><span class="s">%</span><span class="s">i</span><span class="s"> </span><span class="s">-</span><span class="s"> </span><span class="s">clk</span><span class="s">:</span><span class="s"> </span><span class="s">%</span><span class="s">A</span><span class="s"> </span><span class="s">-</span><span class="s"> </span><span class="s">outputs</span><span class="s">:</span><span class="s"> </span><span class="s">%</span><span class="s">A</span><span class="s">&quot;</span> (<span onmouseout="hideTip(event, 'fs69', 245)" onmouseover="showTip(event, 'fs69', 245)" class="i">iterations</span> <span class="o">-</span> <span onmouseout="hideTip(event, 'fs59', 246)" onmouseover="showTip(event, 'fs59', 246)" class="i">i</span> <span class="o">+</span> <span class="n">1</span>) <span onmouseout="hideTip(event, 'fs34', 247)" onmouseover="showTip(event, 'fs34', 247)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs61', 248)" onmouseover="showTip(event, 'fs61', 248)" class="i">result</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs49', 249)" onmouseover="showTip(event, 'fs49', 249)" class="i">outputs</span> 
+            <span class="k">match</span> <span onmouseout="hideTip(event, 'fs34', 250)" onmouseover="showTip(event, 'fs34', 250)" class="i">clk</span> <span class="k">with</span>
+                | <span onmouseout="hideTip(event, 'fs34', 251)" onmouseover="showTip(event, 'fs34', 251)" class="i">clk</span><span class="o">.</span><span class="i">Tick</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs71', 252)" onmouseover="showTip(event, 'fs71', 252)" class="i">doCycle</span> <span onmouseout="hideTip(event, 'fs59', 253)" onmouseover="showTip(event, 'fs59', 253)" class="i">i</span> (<span onmouseout="hideTip(event, 'fs23', 254)" onmouseover="showTip(event, 'fs23', 254)" class="i">flip</span> <span onmouseout="hideTip(event, 'fs34', 255)" onmouseover="showTip(event, 'fs34', 255)" class="i">clk</span>) <span onmouseout="hideTip(event, 'fs61', 256)" onmouseover="showTip(event, 'fs61', 256)" class="i">result</span>
+                | _ <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs71', 257)" onmouseover="showTip(event, 'fs71', 257)" class="i">doCycle</span> (<span onmouseout="hideTip(event, 'fs59', 258)" onmouseover="showTip(event, 'fs59', 258)" class="i">i</span><span class="o">-</span><span class="n">1</span>) (<span onmouseout="hideTip(event, 'fs23', 259)" onmouseover="showTip(event, 'fs23', 259)" class="i">flip</span> <span onmouseout="hideTip(event, 'fs34', 260)" onmouseover="showTip(event, 'fs34', 260)" class="i">clk</span>) <span onmouseout="hideTip(event, 'fs61', 261)" onmouseover="showTip(event, 'fs61', 261)" class="i">result</span>
+    <span onmouseout="hideTip(event, 'fs71', 262)" onmouseover="showTip(event, 'fs71', 262)" class="i">doCycle</span> <span onmouseout="hideTip(event, 'fs69', 263)" onmouseover="showTip(event, 'fs69', 263)" class="i">iterations</span> <span onmouseout="hideTip(event, 'fs34', 264)" onmouseover="showTip(event, 'fs34', 264)" class="i">clk</span><span class="o">.</span><span class="i">Tick</span> <span onmouseout="hideTip(event, 'fs53', 265)" onmouseover="showTip(event, 'fs53', 265)" class="i">harness</span></pre>
+</td>
+</tr>
+</table>
+
+<p>Now we have the clock cycle simulated (albeit incredibly crudely) lets re-test our Set-Reset Flip Flop.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+{<span class="i">inputs</span> <span class="o">=</span> [|<span class="n">0s</span>;<span class="n">1s</span>|]; <span class="i">outputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs28', 266)" onmouseover="showTip(event, 'fs28', 266)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs29', 267)" onmouseover="showTip(event, 'fs29', 267)" class="i">empty</span>; <span class="i">chips</span> <span class="o">=</span> [|<span class="k">new</span> <span onmouseout="hideTip(event, 'fs63', 268)" onmouseover="showTip(event, 'fs63', 268)" class="i">RsFlipFlop</span>()|]}
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs68', 269)" onmouseover="showTip(event, 'fs68', 269)" class="i">cycle</span> <span class="n">2</span> <span class="n">4</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs51', 270)" onmouseover="showTip(event, 'fs51', 270)" class="i">setInputs</span> [|<span class="n">0s</span>;<span class="n">0s</span>|]
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs68', 271)" onmouseover="showTip(event, 'fs68', 271)" class="i">cycle</span> <span class="n">2</span> <span class="n">4</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs51', 272)" onmouseover="showTip(event, 'fs51', 272)" class="i">setInputs</span> [|<span class="n">1s</span>;<span class="n">0s</span>|]
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs68', 273)" onmouseover="showTip(event, 'fs68', 273)" class="i">cycle</span> <span class="n">2</span> <span class="n">4</span></pre>
+</td>
+</tr>
+</table>
+
+<p>The above code shows again how the output only changes when on the falling edge of the clock, but the propagation delay is now removed (more accurately - controlled).<br />
+In the output below we can clearly see two state changes with a hold period in between.</p>
+
+<table class="pre"><tr><td><pre lang="output">//FSI Output
+Executing 2 cycles with inputs = [|0s; 1s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s|] //State has this entire cycle to settle
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s|]
+   Cycle 2 - clk: Tick - outputs: [|0s; 1s|] //Change in state picked up
+   Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
+Executing 2 cycles with inputs = [|0s; 0s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 1s|] //State held
+   Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
+   Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
+   Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
+Executing 2 cycles with inputs = [|1s; 0s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
+   Cycle 2 - clk: Tick - outputs: [|1s; 0s|] //Change picked up again
+   Cycle 2 - clk: Tock - outputs: [|1s; 0s|]
+</pre></td></tr></table>
+
+<p>Nearly there now!<br />
+We have one more chip left, the Data Flip Flop itself.</p>
+
+<p>In fact, a data flip flop is just an RS Flip Flop with a single input negated to supply both pins.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs72', 274)" onmouseover="showTip(event, 'fs72', 274)" class="i">DFlipFlop</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs25', 275)" onmouseover="showTip(event, 'fs25', 275)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs73', 276)" onmouseover="showTip(event, 'fs73', 276)" class="i">ff</span> <span class="o">=</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs63', 277)" onmouseover="showTip(event, 'fs63', 277)" class="i">RsFlipFlop</span>()
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs74', 278)" onmouseover="showTip(event, 'fs74', 278)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs75', 279)" onmouseover="showTip(event, 'fs75', 279)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs34', 280)" onmouseover="showTip(event, 'fs34', 280)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs35', 281)" onmouseover="showTip(event, 'fs35', 281)" class="i">inputs</span> <span class="o">=</span>
+         [|<span onmouseout="hideTip(event, 'fs35', 282)" onmouseover="showTip(event, 'fs35', 282)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>]; (<span onmouseout="hideTip(event, 'fs5', 283)" onmouseover="showTip(event, 'fs5', 283)" class="i">Not</span> <span onmouseout="hideTip(event, 'fs35', 284)" onmouseover="showTip(event, 'fs35', 284)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>])|]
+         <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs73', 285)" onmouseover="showTip(event, 'fs73', 285)" class="i">ff</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs46', 286)" onmouseover="showTip(event, 'fs46', 286)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs34', 287)" onmouseover="showTip(event, 'fs34', 287)" class="i">clk</span></pre>
+</td>
+</tr>
+</table>
+
+<p>If we run the same test as for the RS Flip Flop (albeit with one input) on the DFF, we get exactly the same output.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+{<span class="i">inputs</span> <span class="o">=</span> [|<span class="n">0s</span>|]; <span class="i">outputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs28', 288)" onmouseover="showTip(event, 'fs28', 288)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs29', 289)" onmouseover="showTip(event, 'fs29', 289)" class="i">empty</span>; <span class="i">chips</span> <span class="o">=</span> [|<span class="k">new</span> <span onmouseout="hideTip(event, 'fs72', 290)" onmouseover="showTip(event, 'fs72', 290)" class="i">DFlipFlop</span>()|]}
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs68', 291)" onmouseover="showTip(event, 'fs68', 291)" class="i">cycle</span> <span class="n">2</span> <span class="n">4</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs51', 292)" onmouseover="showTip(event, 'fs51', 292)" class="i">setInputs</span> [|<span class="n">0s</span>|]
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs68', 293)" onmouseover="showTip(event, 'fs68', 293)" class="i">cycle</span> <span class="n">2</span> <span class="n">4</span>
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs51', 294)" onmouseover="showTip(event, 'fs51', 294)" class="i">setInputs</span> [|<span class="n">1s</span>|]
+<span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs68', 295)" onmouseover="showTip(event, 'fs68', 295)" class="i">cycle</span> <span class="n">2</span> <span class="n">4</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//FSI Output
+Executing 2 cycles with inputs = [|0s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s|]
+   Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
+   Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
+Executing 2 cycles with inputs = [|0s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
+   Cycle 2 - clk: Tick - outputs: [|0s; 1s|]
+   Cycle 2 - clk: Tock - outputs: [|0s; 1s|]
+Executing 2 cycles with inputs = [|1s|] m
+   Cycle 1 - clk: Tick - outputs: [|0s; 1s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 1s|]
+   Cycle 2 - clk: Tick - outputs: [|1s; 0s|]
+   Cycle 2 - clk: Tock - outputs: [|1s; 0s|]
+</pre></td></tr></table>
+
+<p>Success!<br />
+The DFF can be used to facilitate the storage of a single bit of data by feeding its output back into its input with the addition of some control logic. <br />
+This is how registers are created and we will explore this in the next post.</p>
+
+<p>For now my curiosity has been satisfied. Hopefully you found this post as interesting as I did writing it.</p>
+
+<p>All code from this post can be found on <a href="https://github.com/sjpemberton/FSharpEmulator">GitHub</a>.</p>
+
+<p>I hope you'll come back for the next post which will see me back on track and tackling the chips discussed in the book.</p>
+
+<div class="tip" id="fs1">module FsEmulation</div>
+<div class="tip" id="fs2">val Nand : a:int16 -&gt; b:int16 -&gt; int16<br /><br />Full name: FsEmulation.Nand</div>
+<div class="tip" id="fs3">val a : int16</div>
+<div class="tip" id="fs4">val b : int16</div>
+<div class="tip" id="fs5">val Not : _arg1:int16 -&gt; int16<br /><br />Full name: FsEmulation.Not</div>
+<div class="tip" id="fs6">Multiple items<br />type SRLatch =<br />&#160;&#160;new : unit -&gt; SRLatch<br />&#160;&#160;member execute : s:int16 -&gt; r:int16 -&gt; int16 * int16<br /><br />Full name: FsEmulation.Chips1.SRLatch<br /><br />--------------------<br />new : unit -&gt; SRLatch</div>
+<div class="tip" id="fs7">val mutable state : int16 * int16</div>
+<div class="tip" id="fs8">val x : SRLatch</div>
+<div class="tip" id="fs9">member SRLatch.execute : s:int16 -&gt; r:int16 -&gt; int16 * int16<br /><br />Full name: FsEmulation.Chips1.SRLatch.execute</div>
+<div class="tip" id="fs10">val s : int16</div>
+<div class="tip" id="fs11">val r : int16</div>
+<div class="tip" id="fs12">val snd : tuple:(&#39;T1 * &#39;T2) -&gt; &#39;T2<br /><br />Full name: Microsoft.FSharp.Core.Operators.snd</div>
+<div class="tip" id="fs13">val fst : tuple:(&#39;T1 * &#39;T2) -&gt; &#39;T1<br /><br />Full name: Microsoft.FSharp.Core.Operators.fst</div>
+<div class="tip" id="fs14">Multiple items<br />type ClockedSRLatch =<br />&#160;&#160;new : unit -&gt; ClockedSRLatch<br />&#160;&#160;member execute : s:int16 -&gt; r:int16 -&gt; clk:int16 -&gt; unit<br /><br />Full name: FsEmulation.Chips1.ClockedSRLatch<br /><br />--------------------<br />new : unit -&gt; ClockedSRLatch</div>
+<div class="tip" id="fs15">val x : ClockedSRLatch</div>
+<div class="tip" id="fs16">member ClockedSRLatch.execute : s:int16 -&gt; r:int16 -&gt; clk:int16 -&gt; unit<br /><br />Full name: FsEmulation.Chips1.ClockedSRLatch.execute</div>
+<div class="tip" id="fs17">val clk : int16</div>
+<div class="tip" id="fs18">val ns : int16</div>
+<div class="tip" id="fs19">val nr : int16</div>
+<div class="tip" id="fs20">type clk =<br />&#160;&#160;|  Tick  =  0s<br />&#160;&#160;|  Tock  =  1s<br /><br />Full name: FsEmulation.clk</div>
+<div class="tip" id="fs21">clk.Tick: clk = 0s</div>
+<div class="tip" id="fs22">clk.Tock: clk = 1s</div>
+<div class="tip" id="fs23">val flip : _arg1:clk -&gt; clk<br /><br />Full name: FsEmulation.flip</div>
+<div class="tip" id="fs24">Multiple items<br />type AbstractClassAttribute =<br />&#160;&#160;inherit Attribute<br />&#160;&#160;new : unit -&gt; AbstractClassAttribute<br /><br />Full name: Microsoft.FSharp.Core.AbstractClassAttribute<br /><br />--------------------<br />new : unit -&gt; AbstractClassAttribute</div>
+<div class="tip" id="fs25">Multiple items<br />type Chip =<br />&#160;&#160;new : unit -&gt; Chip<br />&#160;&#160;abstract member doWork : clk -&gt; int16 array -&gt; int16 array<br />&#160;&#160;member execute : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br />&#160;&#160;member outputs : int16 array<br />&#160;&#160;member outputs : int16 array with set<br /><br />Full name: FsEmulation.Chip<br /><br />--------------------<br />new : unit -&gt; Chip</div>
+<div class="tip" id="fs26">Multiple items<br />val int16 : value:&#39;T -&gt; int16 (requires member op_Explicit)<br /><br />Full name: Microsoft.FSharp.Core.Operators.int16<br /><br />--------------------<br />type int16 = System.Int16<br /><br />Full name: Microsoft.FSharp.Core.int16<br /><br />--------------------<br />type int16&lt;&#39;Measure&gt; = int16<br /><br />Full name: Microsoft.FSharp.Core.int16&lt;_&gt;</div>
+<div class="tip" id="fs27">type &#39;T array = &#39;T []<br /><br />Full name: Microsoft.FSharp.Core.array&lt;_&gt;</div>
+<div class="tip" id="fs28">module Array<br /><br />from Microsoft.FSharp.Collections</div>
+<div class="tip" id="fs29">val empty&lt;&#39;T&gt; : &#39;T []<br /><br />Full name: Microsoft.FSharp.Collections.Array.empty</div>
+<div class="tip" id="fs30">val set : elements:seq&lt;&#39;T&gt; -&gt; Set&lt;&#39;T&gt; (requires comparison)<br /><br />Full name: Microsoft.FSharp.Core.ExtraTopLevelOperators.set</div>
+<div class="tip" id="fs31">abstract member Chip.doWork : clk -&gt; int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Chip.doWork</div>
+<div class="tip" id="fs32">val x : Chip</div>
+<div class="tip" id="fs33">member Chip.execute : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Chip.execute</div>
+<div class="tip" id="fs34">Multiple items<br />val clk : clk<br /><br />--------------------<br />type clk =<br />&#160;&#160;|  Tick  =  0s<br />&#160;&#160;|  Tock  =  1s<br /><br />Full name: FsEmulation.clk</div>
+<div class="tip" id="fs35">val inputs : int16 array</div>
+<div class="tip" id="fs36">val outcome : int16 array</div>
+<div class="tip" id="fs37">abstract member Chip.doWork : clk -&gt; int16 array -&gt; int16 array</div>
+<div class="tip" id="fs38">property Chip.outputs: int16 array</div>
+<div class="tip" id="fs39">Multiple items<br />type SRLatch =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; SRLatch<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.SRLatch<br /><br />--------------------<br />new : unit -&gt; SRLatch</div>
+<div class="tip" id="fs40">val mutable state : int16 []</div>
+<div class="tip" id="fs41">override SRLatch.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.SRLatch.doWork</div>
+<div class="tip" id="fs42">Multiple items<br />type ClockedSRLatch =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; ClockedSRLatch<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.ClockedSRLatch<br /><br />--------------------<br />new : unit -&gt; ClockedSRLatch</div>
+<div class="tip" id="fs43">val srLatch : SRLatch</div>
+<div class="tip" id="fs44">override ClockedSRLatch.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.ClockedSRLatch.doWork</div>
+<div class="tip" id="fs45">val clk2 : int16</div>
+<div class="tip" id="fs46">member Chip.execute : clk:clk -&gt; inputs:int16 array -&gt; int16 array</div>
+<div class="tip" id="fs47">type TestHarness =<br />&#160;&#160;{inputs: int16 array;<br />&#160;&#160;&#160;outputs: int16 array;<br />&#160;&#160;&#160;chips: Chip array;}<br /><br />Full name: FsEmulation.TestHarness</div>
+<div class="tip" id="fs48">TestHarness.inputs: int16 array</div>
+<div class="tip" id="fs49">TestHarness.outputs: int16 array</div>
+<div class="tip" id="fs50">TestHarness.chips: Chip array</div>
+<div class="tip" id="fs51">val setInputs : i:int16 array -&gt; harness:TestHarness -&gt; TestHarness<br /><br />Full name: FsEmulation.setInputs</div>
+<div class="tip" id="fs52">val i : int16 array</div>
+<div class="tip" id="fs53">val harness : TestHarness</div>
+<div class="tip" id="fs54">val executeChips : harness:TestHarness -&gt; clk:clk -&gt; int16 array<br /><br />Full name: FsEmulation.executeChips</div>
+<div class="tip" id="fs55">val fold : folder:(&#39;State -&gt; &#39;T -&gt; &#39;State) -&gt; state:&#39;State -&gt; array:&#39;T [] -&gt; &#39;State<br /><br />Full name: Microsoft.FSharp.Collections.Array.fold</div>
+<div class="tip" id="fs56">val state : int16 array</div>
+<div class="tip" id="fs57">val chip : Chip</div>
+<div class="tip" id="fs58">val iterate : i:int -&gt; clk:clk -&gt; state:TestHarness -&gt; TestHarness<br /><br />Full name: FsEmulation.iterate</div>
+<div class="tip" id="fs59">val i : int</div>
+<div class="tip" id="fs60">val state : TestHarness</div>
+<div class="tip" id="fs61">val result : TestHarness</div>
+<div class="tip" id="fs62">val printfn : format:Printf.TextWriterFormat&lt;&#39;T&gt; -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Core.ExtraTopLevelOperators.printfn</div>
+<div class="tip" id="fs63">Multiple items<br />type RsFlipFlop =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; RsFlipFlop<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RsFlipFlop<br /><br />--------------------<br />new : unit -&gt; RsFlipFlop</div>
+<div class="tip" id="fs64">val master : ClockedSRLatch</div>
+<div class="tip" id="fs65">val slave : ClockedSRLatch</div>
+<div class="tip" id="fs66">val x : RsFlipFlop</div>
+<div class="tip" id="fs67">override RsFlipFlop.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RsFlipFlop.doWork</div>
+<div class="tip" id="fs68">val cycle : iterations:int -&gt; clkIters:int -&gt; harness:TestHarness -&gt; TestHarness<br /><br />Full name: FsEmulation.cycle</div>
+<div class="tip" id="fs69">val iterations : int</div>
+<div class="tip" id="fs70">val clkIters : int</div>
+<div class="tip" id="fs71">val doCycle : (int -&gt; clk -&gt; TestHarness -&gt; TestHarness)</div>
+<div class="tip" id="fs72">Multiple items<br />type DFlipFlop =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; DFlipFlop<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.DFlipFlop<br /><br />--------------------<br />new : unit -&gt; DFlipFlop</div>
+<div class="tip" id="fs73">val ff : RsFlipFlop</div>
+<div class="tip" id="fs74">val x : DFlipFlop</div>
+<div class="tip" id="fs75">override DFlipFlop.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.DFlipFlop.doWork</div>
+<div class="tip" id="fs76">val using : resource:&#39;T -&gt; action:(&#39;T -&gt; &#39;U) -&gt; &#39;U (requires &#39;T :&gt; System.IDisposable)<br /><br />Full name: Microsoft.FSharp.Core.Operators.using</div>
+
