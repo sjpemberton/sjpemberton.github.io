@@ -2,28 +2,48 @@
 (*** hide ***)
 module FsEmulation
 
-let Nand a b =
-    match a, b with
-    | 1s, 1s -> 0s
-    | _, _ -> 1s
+let Mux sel a b  =
+    match sel with
+    | 0s -> a
+    | _ -> b
 
-let Not = function
-    | 1s -> 0s
-    | _ -> 1s
+type clk =
+    | Tick = 0s
+    | Tock = 1s
+    
+let flip = function
+    | clk.Tick -> clk.Tock
+    | _ -> clk.Tick
+
+[<AbstractClass>]
+type Chip() =
+    member val outputs : int16 array = Array.empty with get, set
+    abstract member doWork: clk -> int16 array -> int16 array
+    member x.execute clk inputs = 
+        let outcome = x.doWork clk inputs
+        x.outputs <- outcome
+        outcome
+
+let toBinary i = 
+    let rec convert i acc = 
+        match i with
+        | _ when i > 0s -> (i % 2s) :: convert (i / 2s) acc
+        | _ -> acc
+    convert i [] |> List.rev |> List.toArray
 
 (**
 This post concludes the work from chapter three of the book 'The Elements of Computing Systems'.  
 As with the [other posts] in the series, I have emulated the sequential logic chips defined in the book using F#.
 
-In the [previous post] I sidetracked from th ebook in order to investigate what constituted a Data Flip Flop.
+In the [previous post] I sidetracked from the book in order to investigate what constituted a Data Flip Flop.
 The result, was a greater understanding of the sequential ordering of combinatorial chips in order to achieve state retention.
 
 From the DFF, we can now look towards building the constructs that the book outlines.  
 These include:
 
--Registers - Simple 1 bit stores
--RAM chips - In various sizes
--Counters - Counts sequentially per execution and can be reset or seeded as required
+- Registers - Simple 1 bit stores
+- RAM chips - In various sizes
+- Counters - Counts sequentially per execution and can be reset or seeded as required
 
 As always, I will outline the representation of these chips using chips from previous stages of the book, but also define a more idiomatic F# approach as well.  
 
@@ -31,23 +51,53 @@ As always, I will outline the representation of these chips using chips from pre
 
 #Revisiting the Flip Flop
 
-We can simply declare a DFF as follows in an F# way that make sit clear what it does.
+For simplicities sake and to avoid people having to refer back, I will first redefine the Data Flip Flop from the [previous post].  
+While I'm at it, I'll remove all its dependencies on other gates/chips so it is clear it functions precisely as expected. 
 
-    type DFF() = 
-        let mutable state = 0s
-        member x.execute d clk = 
-            let pState = state
-            match clk with //Only set the state on a tock 
-            | true -> state <- d
-            | _ -> ()
-            pState
+As stated by the book, the DFFs intention is to take and return a single bit, where the bit returned is the state from the previous clock cycle.
+
+*)
+
+type DFF() =
+    inherit Chip()
+    let mutable state = 0s
+    let mutable pState = 0s
+    override x.doWork clk inputs =
+        match clk with //Only set the state on a tick - The falling edge
+        | clk.Tick -> state <- pState
+        | _ -> pState <- inputs.[0]
+        [|state|]
+
+(**
+
+Now that we have our DFF implementation to work with, lets move on to the first of the chips required in the book, the register.  
 
 
 #Registers
 
+Registers vary in size from a single bit to multi bit stores.  
+The amount of bits that a register can store is known as its width. The contents of a register are referred to as a word.
+Hence a registers width is also the word size.
 
-##The BIT Store
+In order to create multi bit registers we must first start with a binary cell.
 
+
+##The Binary Cell
+
+A binary cell is a single bit register. 
+It is created by making use of a DFF, a multiplexor and a pair of inputs.  
+
+The basic premise is that we feed the DFFs output into one of the multiplexors inputs, while the other comes from an input to the chip.
+
+The other chip input is a load bit. This bit is used to control whether or not to replace the value held in the store.  
+When load is set, the incoming value to the chip is selected by the multiplexor and passed to the DFF.
+When load is not set, the DFF value is passed back to itself, hence holding its state.
+
+It's a beautifully simple design, and also easy to represent like so.
+
+*)
+
+//Binary Cell
 //Stores a single bit.
 //The Mux chip acts as a selector on whether to store a new value or keep hold of the old DFF value
 type Bit() =
@@ -59,7 +109,17 @@ type Bit() =
                 |> dff.execute clk).[0]
         [|state|]
 
-##The Registers
+(**
+
+##Multi Bit Registers
+
+Now we have our binary cell, it's an incredibly easy task to create n-bit registers. We simply create an n size array of binary cells.  
+In order to use an n-bit register we pass each input bit to the registers in turn, along with the load bit.
+
+The book calls for a 16 bit register, an implementation of which can be seen below.  
+
+*)
+
 
 //A 16 bit register 
 type Register() = 
@@ -70,7 +130,13 @@ type Register() =
         bits |> Array.mapi (fun i b -> ([|inBits.[i]; inputs.[1]|] 
                                         |> b.execute clk).[0])
 
+(**
 
+I chose to utilise Array.map in order to process the output of each registers execution into the resulting array.  
+If we were sticking to the HDK used in the book, this would have to be 16 individual statements.
+
+Well, that was easy.  
+Onto, the RAM!
 
 #RAM Chips
 
@@ -184,15 +250,26 @@ type RAM(size) =
 
 #Testing
 
+
+*)
+
+(**
+[previous post]: http://stevenpemberton.net/blog/2015/07/02/FSharp-Logic-Emulation/
+*)
+
 (*** hide ***)
+
+
+(**
 ---
 layout: post
-title: Sequential Logic Emulation with F#
-date: 22/09/2015
+title: Sequential Logic Emulation with F# - Part 2
+date: 23/10/2015
 comments: true
 tags: ["fsharp","Emulation"]
 catagories: ["Exploration","examples"]
 seriesId: FSharpLogic
-series-post-number: 2
+series-post-number: 3
 meta: The elements of computing systems using FSharp for Boolean Logic and Arithmetic Emulation
 ---
+*)
