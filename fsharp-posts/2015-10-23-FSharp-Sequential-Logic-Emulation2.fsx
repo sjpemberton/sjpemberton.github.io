@@ -2,34 +2,13 @@
 (*** hide ***)
 module FsEmulation
 
-let Mux sel a b  =
-    match sel with
-    | 0s -> a
-    | _ -> b
+#load "Dependencies/FSLogic/ArithmeticLogicUnit.fs"
+#load "Dependencies/FSLogic/Utils.fs"
+#load "Dependencies/FSLogic/Sequential.fs"
 
-type clk =
-    | Tick = 0s
-    | Tock = 1s
-    
-let flip = function
-    | clk.Tick -> clk.Tock
-    | _ -> clk.Tick
-
-[<AbstractClass>]
-type Chip() =
-    member val outputs : int16 array = Array.empty with get, set
-    abstract member doWork: clk -> int16 array -> int16 array
-    member x.execute clk inputs = 
-        let outcome = x.doWork clk inputs
-        x.outputs <- outcome
-        outcome
-
-let toBinary i = 
-    let rec convert i acc = 
-        match i with
-        | _ when i > 0s -> (i % 2s) :: convert (i / 2s) acc
-        | _ -> acc
-    convert i [] |> List.rev |> List.toArray
+open ArithmeticLogicUnit
+open Sequential
+open Utils
 
 (**
 This post concludes the work from chapter three of the book 'The Elements of Computing Systems'.  
@@ -133,97 +112,154 @@ type Register() =
 (**
 
 I chose to utilise Array.map in order to process the output of each registers execution into the resulting array.  
-If we were sticking to the HDK used in the book, this would have to be 16 individual statements.
+If we were sticking to the HDK used in the book, this would have to be 16 individual statements.  
+I have chosen to take this approach going forward so as to write more idiomatic F# but with the consequence of detracting from the book.
 
 Well, that was easy.  
 Onto, the RAM!
 
 #RAM Chips
 
-RAM chips have both a width and a sizes.
-The width relates to the amount of bits held in each register. We stick to the recommended 16 bits here.
-Size is the number of bits size of the RAM in terms of number of registers.
+RAM (Random Access Memory) chips have both a width and a size.  
 
-//An 16 bit wide 8 bit size, register array.
+As we have just seen, the width is the amount of bits held in each register. (We will stick to the books requirement of 16 bits here)
+Size is the number of registers in the the array that makes up the RAM chip.  
+
+The tricky part of creating a RAM chip comes when providing random access to any word (registers content) held in the chip, at equal speed.  
+To accomplish this, each register needs to be given an address in the form of an integer value.  
+The RAM then provides some access logic that can select the required register and either output or set its value.
+
+Therefore RAM chips have three inputs, The value to store, an address and a load bit.  
+
+The logic for the addressing works as follows:
+
+- First we run the load bit and the binary representation of the integer address through a DMux8Way chip.
+This has the effect of creating an 8 bit array with the load bit in the correct position.
+- Next we push the input value to be set into the register to each of the registers along with the corresponding load bit from the previously created array. This results in the correct array being set if required.
+- Finally we run the value of each of the registers through a Mux8WayChip, along with the address in order to select the correct word to return.
+
+Below is the implementation of an 8 Register RAM chip.
+
+ *)
+
+//A 16 bit wide 8 register array.
 //Utilises Mux and DMux to select the correct register to store the value in
 type RAM8() =
     inherit Chip()
     let registers = [|for i in 1 .. 8 -> new Register()|]
     override x.doWork clk inputs =
-        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2])
-        let loadArray = DMux8Way load (address |> toBinary)
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toBinary)
+        let loadArray = DMux8Way load address
         let state = registers 
                     |> Array.mapi (fun i r -> [|inBits; loadArray.[i]|]
                                               |> r.execute clk)
-        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] (address |> toBinary) 
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
-The RAM chips are built succesively in order to utilise the previous.
-We use blocks of 8 as our standard form. In case of a 64 register RAM block, it can be made from 8, 8 register RAM blocks as below:
+(**
 
-//TODO - Discuss addressing
+The RAM chips are built sequentially to utilise the previous implementations (As with most of the chips we have created).
+We use blocks of 8 as our standard. So in the case of a 64 register RAM block, we can make it from 8, 8 register RAM blocks as below:
+
+The 64 register RAM chip can be seen below.  
+It is much the same as the 8 register chip except that it now requires a larger binary address. To be exact it now requires 6 bits, where as the 8 register RAM chip required 3 bits.  
+This follows the rule `bits = log2n` where n is the number of registers.
+
+Therefore we need to repeat a little bit of the selection logic from the previous chip.  
+We take the 3 MSB (most significant bits) and use them to select one of the RAM8 chips.    
+The remaining 3 bits are then passed on to this chip in order to select one of the registers within it. Nice and recursive!
+
+So here it is, the 64 register RAM chip:
+
+*)
 
 type RAM64() =
     inherit Chip()
     let ramArray = [|for i in 1 .. 8 -> new RAM8()|]
     override x.doWork clk inputs =
-        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2])
-        let ramLoad = DMux8Way load  (address |> toBinary).[0..2]
-        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 (address |> toBinary).[3..5]) |])
-        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] (address |> toBinary)
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toBinary)
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..5]) |])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
-This pattern then continues for as many as we like.  
-The book calls for up to a 16 thousand Register RAM block.
+
+(**
+
+This pattern then continues for as many powers of 2 as we like.  
+The book calls for up to a 16 thousand Register RAM block and you can see the implementations below.
+
+*)
 
 type RAM512() =
-   let ramArray = [|for i in 1 .. 8 -> new RAM64()|]
-   member x.execute (inBits: int16 array) clk load (address: int16 array) =
-       let ramLoad = DMux8Way load address.[0..2]
-       let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..8])
-       Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+    inherit Chip()
+    let ramArray = [|for i in 1 .. 8 -> new RAM64()|]
+    override x.doWork clk inputs =
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toBinary)
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..8]) |])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 type RAM4k() =
-   let ramArray = [|for i in 1 .. 8 -> new RAM512()|]
-   member x.execute (inBits: int16 array) clk load (address: int16 array) =
-       let ramLoad = DMux8Way load address.[0..2]
-       let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..11])
-       Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+    inherit Chip()
+    let ramArray = [|for i in 1 .. 8 -> new RAM512()|]
+    override x.doWork clk inputs =
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toBinary)
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..11]) |])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
 
 type RAM16k() =
-   let ramArray = [|for i in 1 .. 4 -> new RAM4k()|]
-   member x.execute (inBits: int16 array) clk load (address: int16 array) =
-       let ramLoad = DMux8Way load address.[0..2]
-       let state = ramArray |> Array.mapi (fun i r -> r.execute inBits clk ramLoad.[i] address.[3..13])
-       Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+    inherit Chip()
+    let ramArray = [|for i in 1 .. 4 -> new RAM4k()|]
+    override x.doWork clk inputs =
+        let (inBits, load, address) = (inputs.[0], inputs.[1], inputs.[2] |> toBinary)
+        let ramLoad = DMux8Way load address.[0..2]
+        let state = ramArray |> Array.mapi (fun i r -> r.execute clk [|inBits; ramLoad.[i]; (toDecimal 16 address.[3..13]) |])
+        Mux8Way16 state.[0] state.[1] state.[2] state.[3] state.[4] state.[5] state.[6] state.[7] address
+
+(**
+
+As is all to clear to see, there is a lot of repetition here.  
+We'll look at cleaning that up later on. 
+
+But first, let's look at the final chip needed for this chapter, the counter.
 
 #The Counter
 
-The counter is a chip that wither increments each execution, is set to a particular value, or reset.
+The counter is a chip that contains a register alongside some combinatorial logic in order to increment its value each execution.  
+In addition the logic should also allow us to set the register to a particular value, or reset it.  
+In other words, we need a loadable, resettable register that can increment its value per clock cycle.
+
+All of the building blocks for the counters logic have been created in the previous chapters of the book.  
+What follows is a step by step breakdown of what is needed:
+
+1. Get the next value by incrementing the current register value using our Increment chip.
+2. Select whether we want to use the bits passed in or our next value by checking the load control bit (via a MultiMux).
+3. Select whether we want to use the value chosen in the last step, or rest to 0 by checking the reset control bit (via a MultiMux).
+4. determine whether we are performing an increment, load, or reset. (This determines whether we are loading the register or not)
+5. pass the selected value and the new load bit to the underlying register.
+
+Translated into code, this becomes the following.
+
+*)
 
 type Counter() = 
     inherit Chip()
     let register = new Register()
-    override x.doWork clk inputs = //(inBits: int16 array) clk inc load reset =
-        let next = Increment (register.execute clk [| inputs.[0]; 0s |]) //Increment the current value
-        let mux1 = MultiMux inputs.[2] next (inputs.[0] |> toBinary) 
-        let mux2 = MultiMux inputs.[3] mux1 [|for i in 1..16 -> 0s|]
-        let or1 = Or inputs.[2] inputs.[1]
-        let or2 = Or or1 inputs.[3]
-        register.execute clk [| mux2 |> toDecimal 16; or2|]
+    override x.doWork clk inputs = 
+        let (inBits, load, inc, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
+        let next = Increment (register.execute clk [| inBits; 0s |]) //Increment the current value
+        let mux1 = MultiMux load next (inBits |> toBinary) 
+        let mux2 = MultiMux reset mux1 [|for i in 1..16 -> 0s|]
+        let regLoad = Or inc load
+                      |> Or reset
+        register.execute clk [| mux2 |> toDecimal 16; regLoad|]
         
-type CounterPM() =
-    inherit Chip()
-    let register = new Register()
-    override x.doWork clk inputs =
-        let (inBits, inc, load, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
-        let toSet = 
-            match reset, load, inc with
-            | 1s,_,_ -> [|for i in 1..16 -> 0s|]
-            | 0s,1s,_ -> inBits |> toBinary
-            | 0s,0s,1s -> Increment (register.execute clk [|inBits; 0s|])
-            |_,_,_ -> register.execute clk [|inBits; 0s|]
-        register.execute clk [|toSet |> toDecimal 16; (load ||| reset ||| inc)|]
+
+(**
 
 #An Idiomatic F# approach
+
+*)
 
 type RamSize =
     | Bit8 
@@ -247,6 +283,21 @@ type RAM(size) =
     override x.doWork clk inputs =
         let (inBits, load, address) = (inputs.[0],inputs.[1],inputs.[2])
         regArray.[int address].execute clk [|inBits; load|] //Need to handle index out of range
+
+type CounterPM() =
+    inherit Chip()
+    let register = new Register()
+    override x.doWork clk inputs =
+        let (inBits, inc, load, reset) = (inputs.[0], inputs.[1], inputs.[2], inputs.[3])
+        let toSet = 
+            match reset, load, inc with
+            | 1s,_,_ -> [|for i in 1..16 -> 0s|]
+            | 0s,1s,_ -> inBits |> toBinary
+            | 0s,0s,1s -> Increment (register.execute clk [|inBits; 0s|])
+            |_,_,_ -> register.execute clk [|inBits; 0s|]
+        register.execute clk [|toSet |> toDecimal 16; (load ||| reset ||| inc)|]
+
+(**
 
 #Testing
 
