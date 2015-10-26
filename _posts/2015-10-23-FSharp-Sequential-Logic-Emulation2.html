@@ -1,0 +1,759 @@
+---
+meta: The elements of computing systems using FSharp for Boolean Logic and Arithmetic Emulation
+series-post-number: 3
+seriesId: FSharpLogic
+catagories: ["Exploration","examples"]
+tags: ["fsharp","Emulation"]
+comments: true
+date: 26/10/2015
+title: Sequential Logic Emulation with F# - Part 2
+layout: post
+---
+<p>This post concludes the work from chapter three of the book 'The Elements of Computing Systems'.<br />
+As with the <a href="http://stevenpemberton.net/archive/tags/Emulation.html">other posts</a> in the series, I have emulated the sequential logic chips defined in the book using F#.</p>
+
+<p>In the <a href="http://stevenpemberton.net/blog/2015/07/02/FSharp-Logic-Emulation/">previous post</a> I sidetracked from the book in order to investigate what constituted a Data Flip Flop.
+The result, was a greater understanding of the sequential ordering of combinatorial chips in order to achieve state retention.</p>
+
+<p>From the DFF, we can now look towards building the constructs that the book outlines.<br />
+These include:</p>
+
+<ul>
+<li>Registers - Starting from simple 1 bit stores</li>
+<li>RAM chips - In various sizes</li>
+<li>Counters - Counts sequentially per execution and can be reset or loaded as required</li>
+</ul>
+
+<p>As always, I will outline the representation of these chips using chips from previous stages of the book, but also define a more idiomatic F# approach as well.</p>
+
+<!-- more -->
+
+<h1>Revisiting the Flip Flop</h1>
+
+<p>For simplicities sake and to avoid people having to refer back, I will first redefine the Data Flip Flop from the <a href="http://stevenpemberton.net/blog/2015/07/02/FSharp-Logic-Emulation/">previous post</a>.<br />
+While I'm at it, I'll remove all its dependencies on other gates/chips so it is clear it functions precisely as expected.</p>
+
+<p>As stated by the book, the DFFs intention is to take and return a single bit, where the bit returned is the state from the previous clock cycle.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+<span class="l">9: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs5', 5)" onmouseover="showTip(event, 'fs5', 5)" class="i">DFF</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 6)" onmouseover="showTip(event, 'fs6', 6)" class="i">Chip</span>()
+    <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs7', 7)" onmouseover="showTip(event, 'fs7', 7)" class="i">state</span> <span class="o">=</span> <span class="n">0s</span>
+    <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs8', 8)" onmouseover="showTip(event, 'fs8', 8)" class="i">pState</span> <span class="o">=</span> <span class="n">0s</span>
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs9', 9)" onmouseover="showTip(event, 'fs9', 9)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs10', 10)" onmouseover="showTip(event, 'fs10', 10)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 11)" onmouseover="showTip(event, 'fs11', 11)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 12)" onmouseover="showTip(event, 'fs12', 12)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">match</span> <span onmouseout="hideTip(event, 'fs11', 13)" onmouseover="showTip(event, 'fs11', 13)" class="i">clk</span> <span class="k">with</span> <span class="c">//Only set the state on a tick - The falling edge</span>
+        | <span onmouseout="hideTip(event, 'fs11', 14)" onmouseover="showTip(event, 'fs11', 14)" class="i">clk</span><span class="o">.</span><span class="i">Tick</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs7', 15)" onmouseover="showTip(event, 'fs7', 15)" class="i">state</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs8', 16)" onmouseover="showTip(event, 'fs8', 16)" class="i">pState</span>
+        | _ <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs8', 17)" onmouseover="showTip(event, 'fs8', 17)" class="i">pState</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs12', 18)" onmouseover="showTip(event, 'fs12', 18)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>]
+        [|<span onmouseout="hideTip(event, 'fs7', 19)" onmouseover="showTip(event, 'fs7', 19)" class="i">state</span>|]</pre>
+</td>
+</tr>
+</table>
+
+<p>Now that we have our DFF implementation to work with, lets move on to the first of the chips required in the book, the register.</p>
+
+<h1>Registers</h1>
+
+<p>Registers vary in size from a single bit to multi bit stores.<br />
+The amount of bits that a register can store is known as its width. The contents of a register are referred to as a word.
+Hence a registers width is also the word size.</p>
+
+<p>In order to create multi bit registers we must first start with a binary cell.</p>
+
+<h2>The Binary Cell</h2>
+
+<p>A binary cell is a single bit register. 
+It is created by making use of a DFF, a multiplexor and a pair of inputs.</p>
+
+<p>The basic premise is that we feed the DFFs output into one of the multiplexors inputs, while the other comes from an input to the chip.</p>
+
+<p>The other chip input is a load bit. This bit is used to control whether or not to replace the value held in the store.<br />
+When load is set, the incoming value to the chip is selected by the multiplexor and passed to the DFF.
+When load is not set, the DFF value is passed back to itself, hence holding its state.</p>
+
+<p>It's a beautifully simple design, and also easy to represent like so.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">//Binary Cell</span>
+<span class="c">//Stores a single bit.</span>
+<span class="c">//The Mux chip acts as a selector on whether to store a new value or keep hold of the old DFF value</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs13', 20)" onmouseover="showTip(event, 'fs13', 20)" class="i">Bit</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 21)" onmouseover="showTip(event, 'fs6', 21)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs14', 22)" onmouseover="showTip(event, 'fs14', 22)" class="i">dff</span> <span class="o">=</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs5', 23)" onmouseover="showTip(event, 'fs5', 23)" class="i">DFF</span>()
+    <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs7', 24)" onmouseover="showTip(event, 'fs7', 24)" class="i">state</span> <span class="o">=</span> <span class="n">0s</span>
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs15', 25)" onmouseover="showTip(event, 'fs15', 25)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs16', 26)" onmouseover="showTip(event, 'fs16', 26)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 27)" onmouseover="showTip(event, 'fs11', 27)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 28)" onmouseover="showTip(event, 'fs12', 28)" class="i">inputs</span> <span class="o">=</span>
+        <span onmouseout="hideTip(event, 'fs7', 29)" onmouseover="showTip(event, 'fs7', 29)" class="i">state</span> <span class="o">&lt;-</span>([|<span onmouseout="hideTip(event, 'fs17', 30)" onmouseover="showTip(event, 'fs17', 30)" class="i">Mux</span> <span onmouseout="hideTip(event, 'fs12', 31)" onmouseover="showTip(event, 'fs12', 31)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs7', 32)" onmouseover="showTip(event, 'fs7', 32)" class="i">state</span> <span onmouseout="hideTip(event, 'fs12', 33)" onmouseover="showTip(event, 'fs12', 33)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>]|]
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs14', 34)" onmouseover="showTip(event, 'fs14', 34)" class="i">dff</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 35)" onmouseover="showTip(event, 'fs18', 35)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 36)" onmouseover="showTip(event, 'fs11', 36)" class="i">clk</span>)<span class="o">.</span>[<span class="n">0</span>]
+        [|<span onmouseout="hideTip(event, 'fs7', 37)" onmouseover="showTip(event, 'fs7', 37)" class="i">state</span>|]</pre>
+</td>
+</tr>
+</table>
+
+<h2>Multi Bit Registers</h2>
+
+<p>Now we have our binary cell, it's an incredibly easy task to create n-bit registers. We simply create an n size array of binary cells.<br />
+In order to use an n-bit register we pass each input bit to the registers in turn, along with the load bit.</p>
+
+<p>The book calls for a 16 bit register, an implementation of which can be seen below.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">//A 16 bit register </span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs19', 38)" onmouseover="showTip(event, 'fs19', 38)" class="i">Register</span>() <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 39)" onmouseover="showTip(event, 'fs6', 39)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs20', 40)" onmouseover="showTip(event, 'fs20', 40)" class="i">bits</span> <span class="o">=</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 41)" onmouseover="showTip(event, 'fs21', 41)" class="i">i</span> <span class="k">in</span> <span class="n">1</span> <span class="o">..</span> <span class="n">16</span> <span class="k">-&gt;</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs13', 42)" onmouseover="showTip(event, 'fs13', 42)" class="i">Bit</span>()|]
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs22', 43)" onmouseover="showTip(event, 'fs22', 43)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs23', 44)" onmouseover="showTip(event, 'fs23', 44)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 45)" onmouseover="showTip(event, 'fs11', 45)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 46)" onmouseover="showTip(event, 'fs12', 46)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs24', 47)" onmouseover="showTip(event, 'fs24', 47)" class="i">inBits</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs12', 48)" onmouseover="showTip(event, 'fs12', 48)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>] <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 49)" onmouseover="showTip(event, 'fs25', 49)" class="i">toTwosCompliment</span> <span class="n">16</span>
+        <span onmouseout="hideTip(event, 'fs20', 50)" onmouseover="showTip(event, 'fs20', 50)" class="i">bits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs26', 51)" onmouseover="showTip(event, 'fs26', 51)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs27', 52)" onmouseover="showTip(event, 'fs27', 52)" class="i">mapi</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs21', 53)" onmouseover="showTip(event, 'fs21', 53)" class="i">i</span> <span onmouseout="hideTip(event, 'fs28', 54)" onmouseover="showTip(event, 'fs28', 54)" class="i">b</span> <span class="k">-&gt;</span> ([|<span onmouseout="hideTip(event, 'fs12', 55)" onmouseover="showTip(event, 'fs12', 55)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>]; <span onmouseout="hideTip(event, 'fs24', 56)" onmouseover="showTip(event, 'fs24', 56)" class="i">inBits</span><span class="o">.</span>[<span onmouseout="hideTip(event, 'fs21', 57)" onmouseover="showTip(event, 'fs21', 57)" class="i">i</span>]|] 
+                                        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs28', 58)" onmouseover="showTip(event, 'fs28', 58)" class="i">b</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 59)" onmouseover="showTip(event, 'fs18', 59)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 60)" onmouseover="showTip(event, 'fs11', 60)" class="i">clk</span>)<span class="o">.</span>[<span class="n">0</span>])</pre>
+</td>
+</tr>
+</table>
+
+<p>I chose to utilise Array.map in order to process the output of each registers execution into the resulting array.<br />
+If we were sticking to the Hardware Definition Language (HDL) used in the book, this would have to be 16 individual statements.<br />
+I will stick to this approach going forward as it reduces code and is more inline with standard F#, however it brings with it the consequence of detracting from the book.</p>
+
+<p>Well, creating the register was easy.<br />
+Onto, the RAM!</p>
+
+<h1>RAM Chips</h1>
+
+<p>Random Access Memory (RAM) chips have both a width and a size.</p>
+
+<p>As we have just seen, the width is the amount of bits held in each register. (We will stick to the books requirement of 16 bits here)<br />
+Size is the number of registers in the the array that makes up the RAM chip.</p>
+
+<p>The tricky part of creating a RAM chip comes when providing random access to any word (registers content) held in the chip, at equal speed.<br />
+To accomplish this, each register needs to be given an address in the form of an integer value.<br />
+The RAM then provides some access logic that can select the required register and either output or set its value.</p>
+
+<p>Therefore RAM chips have three inputs, The value to store, an address and a load bit.</p>
+
+<p>The logic for the addressing works as follows:</p>
+
+<ul>
+<li>First we run the load bit and the binary representation of the integer address through a DMux8Way chip.
+This has the effect of creating an 8 bit array with the load bit in the correct position.</li>
+<li>Next we push the input value to be stored into each of the registers along with the corresponding load bit from the previously created array. This results in the correct array being set.</li>
+<li>Finally we run the value of each of the registers through a Mux8WayChip, along with the address in order to select the correct word to return.</li>
+</ul>
+
+<p>Below is the implementation of an 8 Register RAM chip.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="c">//A 16 bit wide 8 register array.</span>
+<span class="c">//Utilises Mux and DMux to select the correct register to store the value in</span>
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs29', 61)" onmouseover="showTip(event, 'fs29', 61)" class="i">RAM8</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 62)" onmouseover="showTip(event, 'fs6', 62)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs30', 63)" onmouseover="showTip(event, 'fs30', 63)" class="i">registers</span> <span class="o">=</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 64)" onmouseover="showTip(event, 'fs21', 64)" class="i">i</span> <span class="k">in</span> <span class="n">1</span> <span class="o">..</span> <span class="n">8</span> <span class="k">-&gt;</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs19', 65)" onmouseover="showTip(event, 'fs19', 65)" class="i">Register</span>()|]
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs31', 66)" onmouseover="showTip(event, 'fs31', 66)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs32', 67)" onmouseover="showTip(event, 'fs32', 67)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 68)" onmouseover="showTip(event, 'fs11', 68)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 69)" onmouseover="showTip(event, 'fs12', 69)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs33', 70)" onmouseover="showTip(event, 'fs33', 70)" class="i">inBits</span>, <span onmouseout="hideTip(event, 'fs34', 71)" onmouseover="showTip(event, 'fs34', 71)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs35', 72)" onmouseover="showTip(event, 'fs35', 72)" class="i">address</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs12', 73)" onmouseover="showTip(event, 'fs12', 73)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>], <span onmouseout="hideTip(event, 'fs12', 74)" onmouseover="showTip(event, 'fs12', 74)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>], <span onmouseout="hideTip(event, 'fs12', 75)" onmouseover="showTip(event, 'fs12', 75)" class="i">inputs</span><span class="o">.</span>[<span class="n">2</span>] <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 76)" onmouseover="showTip(event, 'fs25', 76)" class="i">toTwosCompliment</span> <span class="n">3</span>)
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs36', 77)" onmouseover="showTip(event, 'fs36', 77)" class="i">loadArray</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs37', 78)" onmouseover="showTip(event, 'fs37', 78)" class="i">DMux8Way</span> <span onmouseout="hideTip(event, 'fs34', 79)" onmouseover="showTip(event, 'fs34', 79)" class="i">load</span> <span onmouseout="hideTip(event, 'fs35', 80)" onmouseover="showTip(event, 'fs35', 80)" class="i">address</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs38', 81)" onmouseover="showTip(event, 'fs38', 81)" class="i">state</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs30', 82)" onmouseover="showTip(event, 'fs30', 82)" class="i">registers</span> 
+                    <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs26', 83)" onmouseover="showTip(event, 'fs26', 83)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs27', 84)" onmouseover="showTip(event, 'fs27', 84)" class="i">mapi</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs21', 85)" onmouseover="showTip(event, 'fs21', 85)" class="i">i</span> <span onmouseout="hideTip(event, 'fs39', 86)" onmouseover="showTip(event, 'fs39', 86)" class="i">r</span> <span class="k">-&gt;</span> [|<span onmouseout="hideTip(event, 'fs33', 87)" onmouseover="showTip(event, 'fs33', 87)" class="i">inBits</span>; <span onmouseout="hideTip(event, 'fs36', 88)" onmouseover="showTip(event, 'fs36', 88)" class="i">loadArray</span><span class="o">.</span>[<span onmouseout="hideTip(event, 'fs21', 89)" onmouseover="showTip(event, 'fs21', 89)" class="i">i</span>]|]
+                                              <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs39', 90)" onmouseover="showTip(event, 'fs39', 90)" class="i">r</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 91)" onmouseover="showTip(event, 'fs18', 91)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 92)" onmouseover="showTip(event, 'fs11', 92)" class="i">clk</span>)
+        <span onmouseout="hideTip(event, 'fs40', 93)" onmouseover="showTip(event, 'fs40', 93)" class="i">Mux8Way16</span> <span onmouseout="hideTip(event, 'fs38', 94)" onmouseover="showTip(event, 'fs38', 94)" class="i">state</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs38', 95)" onmouseover="showTip(event, 'fs38', 95)" class="i">state</span><span class="o">.</span>[<span class="n">1</span>] <span onmouseout="hideTip(event, 'fs38', 96)" onmouseover="showTip(event, 'fs38', 96)" class="i">state</span><span class="o">.</span>[<span class="n">2</span>] <span onmouseout="hideTip(event, 'fs38', 97)" onmouseover="showTip(event, 'fs38', 97)" class="i">state</span><span class="o">.</span>[<span class="n">3</span>] <span onmouseout="hideTip(event, 'fs38', 98)" onmouseover="showTip(event, 'fs38', 98)" class="i">state</span><span class="o">.</span>[<span class="n">4</span>] <span onmouseout="hideTip(event, 'fs38', 99)" onmouseover="showTip(event, 'fs38', 99)" class="i">state</span><span class="o">.</span>[<span class="n">5</span>] <span onmouseout="hideTip(event, 'fs38', 100)" onmouseover="showTip(event, 'fs38', 100)" class="i">state</span><span class="o">.</span>[<span class="n">6</span>] <span onmouseout="hideTip(event, 'fs38', 101)" onmouseover="showTip(event, 'fs38', 101)" class="i">state</span><span class="o">.</span>[<span class="n">7</span>] <span onmouseout="hideTip(event, 'fs35', 102)" onmouseover="showTip(event, 'fs35', 102)" class="i">address</span></pre>
+</td>
+</tr>
+</table>
+
+<p>The RAM chips are built sequentially to utilise the previous implementations (As with most of the chips we have created).<br />
+We use blocks of 8 registers as our standard. So in the case of a 64 register RAM block, we can make it from 8, 8 register RAM blocks.</p>
+
+<p>The 64 register RAM chip can be seen below.<br />
+It is much the same as the 8 register chip except that it now requires a larger binary address. To be exact it now requires 6 bits, where as the 8 register RAM chip required 3 bits.<br />
+This follows the rule <code>bits = log2n</code> where n is the number of registers.</p>
+
+<p>Therefore we need to repeat a little bit of the selection logic from the previous chip.<br />
+We take the 3 most significant bits (MSB) and use them to select one of the RAM8 chips.  <br />
+The remaining 3 bits are then passed on to this chip in order to select one of the registers within it. Nice and recursive!</p>
+
+<p>So here it is, the 64 register RAM chip:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l">1: </span>
+<span class="l">2: </span>
+<span class="l">3: </span>
+<span class="l">4: </span>
+<span class="l">5: </span>
+<span class="l">6: </span>
+<span class="l">7: </span>
+<span class="l">8: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs41', 103)" onmouseover="showTip(event, 'fs41', 103)" class="i">RAM64</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 104)" onmouseover="showTip(event, 'fs6', 104)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs42', 105)" onmouseover="showTip(event, 'fs42', 105)" class="i">ramArray</span> <span class="o">=</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 106)" onmouseover="showTip(event, 'fs21', 106)" class="i">i</span> <span class="k">in</span> <span class="n">1</span> <span class="o">..</span> <span class="n">8</span> <span class="k">-&gt;</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs29', 107)" onmouseover="showTip(event, 'fs29', 107)" class="i">RAM8</span>()|]
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs43', 108)" onmouseover="showTip(event, 'fs43', 108)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs44', 109)" onmouseover="showTip(event, 'fs44', 109)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 110)" onmouseover="showTip(event, 'fs11', 110)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 111)" onmouseover="showTip(event, 'fs12', 111)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs33', 112)" onmouseover="showTip(event, 'fs33', 112)" class="i">inBits</span>, <span onmouseout="hideTip(event, 'fs34', 113)" onmouseover="showTip(event, 'fs34', 113)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs35', 114)" onmouseover="showTip(event, 'fs35', 114)" class="i">address</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs12', 115)" onmouseover="showTip(event, 'fs12', 115)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>], <span onmouseout="hideTip(event, 'fs12', 116)" onmouseover="showTip(event, 'fs12', 116)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>], <span onmouseout="hideTip(event, 'fs12', 117)" onmouseover="showTip(event, 'fs12', 117)" class="i">inputs</span><span class="o">.</span>[<span class="n">2</span>] <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 118)" onmouseover="showTip(event, 'fs25', 118)" class="i">toTwosCompliment</span> <span class="n">6</span>)
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs45', 119)" onmouseover="showTip(event, 'fs45', 119)" class="i">ramLoad</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs37', 120)" onmouseover="showTip(event, 'fs37', 120)" class="i">DMux8Way</span> <span onmouseout="hideTip(event, 'fs34', 121)" onmouseover="showTip(event, 'fs34', 121)" class="i">load</span> <span onmouseout="hideTip(event, 'fs35', 122)" onmouseover="showTip(event, 'fs35', 122)" class="i">address</span><span class="o">.</span>[<span class="n">0..</span><span class="n">2</span>]
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs38', 123)" onmouseover="showTip(event, 'fs38', 123)" class="i">state</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs42', 124)" onmouseover="showTip(event, 'fs42', 124)" class="i">ramArray</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs26', 125)" onmouseover="showTip(event, 'fs26', 125)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs27', 126)" onmouseover="showTip(event, 'fs27', 126)" class="i">mapi</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs21', 127)" onmouseover="showTip(event, 'fs21', 127)" class="i">i</span> <span onmouseout="hideTip(event, 'fs46', 128)" onmouseover="showTip(event, 'fs46', 128)" class="i">r</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs46', 129)" onmouseover="showTip(event, 'fs46', 129)" class="i">r</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 130)" onmouseover="showTip(event, 'fs18', 130)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 131)" onmouseover="showTip(event, 'fs11', 131)" class="i">clk</span> [|<span onmouseout="hideTip(event, 'fs33', 132)" onmouseover="showTip(event, 'fs33', 132)" class="i">inBits</span>; <span onmouseout="hideTip(event, 'fs45', 133)" onmouseover="showTip(event, 'fs45', 133)" class="i">ramLoad</span><span class="o">.</span>[<span onmouseout="hideTip(event, 'fs21', 134)" onmouseover="showTip(event, 'fs21', 134)" class="i">i</span>]; (<span onmouseout="hideTip(event, 'fs47', 135)" onmouseover="showTip(event, 'fs47', 135)" class="i">toDecimal</span> <span class="n">16</span> <span onmouseout="hideTip(event, 'fs35', 136)" onmouseover="showTip(event, 'fs35', 136)" class="i">address</span><span class="o">.</span>[<span class="n">3..</span><span class="n">5</span>]) |])
+        <span onmouseout="hideTip(event, 'fs40', 137)" onmouseover="showTip(event, 'fs40', 137)" class="i">Mux8Way16</span> <span onmouseout="hideTip(event, 'fs38', 138)" onmouseover="showTip(event, 'fs38', 138)" class="i">state</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs38', 139)" onmouseover="showTip(event, 'fs38', 139)" class="i">state</span><span class="o">.</span>[<span class="n">1</span>] <span onmouseout="hideTip(event, 'fs38', 140)" onmouseover="showTip(event, 'fs38', 140)" class="i">state</span><span class="o">.</span>[<span class="n">2</span>] <span onmouseout="hideTip(event, 'fs38', 141)" onmouseover="showTip(event, 'fs38', 141)" class="i">state</span><span class="o">.</span>[<span class="n">3</span>] <span onmouseout="hideTip(event, 'fs38', 142)" onmouseover="showTip(event, 'fs38', 142)" class="i">state</span><span class="o">.</span>[<span class="n">4</span>] <span onmouseout="hideTip(event, 'fs38', 143)" onmouseover="showTip(event, 'fs38', 143)" class="i">state</span><span class="o">.</span>[<span class="n">5</span>] <span onmouseout="hideTip(event, 'fs38', 144)" onmouseover="showTip(event, 'fs38', 144)" class="i">state</span><span class="o">.</span>[<span class="n">6</span>] <span onmouseout="hideTip(event, 'fs38', 145)" onmouseover="showTip(event, 'fs38', 145)" class="i">state</span><span class="o">.</span>[<span class="n">7</span>] <span onmouseout="hideTip(event, 'fs35', 146)" onmouseover="showTip(event, 'fs35', 146)" class="i">address</span></pre>
+</td>
+</tr>
+</table>
+
+<p>This pattern then continues as many times as we like.  <br />
+The book calls for up to a 16 thousand Register RAM block. You can see the implementations below.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+<span class="l">20: </span>
+<span class="l">21: </span>
+<span class="l">22: </span>
+<span class="l">23: </span>
+<span class="l">24: </span>
+<span class="l">25: </span>
+<span class="l">26: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs48', 147)" onmouseover="showTip(event, 'fs48', 147)" class="i">RAM512</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 148)" onmouseover="showTip(event, 'fs6', 148)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs49', 149)" onmouseover="showTip(event, 'fs49', 149)" class="i">ramArray</span> <span class="o">=</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 150)" onmouseover="showTip(event, 'fs21', 150)" class="i">i</span> <span class="k">in</span> <span class="n">1</span> <span class="o">..</span> <span class="n">8</span> <span class="k">-&gt;</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs41', 151)" onmouseover="showTip(event, 'fs41', 151)" class="i">RAM64</span>()|]
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs50', 152)" onmouseover="showTip(event, 'fs50', 152)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs51', 153)" onmouseover="showTip(event, 'fs51', 153)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 154)" onmouseover="showTip(event, 'fs11', 154)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 155)" onmouseover="showTip(event, 'fs12', 155)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs33', 156)" onmouseover="showTip(event, 'fs33', 156)" class="i">inBits</span>, <span onmouseout="hideTip(event, 'fs34', 157)" onmouseover="showTip(event, 'fs34', 157)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs35', 158)" onmouseover="showTip(event, 'fs35', 158)" class="i">address</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs12', 159)" onmouseover="showTip(event, 'fs12', 159)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>], <span onmouseout="hideTip(event, 'fs12', 160)" onmouseover="showTip(event, 'fs12', 160)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>], <span onmouseout="hideTip(event, 'fs12', 161)" onmouseover="showTip(event, 'fs12', 161)" class="i">inputs</span><span class="o">.</span>[<span class="n">2</span>] <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 162)" onmouseover="showTip(event, 'fs25', 162)" class="i">toTwosCompliment</span> <span class="n">9</span>)
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs45', 163)" onmouseover="showTip(event, 'fs45', 163)" class="i">ramLoad</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs37', 164)" onmouseover="showTip(event, 'fs37', 164)" class="i">DMux8Way</span> <span onmouseout="hideTip(event, 'fs34', 165)" onmouseover="showTip(event, 'fs34', 165)" class="i">load</span> <span onmouseout="hideTip(event, 'fs35', 166)" onmouseover="showTip(event, 'fs35', 166)" class="i">address</span><span class="o">.</span>[<span class="n">0..</span><span class="n">2</span>]
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs38', 167)" onmouseover="showTip(event, 'fs38', 167)" class="i">state</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs49', 168)" onmouseover="showTip(event, 'fs49', 168)" class="i">ramArray</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs26', 169)" onmouseover="showTip(event, 'fs26', 169)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs27', 170)" onmouseover="showTip(event, 'fs27', 170)" class="i">mapi</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs21', 171)" onmouseover="showTip(event, 'fs21', 171)" class="i">i</span> <span onmouseout="hideTip(event, 'fs52', 172)" onmouseover="showTip(event, 'fs52', 172)" class="i">r</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs52', 173)" onmouseover="showTip(event, 'fs52', 173)" class="i">r</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 174)" onmouseover="showTip(event, 'fs18', 174)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 175)" onmouseover="showTip(event, 'fs11', 175)" class="i">clk</span> [|<span onmouseout="hideTip(event, 'fs33', 176)" onmouseover="showTip(event, 'fs33', 176)" class="i">inBits</span>; <span onmouseout="hideTip(event, 'fs45', 177)" onmouseover="showTip(event, 'fs45', 177)" class="i">ramLoad</span><span class="o">.</span>[<span onmouseout="hideTip(event, 'fs21', 178)" onmouseover="showTip(event, 'fs21', 178)" class="i">i</span>]; (<span onmouseout="hideTip(event, 'fs47', 179)" onmouseover="showTip(event, 'fs47', 179)" class="i">toDecimal</span> <span class="n">16</span> <span onmouseout="hideTip(event, 'fs35', 180)" onmouseover="showTip(event, 'fs35', 180)" class="i">address</span><span class="o">.</span>[<span class="n">3..</span><span class="n">8</span>]) |])
+        <span onmouseout="hideTip(event, 'fs40', 181)" onmouseover="showTip(event, 'fs40', 181)" class="i">Mux8Way16</span> <span onmouseout="hideTip(event, 'fs38', 182)" onmouseover="showTip(event, 'fs38', 182)" class="i">state</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs38', 183)" onmouseover="showTip(event, 'fs38', 183)" class="i">state</span><span class="o">.</span>[<span class="n">1</span>] <span onmouseout="hideTip(event, 'fs38', 184)" onmouseover="showTip(event, 'fs38', 184)" class="i">state</span><span class="o">.</span>[<span class="n">2</span>] <span onmouseout="hideTip(event, 'fs38', 185)" onmouseover="showTip(event, 'fs38', 185)" class="i">state</span><span class="o">.</span>[<span class="n">3</span>] <span onmouseout="hideTip(event, 'fs38', 186)" onmouseover="showTip(event, 'fs38', 186)" class="i">state</span><span class="o">.</span>[<span class="n">4</span>] <span onmouseout="hideTip(event, 'fs38', 187)" onmouseover="showTip(event, 'fs38', 187)" class="i">state</span><span class="o">.</span>[<span class="n">5</span>] <span onmouseout="hideTip(event, 'fs38', 188)" onmouseover="showTip(event, 'fs38', 188)" class="i">state</span><span class="o">.</span>[<span class="n">6</span>] <span onmouseout="hideTip(event, 'fs38', 189)" onmouseover="showTip(event, 'fs38', 189)" class="i">state</span><span class="o">.</span>[<span class="n">7</span>] <span onmouseout="hideTip(event, 'fs35', 190)" onmouseover="showTip(event, 'fs35', 190)" class="i">address</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs53', 191)" onmouseover="showTip(event, 'fs53', 191)" class="i">RAM4k</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 192)" onmouseover="showTip(event, 'fs6', 192)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs54', 193)" onmouseover="showTip(event, 'fs54', 193)" class="i">ramArray</span> <span class="o">=</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 194)" onmouseover="showTip(event, 'fs21', 194)" class="i">i</span> <span class="k">in</span> <span class="n">1</span> <span class="o">..</span> <span class="n">8</span> <span class="k">-&gt;</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs48', 195)" onmouseover="showTip(event, 'fs48', 195)" class="i">RAM512</span>()|]
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs55', 196)" onmouseover="showTip(event, 'fs55', 196)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs56', 197)" onmouseover="showTip(event, 'fs56', 197)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 198)" onmouseover="showTip(event, 'fs11', 198)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 199)" onmouseover="showTip(event, 'fs12', 199)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs33', 200)" onmouseover="showTip(event, 'fs33', 200)" class="i">inBits</span>, <span onmouseout="hideTip(event, 'fs34', 201)" onmouseover="showTip(event, 'fs34', 201)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs35', 202)" onmouseover="showTip(event, 'fs35', 202)" class="i">address</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs12', 203)" onmouseover="showTip(event, 'fs12', 203)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>], <span onmouseout="hideTip(event, 'fs12', 204)" onmouseover="showTip(event, 'fs12', 204)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>], <span onmouseout="hideTip(event, 'fs12', 205)" onmouseover="showTip(event, 'fs12', 205)" class="i">inputs</span><span class="o">.</span>[<span class="n">2</span>] <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 206)" onmouseover="showTip(event, 'fs25', 206)" class="i">toTwosCompliment</span> <span class="n">12</span>)
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs45', 207)" onmouseover="showTip(event, 'fs45', 207)" class="i">ramLoad</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs37', 208)" onmouseover="showTip(event, 'fs37', 208)" class="i">DMux8Way</span> <span onmouseout="hideTip(event, 'fs34', 209)" onmouseover="showTip(event, 'fs34', 209)" class="i">load</span> <span onmouseout="hideTip(event, 'fs35', 210)" onmouseover="showTip(event, 'fs35', 210)" class="i">address</span><span class="o">.</span>[<span class="n">0..</span><span class="n">2</span>]
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs38', 211)" onmouseover="showTip(event, 'fs38', 211)" class="i">state</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs54', 212)" onmouseover="showTip(event, 'fs54', 212)" class="i">ramArray</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs26', 213)" onmouseover="showTip(event, 'fs26', 213)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs27', 214)" onmouseover="showTip(event, 'fs27', 214)" class="i">mapi</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs21', 215)" onmouseover="showTip(event, 'fs21', 215)" class="i">i</span> <span onmouseout="hideTip(event, 'fs57', 216)" onmouseover="showTip(event, 'fs57', 216)" class="i">r</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs57', 217)" onmouseover="showTip(event, 'fs57', 217)" class="i">r</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 218)" onmouseover="showTip(event, 'fs18', 218)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 219)" onmouseover="showTip(event, 'fs11', 219)" class="i">clk</span> [|<span onmouseout="hideTip(event, 'fs33', 220)" onmouseover="showTip(event, 'fs33', 220)" class="i">inBits</span>; <span onmouseout="hideTip(event, 'fs45', 221)" onmouseover="showTip(event, 'fs45', 221)" class="i">ramLoad</span><span class="o">.</span>[<span onmouseout="hideTip(event, 'fs21', 222)" onmouseover="showTip(event, 'fs21', 222)" class="i">i</span>]; (<span onmouseout="hideTip(event, 'fs47', 223)" onmouseover="showTip(event, 'fs47', 223)" class="i">toDecimal</span> <span class="n">16</span> <span onmouseout="hideTip(event, 'fs35', 224)" onmouseover="showTip(event, 'fs35', 224)" class="i">address</span><span class="o">.</span>[<span class="n">3..</span><span class="n">11</span>]) |])
+        <span onmouseout="hideTip(event, 'fs40', 225)" onmouseover="showTip(event, 'fs40', 225)" class="i">Mux8Way16</span> <span onmouseout="hideTip(event, 'fs38', 226)" onmouseover="showTip(event, 'fs38', 226)" class="i">state</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs38', 227)" onmouseover="showTip(event, 'fs38', 227)" class="i">state</span><span class="o">.</span>[<span class="n">1</span>] <span onmouseout="hideTip(event, 'fs38', 228)" onmouseover="showTip(event, 'fs38', 228)" class="i">state</span><span class="o">.</span>[<span class="n">2</span>] <span onmouseout="hideTip(event, 'fs38', 229)" onmouseover="showTip(event, 'fs38', 229)" class="i">state</span><span class="o">.</span>[<span class="n">3</span>] <span onmouseout="hideTip(event, 'fs38', 230)" onmouseover="showTip(event, 'fs38', 230)" class="i">state</span><span class="o">.</span>[<span class="n">4</span>] <span onmouseout="hideTip(event, 'fs38', 231)" onmouseover="showTip(event, 'fs38', 231)" class="i">state</span><span class="o">.</span>[<span class="n">5</span>] <span onmouseout="hideTip(event, 'fs38', 232)" onmouseover="showTip(event, 'fs38', 232)" class="i">state</span><span class="o">.</span>[<span class="n">6</span>] <span onmouseout="hideTip(event, 'fs38', 233)" onmouseover="showTip(event, 'fs38', 233)" class="i">state</span><span class="o">.</span>[<span class="n">7</span>] <span onmouseout="hideTip(event, 'fs35', 234)" onmouseover="showTip(event, 'fs35', 234)" class="i">address</span>
+
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs58', 235)" onmouseover="showTip(event, 'fs58', 235)" class="i">RAM16k</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 236)" onmouseover="showTip(event, 'fs6', 236)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs59', 237)" onmouseover="showTip(event, 'fs59', 237)" class="i">ramArray</span> <span class="o">=</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 238)" onmouseover="showTip(event, 'fs21', 238)" class="i">i</span> <span class="k">in</span> <span class="n">1</span> <span class="o">..</span> <span class="n">4</span> <span class="k">-&gt;</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs53', 239)" onmouseover="showTip(event, 'fs53', 239)" class="i">RAM4k</span>()|]
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs60', 240)" onmouseover="showTip(event, 'fs60', 240)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs61', 241)" onmouseover="showTip(event, 'fs61', 241)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 242)" onmouseover="showTip(event, 'fs11', 242)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 243)" onmouseover="showTip(event, 'fs12', 243)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs33', 244)" onmouseover="showTip(event, 'fs33', 244)" class="i">inBits</span>, <span onmouseout="hideTip(event, 'fs34', 245)" onmouseover="showTip(event, 'fs34', 245)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs35', 246)" onmouseover="showTip(event, 'fs35', 246)" class="i">address</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs12', 247)" onmouseover="showTip(event, 'fs12', 247)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>], <span onmouseout="hideTip(event, 'fs12', 248)" onmouseover="showTip(event, 'fs12', 248)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>], <span onmouseout="hideTip(event, 'fs12', 249)" onmouseover="showTip(event, 'fs12', 249)" class="i">inputs</span><span class="o">.</span>[<span class="n">2</span>] <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 250)" onmouseover="showTip(event, 'fs25', 250)" class="i">toTwosCompliment</span> <span class="n">16</span>)
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs45', 251)" onmouseover="showTip(event, 'fs45', 251)" class="i">ramLoad</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs37', 252)" onmouseover="showTip(event, 'fs37', 252)" class="i">DMux8Way</span> <span onmouseout="hideTip(event, 'fs34', 253)" onmouseover="showTip(event, 'fs34', 253)" class="i">load</span> <span onmouseout="hideTip(event, 'fs35', 254)" onmouseover="showTip(event, 'fs35', 254)" class="i">address</span><span class="o">.</span>[<span class="n">0..</span><span class="n">2</span>]
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs38', 255)" onmouseover="showTip(event, 'fs38', 255)" class="i">state</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs59', 256)" onmouseover="showTip(event, 'fs59', 256)" class="i">ramArray</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs26', 257)" onmouseover="showTip(event, 'fs26', 257)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs27', 258)" onmouseover="showTip(event, 'fs27', 258)" class="i">mapi</span> (<span class="k">fun</span> <span onmouseout="hideTip(event, 'fs21', 259)" onmouseover="showTip(event, 'fs21', 259)" class="i">i</span> <span onmouseout="hideTip(event, 'fs62', 260)" onmouseover="showTip(event, 'fs62', 260)" class="i">r</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs62', 261)" onmouseover="showTip(event, 'fs62', 261)" class="i">r</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 262)" onmouseover="showTip(event, 'fs18', 262)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 263)" onmouseover="showTip(event, 'fs11', 263)" class="i">clk</span> [|<span onmouseout="hideTip(event, 'fs33', 264)" onmouseover="showTip(event, 'fs33', 264)" class="i">inBits</span>; <span onmouseout="hideTip(event, 'fs45', 265)" onmouseover="showTip(event, 'fs45', 265)" class="i">ramLoad</span><span class="o">.</span>[<span onmouseout="hideTip(event, 'fs21', 266)" onmouseover="showTip(event, 'fs21', 266)" class="i">i</span>]; (<span onmouseout="hideTip(event, 'fs47', 267)" onmouseover="showTip(event, 'fs47', 267)" class="i">toDecimal</span> <span class="n">16</span> <span onmouseout="hideTip(event, 'fs35', 268)" onmouseover="showTip(event, 'fs35', 268)" class="i">address</span><span class="o">.</span>[<span class="n">3..</span><span class="n">13</span>]) |])
+        <span onmouseout="hideTip(event, 'fs40', 269)" onmouseover="showTip(event, 'fs40', 269)" class="i">Mux8Way16</span> <span onmouseout="hideTip(event, 'fs38', 270)" onmouseover="showTip(event, 'fs38', 270)" class="i">state</span><span class="o">.</span>[<span class="n">0</span>] <span onmouseout="hideTip(event, 'fs38', 271)" onmouseover="showTip(event, 'fs38', 271)" class="i">state</span><span class="o">.</span>[<span class="n">1</span>] <span onmouseout="hideTip(event, 'fs38', 272)" onmouseover="showTip(event, 'fs38', 272)" class="i">state</span><span class="o">.</span>[<span class="n">2</span>] <span onmouseout="hideTip(event, 'fs38', 273)" onmouseover="showTip(event, 'fs38', 273)" class="i">state</span><span class="o">.</span>[<span class="n">3</span>] <span onmouseout="hideTip(event, 'fs38', 274)" onmouseover="showTip(event, 'fs38', 274)" class="i">state</span><span class="o">.</span>[<span class="n">4</span>] <span onmouseout="hideTip(event, 'fs38', 275)" onmouseover="showTip(event, 'fs38', 275)" class="i">state</span><span class="o">.</span>[<span class="n">5</span>] <span onmouseout="hideTip(event, 'fs38', 276)" onmouseover="showTip(event, 'fs38', 276)" class="i">state</span><span class="o">.</span>[<span class="n">6</span>] <span onmouseout="hideTip(event, 'fs38', 277)" onmouseover="showTip(event, 'fs38', 277)" class="i">state</span><span class="o">.</span>[<span class="n">7</span>] <span onmouseout="hideTip(event, 'fs35', 278)" onmouseover="showTip(event, 'fs35', 278)" class="i">address</span></pre>
+</td>
+</tr>
+</table>
+
+<p>As is all too clear to see, there is a lot of repetition here.<br />
+We'll look at cleaning that up later on.</p>
+
+<p>But first, let's look at the final chip needed for this chapter, the counter.</p>
+
+<h1>The Counter</h1>
+
+<p>The counter is a chip that contains a register alongside some combinatorial logic in order to increment its value each execution.<br />
+In addition, this logic should also allow us to set the register to a particular value, or reset it to zero.<br />
+In other words, we need a loadable, resettable register that can increment its value per clock cycle.</p>
+
+<p>All of the building blocks for the counters logic have been created in the previous chapters of the book.<br />
+What follows is a step by step breakdown of what is needed:</p>
+
+<ol>
+<li>Get the next value by incrementing the current register value using our Increment chip.</li>
+<li>Select whether we want to use the bits passed in or our next value by checking the load control bit (via a MultiMux).</li>
+<li>Select whether we want to use the value chosen in the last step, or reset to 0 by checking the reset control bit (via a MultiMux).</li>
+<li>Determine whether we are performing an increment, load, or reset. (This determines whether we are loading the register or not)</li>
+<li>Pass the selected value and the new load bit to the underlying register.</li>
+</ol>
+
+<p>Translated into code, this becomes the following.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs63', 279)" onmouseover="showTip(event, 'fs63', 279)" class="i">Counter</span>() <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 280)" onmouseover="showTip(event, 'fs6', 280)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs64', 281)" onmouseover="showTip(event, 'fs64', 281)" class="i">register</span> <span class="o">=</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs19', 282)" onmouseover="showTip(event, 'fs19', 282)" class="i">Register</span>()
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs65', 283)" onmouseover="showTip(event, 'fs65', 283)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs66', 284)" onmouseover="showTip(event, 'fs66', 284)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 285)" onmouseover="showTip(event, 'fs11', 285)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 286)" onmouseover="showTip(event, 'fs12', 286)" class="i">inputs</span> <span class="o">=</span> 
+        <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs33', 287)" onmouseover="showTip(event, 'fs33', 287)" class="i">inBits</span>, <span onmouseout="hideTip(event, 'fs34', 288)" onmouseover="showTip(event, 'fs34', 288)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs67', 289)" onmouseover="showTip(event, 'fs67', 289)" class="i">inc</span>, <span onmouseout="hideTip(event, 'fs68', 290)" onmouseover="showTip(event, 'fs68', 290)" class="i">reset</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs12', 291)" onmouseover="showTip(event, 'fs12', 291)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>], <span onmouseout="hideTip(event, 'fs12', 292)" onmouseover="showTip(event, 'fs12', 292)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>], <span onmouseout="hideTip(event, 'fs12', 293)" onmouseover="showTip(event, 'fs12', 293)" class="i">inputs</span><span class="o">.</span>[<span class="n">2</span>], <span onmouseout="hideTip(event, 'fs12', 294)" onmouseover="showTip(event, 'fs12', 294)" class="i">inputs</span><span class="o">.</span>[<span class="n">3</span>])
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs69', 295)" onmouseover="showTip(event, 'fs69', 295)" class="i">current</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs64', 296)" onmouseover="showTip(event, 'fs64', 296)" class="i">register</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 297)" onmouseover="showTip(event, 'fs18', 297)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 298)" onmouseover="showTip(event, 'fs11', 298)" class="i">clk</span> [|<span class="n">0s</span>; <span class="n">0s</span>|]
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs70', 299)" onmouseover="showTip(event, 'fs70', 299)" class="i">next</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs71', 300)" onmouseover="showTip(event, 'fs71', 300)" class="i">Increment</span> (<span onmouseout="hideTip(event, 'fs69', 301)" onmouseover="showTip(event, 'fs69', 301)" class="i">current</span>) <span class="c">//Increment the current value</span>
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs72', 302)" onmouseover="showTip(event, 'fs72', 302)" class="i">mux1</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs73', 303)" onmouseover="showTip(event, 'fs73', 303)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs34', 304)" onmouseover="showTip(event, 'fs34', 304)" class="i">load</span> <span onmouseout="hideTip(event, 'fs70', 305)" onmouseover="showTip(event, 'fs70', 305)" class="i">next</span> (<span onmouseout="hideTip(event, 'fs33', 306)" onmouseover="showTip(event, 'fs33', 306)" class="i">inBits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 307)" onmouseover="showTip(event, 'fs25', 307)" class="i">toTwosCompliment</span> <span class="n">16</span>) 
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs74', 308)" onmouseover="showTip(event, 'fs74', 308)" class="i">mux2</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs73', 309)" onmouseover="showTip(event, 'fs73', 309)" class="i">MultiMux</span> <span onmouseout="hideTip(event, 'fs68', 310)" onmouseover="showTip(event, 'fs68', 310)" class="i">reset</span> <span onmouseout="hideTip(event, 'fs72', 311)" onmouseover="showTip(event, 'fs72', 311)" class="i">mux1</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 312)" onmouseover="showTip(event, 'fs21', 312)" class="i">i</span> <span class="k">in</span> <span class="n">1..</span><span class="n">16</span> <span class="k">-&gt;</span> <span class="n">0s</span>|]
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs75', 313)" onmouseover="showTip(event, 'fs75', 313)" class="i">regLoad</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs76', 314)" onmouseover="showTip(event, 'fs76', 314)" class="i">Or</span> <span onmouseout="hideTip(event, 'fs67', 315)" onmouseover="showTip(event, 'fs67', 315)" class="i">inc</span> <span onmouseout="hideTip(event, 'fs34', 316)" onmouseover="showTip(event, 'fs34', 316)" class="i">load</span>
+                      <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs76', 317)" onmouseover="showTip(event, 'fs76', 317)" class="i">Or</span> <span onmouseout="hideTip(event, 'fs68', 318)" onmouseover="showTip(event, 'fs68', 318)" class="i">reset</span>
+        <span onmouseout="hideTip(event, 'fs64', 319)" onmouseover="showTip(event, 'fs64', 319)" class="i">register</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 320)" onmouseover="showTip(event, 'fs18', 320)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 321)" onmouseover="showTip(event, 'fs11', 321)" class="i">clk</span> [| <span onmouseout="hideTip(event, 'fs74', 322)" onmouseover="showTip(event, 'fs74', 322)" class="i">mux2</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs47', 323)" onmouseover="showTip(event, 'fs47', 323)" class="i">toDecimal</span> <span class="n">16</span>; <span onmouseout="hideTip(event, 'fs75', 324)" onmouseover="showTip(event, 'fs75', 324)" class="i">regLoad</span>|]</pre>
+</td>
+</tr>
+</table>
+
+<p>This is quite a nice chip.<br />
+The logic is simple and clear to understand, yet it is powerful in its function.</p>
+
+<p>We will look at testing this chip later on, but first, let's think about utilising a more F# centric approach.</p>
+
+<h1>A slightly more idiomatic F# approach</h1>
+
+<p>While all the above is perfectly good, there are many things I would like to change.<br />
+First up, we need to get rid of all the repetition, mostly in the RAM chips.</p>
+
+<p>To achieve this, we could make a simple Enum style Discriminated Union (DU) to specify the available RAM sizes, and then just create a flat array of registers in our RAM chip like so:</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs77', 325)" onmouseover="showTip(event, 'fs77', 325)" class="i">RamSize</span> <span class="o">=</span>  
+    | <span onmouseout="hideTip(event, 'fs78', 326)" onmouseover="showTip(event, 'fs78', 326)" class="i">R8</span> <span class="o">=</span> <span class="n">8</span>
+    | <span onmouseout="hideTip(event, 'fs79', 327)" onmouseover="showTip(event, 'fs79', 327)" class="i">R64</span> <span class="o">=</span> <span class="n">64</span>
+    | <span onmouseout="hideTip(event, 'fs80', 328)" onmouseover="showTip(event, 'fs80', 328)" class="i">R512</span> <span class="o">=</span> <span class="n">512</span>
+    | <span onmouseout="hideTip(event, 'fs81', 329)" onmouseover="showTip(event, 'fs81', 329)" class="i">R4KB</span> <span class="o">=</span> <span class="n">4096</span>
+    | <span onmouseout="hideTip(event, 'fs82', 330)" onmouseover="showTip(event, 'fs82', 330)" class="i">R16KB</span> <span class="o">=</span> <span class="n">16384</span>
+    
+    
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs83', 331)" onmouseover="showTip(event, 'fs83', 331)" class="i">RAM</span>(<span onmouseout="hideTip(event, 'fs84', 332)" onmouseover="showTip(event, 'fs84', 332)" class="i">size</span><span class="o">:</span><span onmouseout="hideTip(event, 'fs77', 333)" onmouseover="showTip(event, 'fs77', 333)" class="i">RamSize</span>) <span class="o">=</span> 
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 334)" onmouseover="showTip(event, 'fs6', 334)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs85', 335)" onmouseover="showTip(event, 'fs85', 335)" class="i">regArray</span> <span class="o">=</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 336)" onmouseover="showTip(event, 'fs21', 336)" class="i">i</span> <span class="k">in</span> <span class="n">1</span> <span class="o">..</span> <span onmouseout="hideTip(event, 'fs86', 337)" onmouseover="showTip(event, 'fs86', 337)" class="i">int</span> <span onmouseout="hideTip(event, 'fs84', 338)" onmouseover="showTip(event, 'fs84', 338)" class="i">size</span> <span class="k">-&gt;</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs19', 339)" onmouseover="showTip(event, 'fs19', 339)" class="i">Register</span>()|]
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs87', 340)" onmouseover="showTip(event, 'fs87', 340)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs88', 341)" onmouseover="showTip(event, 'fs88', 341)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 342)" onmouseover="showTip(event, 'fs11', 342)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 343)" onmouseover="showTip(event, 'fs12', 343)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs33', 344)" onmouseover="showTip(event, 'fs33', 344)" class="i">inBits</span>, <span onmouseout="hideTip(event, 'fs34', 345)" onmouseover="showTip(event, 'fs34', 345)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs89', 346)" onmouseover="showTip(event, 'fs89', 346)" class="i">address</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs12', 347)" onmouseover="showTip(event, 'fs12', 347)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>], <span onmouseout="hideTip(event, 'fs12', 348)" onmouseover="showTip(event, 'fs12', 348)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>], <span onmouseout="hideTip(event, 'fs12', 349)" onmouseover="showTip(event, 'fs12', 349)" class="i">inputs</span><span class="o">.</span>[<span class="n">2</span>])
+        <span onmouseout="hideTip(event, 'fs85', 350)" onmouseover="showTip(event, 'fs85', 350)" class="i">regArray</span><span class="o">.</span>[<span onmouseout="hideTip(event, 'fs86', 351)" onmouseover="showTip(event, 'fs86', 351)" class="i">int</span> <span onmouseout="hideTip(event, 'fs89', 352)" onmouseover="showTip(event, 'fs89', 352)" class="i">address</span>]<span class="o">.</span><span class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 353)" onmouseover="showTip(event, 'fs11', 353)" class="i">clk</span> [|<span onmouseout="hideTip(event, 'fs33', 354)" onmouseover="showTip(event, 'fs33', 354)" class="i">inBits</span>; <span onmouseout="hideTip(event, 'fs34', 355)" onmouseover="showTip(event, 'fs34', 355)" class="i">load</span>|]</pre>
+</td>
+</tr>
+</table>
+
+<p>This makes addressing the correct register much simpler to understand.</p>
+
+<p>Another place we could really make use of some F# goodness, is the Counter.<br />
+By utilising our old friend pattern matching, we remove the need to pre-calculate and can simply switch to the needed functionality.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">type</span> <span onmouseout="hideTip(event, 'fs90', 356)" onmouseover="showTip(event, 'fs90', 356)" class="i">Counter2</span>() <span class="o">=</span>
+    <span class="k">inherit</span> <span onmouseout="hideTip(event, 'fs6', 357)" onmouseover="showTip(event, 'fs6', 357)" class="i">Chip</span>()
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs64', 358)" onmouseover="showTip(event, 'fs64', 358)" class="i">register</span> <span class="o">=</span> <span class="k">new</span> <span onmouseout="hideTip(event, 'fs19', 359)" onmouseover="showTip(event, 'fs19', 359)" class="i">Register</span>()
+    <span class="k">override</span> <span onmouseout="hideTip(event, 'fs91', 360)" onmouseover="showTip(event, 'fs91', 360)" class="i">x</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs92', 361)" onmouseover="showTip(event, 'fs92', 361)" class="i">doWork</span> <span onmouseout="hideTip(event, 'fs11', 362)" onmouseover="showTip(event, 'fs11', 362)" class="i">clk</span> <span onmouseout="hideTip(event, 'fs12', 363)" onmouseover="showTip(event, 'fs12', 363)" class="i">inputs</span> <span class="o">=</span>
+        <span class="k">let</span> (<span onmouseout="hideTip(event, 'fs33', 364)" onmouseover="showTip(event, 'fs33', 364)" class="i">inBits</span>, <span onmouseout="hideTip(event, 'fs34', 365)" onmouseover="showTip(event, 'fs34', 365)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs67', 366)" onmouseover="showTip(event, 'fs67', 366)" class="i">inc</span>, <span onmouseout="hideTip(event, 'fs68', 367)" onmouseover="showTip(event, 'fs68', 367)" class="i">reset</span>) <span class="o">=</span> (<span onmouseout="hideTip(event, 'fs12', 368)" onmouseover="showTip(event, 'fs12', 368)" class="i">inputs</span><span class="o">.</span>[<span class="n">0</span>], <span onmouseout="hideTip(event, 'fs12', 369)" onmouseover="showTip(event, 'fs12', 369)" class="i">inputs</span><span class="o">.</span>[<span class="n">1</span>], <span onmouseout="hideTip(event, 'fs12', 370)" onmouseover="showTip(event, 'fs12', 370)" class="i">inputs</span><span class="o">.</span>[<span class="n">2</span>], <span onmouseout="hideTip(event, 'fs12', 371)" onmouseover="showTip(event, 'fs12', 371)" class="i">inputs</span><span class="o">.</span>[<span class="n">3</span>])
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs69', 372)" onmouseover="showTip(event, 'fs69', 372)" class="i">current</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs64', 373)" onmouseover="showTip(event, 'fs64', 373)" class="i">register</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 374)" onmouseover="showTip(event, 'fs18', 374)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 375)" onmouseover="showTip(event, 'fs11', 375)" class="i">clk</span> [|<span class="n">0s</span>; <span class="n">0s</span>|]
+        <span class="k">let</span> <span onmouseout="hideTip(event, 'fs93', 376)" onmouseover="showTip(event, 'fs93', 376)" class="i">toSet</span> <span class="o">=</span> 
+            <span class="k">match</span> <span onmouseout="hideTip(event, 'fs68', 377)" onmouseover="showTip(event, 'fs68', 377)" class="i">reset</span>, <span onmouseout="hideTip(event, 'fs34', 378)" onmouseover="showTip(event, 'fs34', 378)" class="i">load</span>, <span onmouseout="hideTip(event, 'fs67', 379)" onmouseover="showTip(event, 'fs67', 379)" class="i">inc</span> <span class="k">with</span>
+            | <span class="n">1s</span>,_,_ <span class="k">-&gt;</span> [|<span class="k">for</span> <span onmouseout="hideTip(event, 'fs21', 380)" onmouseover="showTip(event, 'fs21', 380)" class="i">i</span> <span class="k">in</span> <span class="n">1..</span><span class="n">16</span> <span class="k">-&gt;</span> <span class="n">0s</span>|]
+            | <span class="n">0s</span>,<span class="n">1s</span>,_ <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs33', 381)" onmouseover="showTip(event, 'fs33', 381)" class="i">inBits</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs25', 382)" onmouseover="showTip(event, 'fs25', 382)" class="i">toTwosCompliment</span> <span class="n">16</span>
+            | <span class="n">0s</span>,<span class="n">0s</span>,<span class="n">1s</span> <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs71', 383)" onmouseover="showTip(event, 'fs71', 383)" class="i">Increment</span> (<span onmouseout="hideTip(event, 'fs69', 384)" onmouseover="showTip(event, 'fs69', 384)" class="i">current</span>)
+            |_,_,_ <span class="k">-&gt;</span> <span onmouseout="hideTip(event, 'fs64', 385)" onmouseover="showTip(event, 'fs64', 385)" class="i">register</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 386)" onmouseover="showTip(event, 'fs18', 386)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 387)" onmouseover="showTip(event, 'fs11', 387)" class="i">clk</span> [|<span onmouseout="hideTip(event, 'fs33', 388)" onmouseover="showTip(event, 'fs33', 388)" class="i">inBits</span>; <span class="n">0s</span>|]
+        <span onmouseout="hideTip(event, 'fs64', 389)" onmouseover="showTip(event, 'fs64', 389)" class="i">register</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs18', 390)" onmouseover="showTip(event, 'fs18', 390)" class="i">execute</span> <span onmouseout="hideTip(event, 'fs11', 391)" onmouseover="showTip(event, 'fs11', 391)" class="i">clk</span> [|<span onmouseout="hideTip(event, 'fs93', 392)" onmouseover="showTip(event, 'fs93', 392)" class="i">toSet</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs47', 393)" onmouseover="showTip(event, 'fs47', 393)" class="i">toDecimal</span> <span class="n">16</span>; (<span onmouseout="hideTip(event, 'fs34', 394)" onmouseover="showTip(event, 'fs34', 394)" class="i">load</span> <span class="o">|||</span> <span onmouseout="hideTip(event, 'fs68', 395)" onmouseover="showTip(event, 'fs68', 395)" class="i">reset</span> <span class="o">|||</span> <span onmouseout="hideTip(event, 'fs67', 396)" onmouseover="showTip(event, 'fs67', 396)" class="i">inc</span>)|]</pre>
+</td>
+</tr>
+</table>
+
+<p>As with every other post so far, it is clear that F# provides a much more concise way of expressing the required chips.<br />
+It does however, skip over the logical building blocks by doing so.</p>
+
+<p>I think I will continue both approaches, but will aim to take a more drastic detour in the coming posts.<br />
+This will allow me to focus more on the power of the F# language.</p>
+
+<h1>Testing</h1>
+
+<p>For our testing needs I will utilise the test harness from the last post.<br />
+This allows for some quick familiar tests to be run.</p>
+
+<p>First up, the Counter.<br />
+I chose to test this as it nicely shows the use of various previous chips, drawing together a lot of past work.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs94', 397)" onmouseover="showTip(event, 'fs94', 397)" class="i">TestCounter</span> <span class="o">=</span> 
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs95', 398)" onmouseover="showTip(event, 'fs95', 398)" class="i">harness</span> <span class="o">=</span> {<span class="i">inputs</span> <span class="o">=</span> [|<span class="n">0s</span>; <span class="n">0s</span>; <span class="n">1s</span>; <span class="n">0s</span>;|]; <span class="i">outputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs26', 399)" onmouseover="showTip(event, 'fs26', 399)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs96', 400)" onmouseover="showTip(event, 'fs96', 400)" class="i">empty</span>; <span class="i">chips</span> <span class="o">=</span> [|<span class="k">new</span> <span onmouseout="hideTip(event, 'fs63', 401)" onmouseover="showTip(event, 'fs63', 401)" class="i">Counter</span>()|]}
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs97', 402)" onmouseover="showTip(event, 'fs97', 402)" class="i">result</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs95', 403)" onmouseover="showTip(event, 'fs95', 403)" class="i">harness</span>
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 404)" onmouseover="showTip(event, 'fs98', 404)" class="i">cycle</span> <span class="n">3</span>  <span class="n">3</span>
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 405)" onmouseover="showTip(event, 'fs99', 405)" class="i">setInputs</span> [|<span class="n">0s</span>; <span class="n">0s</span>; <span class="n">0s</span>; <span class="n">1s</span>;|]
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 406)" onmouseover="showTip(event, 'fs98', 406)" class="i">cycle</span> <span class="n">2</span> <span class="n">3</span>
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 407)" onmouseover="showTip(event, 'fs99', 407)" class="i">setInputs</span> [|<span class="n">17s</span>; <span class="n">1s</span>; <span class="n">0s</span>; <span class="n">0s</span>;|]
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 408)" onmouseover="showTip(event, 'fs98', 408)" class="i">cycle</span> <span class="n">1</span> <span class="n">3</span>
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 409)" onmouseover="showTip(event, 'fs99', 409)" class="i">setInputs</span> [|<span class="n">17s</span>; <span class="n">0s</span>; <span class="n">1s</span>; <span class="n">0s</span>;|]
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 410)" onmouseover="showTip(event, 'fs98', 410)" class="i">cycle</span> <span class="n">5</span> <span class="n">3</span>
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 411)" onmouseover="showTip(event, 'fs99', 411)" class="i">setInputs</span> [|<span class="n">0s</span>; <span class="n">0s</span>; <span class="n">0s</span>; <span class="n">0s</span>;|]
+                <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 412)" onmouseover="showTip(event, 'fs98', 412)" class="i">cycle</span> <span class="n">2</span> <span class="n">3</span>
+    <span onmouseout="hideTip(event, 'fs97', 413)" onmouseover="showTip(event, 'fs97', 413)" class="i">result</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs100', 414)" onmouseover="showTip(event, 'fs100', 414)" class="i">outputs</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs47', 415)" onmouseover="showTip(event, 'fs47', 415)" class="i">toDecimal</span> <span class="n">16</span></pre>
+</td>
+</tr>
+</table>
+
+<table class="pre"><tr><td><pre lang="output">//Output:
+Executing 3 cycles with inputs = [|0s; 0s; 1s; 0s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+   Cycle 2 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s|]
+   Cycle 2 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s|]
+   Cycle 3 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s|]
+   Cycle 3 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s|]
+Executing 2 cycles with inputs = [|0s; 0s; 0s; 1s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 1s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 1s|]
+   Cycle 2 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+   Cycle 2 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+Executing 1 cycles with inputs = [|17s; 1s; 0s; 0s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+Executing 5 cycles with inputs = [|17s; 0s; 1s; 0s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 0s; 0s; 1s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 0s; 0s; 1s|]
+   Cycle 2 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 0s; 1s; 0s|]
+   Cycle 2 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 0s; 1s; 0s|]
+   Cycle 3 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 0s; 1s; 1s|]
+   Cycle 3 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 0s; 1s; 1s|]
+   Cycle 4 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 1s; 0s; 0s|]
+   Cycle 4 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 1s; 0s; 0s|]
+   Cycle 5 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 1s; 0s; 1s|]
+   Cycle 5 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 1s; 0s; 1s|]
+Executing 2 cycles with inputs = [|0s; 0s; 0s; 0s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 1s; 1s; 0s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 1s; 1s; 0s|]
+   Cycle 2 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 1s; 1s; 0s|]
+   Cycle 2 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 1s; 1s; 0s|]
+
+
+val TestCounter : int16 = 22s
+</pre></td></tr></table>
+
+<p>Note that the printed value is always one clock cycle behind.<br />
+This is because the register in the counter only commits to holding the value on the falling edge of the clock. 
+Hence, we have to probe the register in the <em>subsequent</em> clock cycle to ensure the value was set.</p>
+
+<p>Finally, we will test a 64 register RAM array.<br />
+To do this, I have bent the use of test harness slightly in order to store some values during execution of a set of functions.</p>
+
+<p>I will test the following steps:</p>
+
+<ol>
+<li>Store two binary representations of integers in arbitrary locations in RAM</li>
+<li>Extract these integers storing them locally (we actually store an entire snapshot of the test harness state)</li>
+<li>Add these two integers together and store them at position one of the RAM array</li>
+<li>Retrieve the value back out of RAM and print the output</li>
+</ol>
+
+<p>This translates to the following code.</p>
+
+<table class="pre"><tr><td class="lines"><pre class="fssnip">
+<span class="l"> 1: </span>
+<span class="l"> 2: </span>
+<span class="l"> 3: </span>
+<span class="l"> 4: </span>
+<span class="l"> 5: </span>
+<span class="l"> 6: </span>
+<span class="l"> 7: </span>
+<span class="l"> 8: </span>
+<span class="l"> 9: </span>
+<span class="l">10: </span>
+<span class="l">11: </span>
+<span class="l">12: </span>
+<span class="l">13: </span>
+<span class="l">14: </span>
+<span class="l">15: </span>
+<span class="l">16: </span>
+<span class="l">17: </span>
+<span class="l">18: </span>
+<span class="l">19: </span>
+<span class="l">20: </span>
+<span class="l">21: </span>
+<span class="l">22: </span>
+<span class="l">23: </span>
+<span class="l">24: </span>
+</pre>
+</td>
+<td class="snippet"><pre class="fssnip">
+<span class="k">let</span> <span onmouseout="hideTip(event, 'fs101', 416)" onmouseover="showTip(event, 'fs101', 416)" class="i">TestRam64</span> <span class="o">=</span> 
+    <span class="k">let</span> <span class="k">mutable</span> <span onmouseout="hideTip(event, 'fs102', 417)" onmouseover="showTip(event, 'fs102', 417)" class="i">harness</span> <span class="o">=</span> {<span class="i">inputs</span> <span class="o">=</span> [|<span class="n">15s</span>; <span class="n">1s</span>; <span class="n">5s</span>;|]; <span class="i">outputs</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs26', 418)" onmouseover="showTip(event, 'fs26', 418)" class="i">Array</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs96', 419)" onmouseover="showTip(event, 'fs96', 419)" class="i">empty</span>; <span class="i">chips</span> <span class="o">=</span> [|<span class="k">new</span> <span onmouseout="hideTip(event, 'fs41', 420)" onmouseover="showTip(event, 'fs41', 420)" class="i">RAM64</span>()|]}
+                        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 421)" onmouseover="showTip(event, 'fs98', 421)" class="i">cycle</span> <span class="n">1</span>  <span class="n">3</span>
+                        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 422)" onmouseover="showTip(event, 'fs99', 422)" class="i">setInputs</span> [|<span class="n">33s</span>;<span class="n">1s</span>;<span class="n">7s</span>|]
+                        <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 423)" onmouseover="showTip(event, 'fs98', 423)" class="i">cycle</span> <span class="n">1</span>  <span class="n">3</span>
+
+    <span onmouseout="hideTip(event, 'fs102', 424)" onmouseover="showTip(event, 'fs102', 424)" class="i">harness</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs102', 425)" onmouseover="showTip(event, 'fs102', 425)" class="i">harness</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 426)" onmouseover="showTip(event, 'fs99', 426)" class="i">setInputs</span> [|<span class="n">0s</span>;<span class="n">0s</span>;<span class="n">5s</span>|]
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 427)" onmouseover="showTip(event, 'fs98', 427)" class="i">cycle</span> <span class="n">1</span> <span class="n">3</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs103', 428)" onmouseover="showTip(event, 'fs103', 428)" class="i">a</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs102', 429)" onmouseover="showTip(event, 'fs102', 429)" class="i">harness</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs100', 430)" onmouseover="showTip(event, 'fs100', 430)" class="i">outputs</span>
+
+    <span onmouseout="hideTip(event, 'fs102', 431)" onmouseover="showTip(event, 'fs102', 431)" class="i">harness</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs102', 432)" onmouseover="showTip(event, 'fs102', 432)" class="i">harness</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 433)" onmouseover="showTip(event, 'fs99', 433)" class="i">setInputs</span> [|<span class="n">0s</span>;<span class="n">0s</span>;<span class="n">7s</span>|]
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 434)" onmouseover="showTip(event, 'fs98', 434)" class="i">cycle</span> <span class="n">1</span> <span class="n">3</span>
+    <span class="k">let</span> <span onmouseout="hideTip(event, 'fs104', 435)" onmouseover="showTip(event, 'fs104', 435)" class="i">b</span> <span class="o">=</span> <span onmouseout="hideTip(event, 'fs102', 436)" onmouseover="showTip(event, 'fs102', 436)" class="i">harness</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs100', 437)" onmouseover="showTip(event, 'fs100', 437)" class="i">outputs</span>
+
+    <span onmouseout="hideTip(event, 'fs105', 438)" onmouseover="showTip(event, 'fs105', 438)" class="i">printfn</span> <span class="s">&quot;</span><span class="s">Adding</span><span class="s"> </span><span class="s">a</span><span class="s"> </span><span class="s">(</span><span class="s">%</span><span class="s">i</span><span class="s">)</span><span class="s"> </span><span class="s">to</span><span class="s"> </span><span class="s">b</span><span class="s"> </span><span class="s">(</span><span class="s">%</span><span class="s">i</span><span class="s">)</span><span class="s"> </span><span class="s">and</span><span class="s"> </span><span class="s">storing</span><span class="s"> </span><span class="s">at</span><span class="s"> </span><span class="s">position</span><span class="s"> </span><span class="s">1</span><span class="s">.</span><span class="s">&quot;</span> (<span onmouseout="hideTip(event, 'fs103', 439)" onmouseover="showTip(event, 'fs103', 439)" class="i">a</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs47', 440)" onmouseover="showTip(event, 'fs47', 440)" class="i">toDecimal</span> <span class="n">16</span>) (<span onmouseout="hideTip(event, 'fs104', 441)" onmouseover="showTip(event, 'fs104', 441)" class="i">b</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs47', 442)" onmouseover="showTip(event, 'fs47', 442)" class="i">toDecimal</span> <span class="n">16</span>)
+    <span onmouseout="hideTip(event, 'fs102', 443)" onmouseover="showTip(event, 'fs102', 443)" class="i">harness</span> <span class="o">&lt;-</span> <span onmouseout="hideTip(event, 'fs102', 444)" onmouseover="showTip(event, 'fs102', 444)" class="i">harness</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 445)" onmouseover="showTip(event, 'fs99', 445)" class="i">setInputs</span> [| (<span onmouseout="hideTip(event, 'fs106', 446)" onmouseover="showTip(event, 'fs106', 446)" class="i">Adder</span> <span onmouseout="hideTip(event, 'fs103', 447)" onmouseover="showTip(event, 'fs103', 447)" class="i">a</span> <span onmouseout="hideTip(event, 'fs104', 448)" onmouseover="showTip(event, 'fs104', 448)" class="i">b</span>) <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs47', 449)" onmouseover="showTip(event, 'fs47', 449)" class="i">toDecimal</span> <span class="n">16</span>  ;<span class="n">1s</span>; <span class="n">1s</span>|]
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 450)" onmouseover="showTip(event, 'fs98', 450)" class="i">cycle</span> <span class="n">1</span> <span class="n">3</span>
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs99', 451)" onmouseover="showTip(event, 'fs99', 451)" class="i">setInputs</span> [|<span class="n">0s</span>;<span class="n">0s</span>;<span class="n">1s</span>|]
+            <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs98', 452)" onmouseover="showTip(event, 'fs98', 452)" class="i">cycle</span> <span class="n">1</span> <span class="n">3</span>
+
+    <span onmouseout="hideTip(event, 'fs105', 453)" onmouseover="showTip(event, 'fs105', 453)" class="i">printfn</span> <span class="s">&quot;</span><span class="s">The</span><span class="s"> </span><span class="s">value</span><span class="s"> </span><span class="s">was</span><span class="s"> </span><span class="s">%</span><span class="s">i</span><span class="s">&quot;</span> (<span onmouseout="hideTip(event, 'fs102', 454)" onmouseover="showTip(event, 'fs102', 454)" class="i">harness</span><span class="o">.</span><span onmouseout="hideTip(event, 'fs100', 455)" onmouseover="showTip(event, 'fs100', 455)" class="i">outputs</span> <span class="o">|&gt;</span> <span onmouseout="hideTip(event, 'fs47', 456)" onmouseover="showTip(event, 'fs47', 456)" class="i">toDecimal</span> <span class="n">16</span>)</pre>
+</td>
+</tr>
+</table>
+
+<p>Overall, not the best looking test case as my harness wasn't really thought through enough to be useful in this situation.<br />
+It does show the use of our RAM chip quite nicely though.</p>
+
+<p>The output of running this is shown below:</p>
+
+<table class="pre"><tr><td><pre lang="output">//Output:
+Executing 1 cycles with inputs = [|15s; 1s; 5s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+Executing 1 cycles with inputs = [|33s; 1s; 7s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+Executing 1 cycles with inputs = [|0s; 0s; 5s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 1s; 1s; 1s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 1s; 1s; 1s|]
+Executing 1 cycles with inputs = [|0s; 0s; 7s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 0s; 0s; 0s; 1s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 0s; 0s; 0s; 0s; 1s|]
+Adding a (15) to b (33) and storing at position 1.
+Executing 1 cycles with inputs = [|48s; 1s; 1s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s|]
+Executing 1 cycles with inputs = [|0s; 0s; 1s|]
+   Cycle 1 - clk: Tick - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 1s; 0s; 0s; 0s; 0s|]
+   Cycle 1 - clk: Tock - outputs: [|0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 0s; 1s; 1s; 0s; 0s; 0s; 0s|]
+The value was 48
+</pre></td></tr></table>
+
+<h1>Conclusion</h1>
+
+<p>Utilising the work from my previous posts, it has been nice and easy to create the chips needed and test them as required.<br />
+However, there are some major drawbacks that I wish to fix. The biggest being the use of the int16 array to pass state around.</p>
+
+<p>Doing this bypasses one of the strongest features of F#, it's type system.<br />
+It adds far too many possibilities for errors into the code and so it must be removed.</p>
+
+<p>Therefore, before venturing into the next chapter of the book, I'm going to see how I can go about refactoring my current work to take full advantage of the features of F#.<br />
+That should help with reducing the possibility of errors and working towards the goal of making invalid state unrepresentable.</p>
+
+<div class="tip" id="fs1">module FsEmulation</div>
+<div class="tip" id="fs2">module ArithmeticLogicUnit</div>
+<div class="tip" id="fs3">module Sequential</div>
+<div class="tip" id="fs4">module Utils</div>
+<div class="tip" id="fs5">Multiple items<br />type DFF =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; DFF<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.DFF<br /><br />--------------------<br />new : unit -&gt; DFF</div>
+<div class="tip" id="fs6">Multiple items<br />type Chip =<br />&#160;&#160;new : unit -&gt; Chip<br />&#160;&#160;abstract member doWork : clk -&gt; int16 array -&gt; int16 array<br />&#160;&#160;member execute : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br />&#160;&#160;member outputs : int16 array<br />&#160;&#160;member outputs : int16 array with set<br /><br />Full name: Sequential.Chip<br /><br />--------------------<br />new : unit -&gt; Chip</div>
+<div class="tip" id="fs7">val mutable state : int16</div>
+<div class="tip" id="fs8">val mutable pState : int16</div>
+<div class="tip" id="fs9">val x : DFF</div>
+<div class="tip" id="fs10">override DFF.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.DFF.doWork</div>
+<div class="tip" id="fs11">Multiple items<br />val clk : clk<br /><br />--------------------<br />type clk =<br />&#160;&#160;|  Tick  =  0s<br />&#160;&#160;|  Tock  =  1s<br /><br />Full name: Sequential.clk</div>
+<div class="tip" id="fs12">val inputs : int16 array</div>
+<div class="tip" id="fs13">Multiple items<br />type Bit =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; Bit<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Bit<br /><br />--------------------<br />new : unit -&gt; Bit</div>
+<div class="tip" id="fs14">val dff : DFF</div>
+<div class="tip" id="fs15">val x : Bit</div>
+<div class="tip" id="fs16">override Bit.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Bit.doWork</div>
+<div class="tip" id="fs17">val Mux : sel:int16 -&gt; a:int16 -&gt; b:int16 -&gt; int16<br /><br />Full name: ArithmeticLogicUnit.Mux</div>
+<div class="tip" id="fs18">member Chip.execute : clk:clk -&gt; inputs:int16 array -&gt; int16 array</div>
+<div class="tip" id="fs19">Multiple items<br />type Register =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; Register<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Register<br /><br />--------------------<br />new : unit -&gt; Register</div>
+<div class="tip" id="fs20">val bits : Bit []</div>
+<div class="tip" id="fs21">val i : int</div>
+<div class="tip" id="fs22">val x : Register</div>
+<div class="tip" id="fs23">override Register.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Register.doWork</div>
+<div class="tip" id="fs24">val inBits : int16 []</div>
+<div class="tip" id="fs25">val toTwosCompliment : b:int -&gt; i:int16 -&gt; int16 []<br /><br />Full name: Utils.toTwosCompliment</div>
+<div class="tip" id="fs26">module Array<br /><br />from Microsoft.FSharp.Collections</div>
+<div class="tip" id="fs27">val mapi : mapping:(int -&gt; &#39;T -&gt; &#39;U) -&gt; array:&#39;T [] -&gt; &#39;U []<br /><br />Full name: Microsoft.FSharp.Collections.Array.mapi</div>
+<div class="tip" id="fs28">val b : Bit</div>
+<div class="tip" id="fs29">Multiple items<br />type RAM8 =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; RAM8<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM8<br /><br />--------------------<br />new : unit -&gt; RAM8</div>
+<div class="tip" id="fs30">val registers : Register []</div>
+<div class="tip" id="fs31">val x : RAM8</div>
+<div class="tip" id="fs32">override RAM8.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM8.doWork</div>
+<div class="tip" id="fs33">val inBits : int16</div>
+<div class="tip" id="fs34">val load : int16</div>
+<div class="tip" id="fs35">val address : int16 []</div>
+<div class="tip" id="fs36">val loadArray : int16 []</div>
+<div class="tip" id="fs37">val DMux8Way : x:int16 -&gt; sel:int16 array -&gt; int16 []<br /><br />Full name: ArithmeticLogicUnit.DMux8Way</div>
+<div class="tip" id="fs38">val state : int16 array []</div>
+<div class="tip" id="fs39">val r : Register</div>
+<div class="tip" id="fs40">val Mux8Way16 : a:int16 [] -&gt; b:int16 [] -&gt; c:int16 [] -&gt; d:int16 [] -&gt; e:int16 [] -&gt; f:int16 [] -&gt; g:int16 [] -&gt; h:int16 [] -&gt; sel:int16 array -&gt; int16 []<br /><br />Full name: ArithmeticLogicUnit.Mux8Way16</div>
+<div class="tip" id="fs41">Multiple items<br />type RAM64 =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; RAM64<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM64<br /><br />--------------------<br />new : unit -&gt; RAM64</div>
+<div class="tip" id="fs42">val ramArray : RAM8 []</div>
+<div class="tip" id="fs43">val x : RAM64</div>
+<div class="tip" id="fs44">override RAM64.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM64.doWork</div>
+<div class="tip" id="fs45">val ramLoad : int16 []</div>
+<div class="tip" id="fs46">val r : RAM8</div>
+<div class="tip" id="fs47">val toDecimal : b:int -&gt; binary:int16 array -&gt; int16<br /><br />Full name: Utils.toDecimal</div>
+<div class="tip" id="fs48">Multiple items<br />type RAM512 =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; RAM512<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM512<br /><br />--------------------<br />new : unit -&gt; RAM512</div>
+<div class="tip" id="fs49">val ramArray : RAM64 []</div>
+<div class="tip" id="fs50">val x : RAM512</div>
+<div class="tip" id="fs51">override RAM512.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM512.doWork</div>
+<div class="tip" id="fs52">val r : RAM64</div>
+<div class="tip" id="fs53">Multiple items<br />type RAM4k =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; RAM4k<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM4k<br /><br />--------------------<br />new : unit -&gt; RAM4k</div>
+<div class="tip" id="fs54">val ramArray : RAM512 []</div>
+<div class="tip" id="fs55">val x : RAM4k</div>
+<div class="tip" id="fs56">override RAM4k.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM4k.doWork</div>
+<div class="tip" id="fs57">val r : RAM512</div>
+<div class="tip" id="fs58">Multiple items<br />type RAM16k =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; RAM16k<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM16k<br /><br />--------------------<br />new : unit -&gt; RAM16k</div>
+<div class="tip" id="fs59">val ramArray : RAM4k []</div>
+<div class="tip" id="fs60">val x : RAM16k</div>
+<div class="tip" id="fs61">override RAM16k.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM16k.doWork</div>
+<div class="tip" id="fs62">val r : RAM4k</div>
+<div class="tip" id="fs63">Multiple items<br />type Counter =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; Counter<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Counter<br /><br />--------------------<br />new : unit -&gt; Counter</div>
+<div class="tip" id="fs64">val register : Register</div>
+<div class="tip" id="fs65">val x : Counter</div>
+<div class="tip" id="fs66">override Counter.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Counter.doWork</div>
+<div class="tip" id="fs67">val inc : int16</div>
+<div class="tip" id="fs68">val reset : int16</div>
+<div class="tip" id="fs69">val current : int16 array</div>
+<div class="tip" id="fs70">val next : int16 []</div>
+<div class="tip" id="fs71">val Increment : aBits:int16 [] -&gt; int16 []<br /><br />Full name: ArithmeticLogicUnit.Increment</div>
+<div class="tip" id="fs72">val mux1 : int16 []</div>
+<div class="tip" id="fs73">val MultiMux : sel:int16 -&gt; (int16 [] -&gt; int16 [] -&gt; int16 [])<br /><br />Full name: ArithmeticLogicUnit.MultiMux</div>
+<div class="tip" id="fs74">val mux2 : int16 []</div>
+<div class="tip" id="fs75">val regLoad : int16</div>
+<div class="tip" id="fs76">val Or : a:int16 -&gt; b:int16 -&gt; int16<br /><br />Full name: ArithmeticLogicUnit.Or</div>
+<div class="tip" id="fs77">type RamSize =<br />&#160;&#160;|  R8  =  8<br />&#160;&#160;|  R64  =  64<br />&#160;&#160;|  R512  =  512<br />&#160;&#160;|  R4KB  =  4096<br />&#160;&#160;|  R16KB  =  16384<br /><br />Full name: FsEmulation.RamSize</div>
+<div class="tip" id="fs78">RamSize.R8: RamSize = 8</div>
+<div class="tip" id="fs79">RamSize.R64: RamSize = 64</div>
+<div class="tip" id="fs80">RamSize.R512: RamSize = 512</div>
+<div class="tip" id="fs81">RamSize.R4KB: RamSize = 4096</div>
+<div class="tip" id="fs82">RamSize.R16KB: RamSize = 16384</div>
+<div class="tip" id="fs83">Multiple items<br />type RAM =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : size:RamSize -&gt; RAM<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM<br /><br />--------------------<br />new : size:RamSize -&gt; RAM</div>
+<div class="tip" id="fs84">val size : RamSize</div>
+<div class="tip" id="fs85">val regArray : Register []</div>
+<div class="tip" id="fs86">Multiple items<br />val int : value:&#39;T -&gt; int (requires member op_Explicit)<br /><br />Full name: Microsoft.FSharp.Core.Operators.int<br /><br />--------------------<br />type int = int32<br /><br />Full name: Microsoft.FSharp.Core.int<br /><br />--------------------<br />type int&lt;&#39;Measure&gt; = int<br /><br />Full name: Microsoft.FSharp.Core.int&lt;_&gt;</div>
+<div class="tip" id="fs87">val x : RAM</div>
+<div class="tip" id="fs88">override RAM.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.RAM.doWork</div>
+<div class="tip" id="fs89">val address : int16</div>
+<div class="tip" id="fs90">Multiple items<br />type Counter2 =<br />&#160;&#160;inherit Chip<br />&#160;&#160;new : unit -&gt; Counter2<br />&#160;&#160;override doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Counter2<br /><br />--------------------<br />new : unit -&gt; Counter2</div>
+<div class="tip" id="fs91">val x : Counter2</div>
+<div class="tip" id="fs92">override Counter2.doWork : clk:clk -&gt; inputs:int16 array -&gt; int16 array<br /><br />Full name: FsEmulation.Counter2.doWork</div>
+<div class="tip" id="fs93">val toSet : int16 []</div>
+<div class="tip" id="fs94">val TestCounter : int16<br /><br />Full name: FsEmulation.TestCounter</div>
+<div class="tip" id="fs95">val harness : TestHarness</div>
+<div class="tip" id="fs96">val empty&lt;&#39;T&gt; : &#39;T []<br /><br />Full name: Microsoft.FSharp.Collections.Array.empty</div>
+<div class="tip" id="fs97">val result : TestHarness</div>
+<div class="tip" id="fs98">val cycle : iterations:int -&gt; clkIters:int -&gt; harness:TestHarness -&gt; TestHarness<br /><br />Full name: Sequential.cycle</div>
+<div class="tip" id="fs99">val setInputs : i:int16 array -&gt; harness:TestHarness -&gt; TestHarness<br /><br />Full name: Sequential.setInputs</div>
+<div class="tip" id="fs100">TestHarness.outputs: int16 array</div>
+<div class="tip" id="fs101">val TestRam64 : &#39;a<br /><br />Full name: FsEmulation.TestRam64</div>
+<div class="tip" id="fs102">val mutable harness : TestHarness</div>
+<div class="tip" id="fs103">val a : int16 array</div>
+<div class="tip" id="fs104">val b : int16 array</div>
+<div class="tip" id="fs105">val printfn : format:Printf.TextWriterFormat&lt;&#39;T&gt; -&gt; &#39;T<br /><br />Full name: Microsoft.FSharp.Core.ExtraTopLevelOperators.printfn</div>
+<div class="tip" id="fs106">val Adder : aBits:int16 [] -&gt; bBits:int16 [] -&gt; int16 []<br /><br />Full name: ArithmeticLogicUnit.Adder</div>
+<div class="tip" id="fs107">val using : resource:&#39;T -&gt; action:(&#39;T -&gt; &#39;U) -&gt; &#39;U (requires &#39;T :&gt; System.IDisposable)<br /><br />Full name: Microsoft.FSharp.Core.Operators.using</div>
+

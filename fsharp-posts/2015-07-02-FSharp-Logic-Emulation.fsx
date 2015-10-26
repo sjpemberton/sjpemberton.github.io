@@ -195,7 +195,7 @@ let Xor a b =
 *)
 
 let Mux sel a b =
-    Nand (Nand a sel) (Nand (Not sel) b)    
+    Nand (Nand b sel) (Nand (Not sel) a)    
 
 (**
 <a class="expandPrompt">DMUX Gate Details</a>
@@ -214,10 +214,8 @@ let Mux sel a b =
 </div>
 *)
 
-let DMux a sel =
-    (And a (Not sel), And a sel)
-
-
+let DMux x sel =
+    (And x (Not sel), And x sel)
 
 (**
 
@@ -366,8 +364,8 @@ The gate is basically just three calls to our MultiMux gate as follows.
 *)
 
 let Mux4Way16 a b c d (sel:bool array) = 
-    let m1 = MultiMux sel.[0] a b 
-    let m2 = MultiMux sel.[0] c d
+    let m1 = MultiMux sel.[0] a c 
+    let m2 = MultiMux sel.[0] b d
     MultiMux sel.[1] m1 m2 
 
 (**
@@ -376,9 +374,9 @@ We can easily create this by using the 4 way version from above.
 *)
 
 let Mux8Way16 a b c d e f g h (sel:bool array) =
-    let m1 = Mux4Way16 a b c d sel.[0..1]
-    let m2 = Mux4Way16 e f g h sel.[0..1]
-    MultiMux sel.[2] m1 m2 
+    let m1 = Mux4Way16 a b c d sel.[1..2]
+    let m2 = Mux4Way16 e f g h sel.[1..2]
+    MultiMux sel.[0] m1 m2 
 
 (**
 Up next, 4 way and 8 way DMUX.  
@@ -391,14 +389,14 @@ The purpose of multi way DMUX is to 'pipe' the input into a particular output ba
 
 let DMux4Way x (sel:bool array) = 
     let (d1,d2) = DMux x sel.[1]
-    let (a,b) = DMux d1 sel.[0]
-    let (c,d) = DMux d2 sel.[0]
+    let (a,c) = DMux d1 sel.[0]
+    let (b,d) = DMux d2 sel.[0]
     (a,b,c,d)
 
 let DMux8Way x (sel:bool array) = 
-    let (d1,d2) = DMux x sel.[2]
-    let (a,b,c,d) = DMux4Way d1 sel.[0..1]
-    let (e,f,g,h) = DMux4Way d2 sel.[0..1]
+    let (d1,d2) = DMux x sel.[0]
+    let (a,b,c,d) = DMux4Way d2 sel.[1..2]
+    let (e,f,g,h) = DMux4Way d1 sel.[1..2]
     (a,b,c,d,e,f,g,h)
 
 (**
