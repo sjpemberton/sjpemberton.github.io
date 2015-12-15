@@ -164,7 +164,7 @@ The update function will need to do multiple things.
 
 We can therefore work through this list to handle each step.
 
-### Spawning new particles
+###Emitters - Spawning new particles
 
 New particles are spawned by using the emitter passed to the animations constructor.
 An emitter is a simple function that just creates a particle and sets some default values.
@@ -208,7 +208,7 @@ Below is the spawnParticle function, along with the replace function.
 
 (**
 
-### Particle Acceleration
+###Forces - Calculating Particle Acceleration
 
 Next up, determining the new value for particle acceleration.  
 
@@ -242,7 +242,7 @@ We then divide this by the particles mass.
 
 After calculating the acceleration, we check for collisions.
 
-###Collisions
+###Colliders - Handling Particle Collisions
 
 Collisions come in many guises ranging from simple floor/wall collisions, to more complex collisions with other particles or objects.
 For my simple animation, I will only require a collider on the floor and possible the walls.  
@@ -322,6 +322,28 @@ This method take a float representing the amount of time passed, in seconds, sin
         member this.Update(secs) = 
             state <- tick secs state
             state
+
+
+(**
+
+Phew! That covered a lot of code in a pretty dense format.  
+The code we just covered gives us pretty much all we need to start creating an actual animation.
+
+##Creating an animation
+
+In order to create an animation we need to tackle two parts.  
+
+ - The creation of a UI, complete with some rendering logic.
+ - Creating a set of specifc emitters, colliders, forces and particle types to implement the animation logic itself.
+ 
+ We will start by setting up an instance of our animation type to represent snow.
+ 
+ ###It's Snowtime!
+ 
+ First up, we need to tackle our representation of a snowflake and create an emitter in order to initialise them.  
+ 
+
+*)
 
 (**
 [F# advent]:https://sergeytihon.wordpress.com/2015/10/25/f-advent-calendar-in-english-2015/
