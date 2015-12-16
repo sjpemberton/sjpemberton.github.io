@@ -18,6 +18,8 @@ WPF might not be a great choice for what I want, but it is familiar to me and me
 A much better option would have been to use OpenGL or DirectX but the learning curve would have likely been to steep for the time I had.
 Anyway, on to the fun part.
 
+![Preview](/content/images/post-images/fsAdvent1.gif)
+
 <!-- more -->
 
 ##Particles, Particles everywhere!
@@ -124,11 +126,20 @@ For now, all we care about is representing the state that must mutate each itera
 I have chosen to capture the mutable state in a single record on a new type that represents an instance of our engine, an animation. 
 
 *)
-
+(***hide***)
 module Engine =
 
     open Particle
 
+(*** define: engine-event ***)
+    type MouseButtonStatus = 
+        | LeftDown
+        | RightDown
+        | Released
+
+    type EngineEvent = 
+        | MouseEvent of MouseButtonStatus * position : Vector
+(***)
     type State = 
         { Particles : list<Particle>
           Forces : list<Vector -> Vector>
@@ -141,7 +152,7 @@ module Engine =
             { Particles = list<Particle>.Empty
               Forces = forces
               Colliders = colliders
-              Counter = 0.0 }
+              Elapsed = 0.0 }
     
 (**
 
@@ -286,7 +297,7 @@ We can utilise fold to do this, like so.
 (**
 
 The final piece of the puzzle is to apply the rest of the updates to the particle.  
-This includes an alpha fade in/out as well as the current coordiantes.  
+This includes an alpha fade in/out as well as the current coordinates.  
 
 At the same time we need to decrement the delta time passed from the particles life and update it's velocity for future use.
 
@@ -316,18 +327,18 @@ We also make a public port to an update. This is the loop logics access to contr
 This method take a float representing the amount of time passed, in seconds, since the last call.
 *)
 
-        let tick secs state = 
-            let updatedState = tick secs state // Tick updates forces
+        let tick delta state = 
+            let updatedState = tick delta state // Tick updates forces
             { updatedState with Particles = 
-                                    spawnParticles (secs * spawnRate) (updatedState.Particles |> List.rev) 
+                                    spawnParticles (delta * spawnRate) (updatedState.Particles |> List.rev) 
                                     |> List.map (fun p -> 
                                            calcAcceleration p
                                            |> applyColliders
                                            |> updateAlpha
-                                           |> updatePosition secs) }
+                                           |> updatePosition delta) }
 
-        member this.Update(secs) = 
-            state <- tick secs {state with Elapsed = state.Elapsed + secs}
+        member this.Update(delta) = 
+            state <- tick delta {state with Elapsed = state.Elapsed + delta}
             state
 
 
@@ -353,11 +364,56 @@ In order to create an animation we need to tackle two parts.
 
 *)
 (*** hide ***)
-module snow =
+module Mist =
+
     open Engine
+    open Particle
+    open System
+    open Core
+
+    let private rand = Random()
+    let BoxEmitter min max = 
+        fun () -> { X = float (rand.Next(int min.X, int max.X))
+                    Y = float (rand.Next(int min.Y, int max.Y)) }
+
+    let emitter = BoxEmitter {X = 0.0; Y= 50.0} {X = 1280.0; Y=100.0}
+    let rand = Random() //TODO - Can we share?
+
+    //Needs to rework alpha and life if possible
+    let CreateMistPatch () = 
+        let life = 3.0 + rand.NextDouble()
+        { Mass = 1.0
+          Img = ""
+          Alpha = 0.4
+          AlphaTarget = 0.4
+          Acceleration = defaultVector
+          Locked = false
+          TimeToLive = life
+          Life = life
+          Coords = emitter ()
+          Velocity = toCartesian {Radius = 50.0; Theta = rand.NextDouble() * Math.PI * 2.0}
+          Rotation = (Math.PI * 2.0 * rand.NextDouble()) * 180.0 / Math.PI
+          AngularVelocity = (1.0 - rand.NextDouble() * 2.0) * 0.5
+          Scale = rand.NextDouble() + 1.0 }
+
+    let private tick delta state = state 
+
+    let Animation = new Animation(0.05, 4, CreateMistPatch, tick, [], [])
+(***)
+
+(*** hide ***)
+module Snow =
+    open Engine
+    open Particle
+
+    let pointInBounds (min,max) point = 
+        min.X < point.X && max.Y > point.Y && min.Y < point.Y && max.Y > point.Y
+
+    let boxCollider min max particle =
+        pointInBounds (min,max) particle.Coords
 
     let floorCollider particle = 
-        {particle with Locked = BoxCollider {X = 0.0; Y=670.0} {X = 1280.0; Y=720.0} particle}
+        {particle with Locked = boxCollider {X = 0.0; Y=670.0} {X = 1280.0; Y=720.0} particle}
 
     let private rand = Random()
 
@@ -443,8 +499,8 @@ Of course, we are going to need some form of UI to show the results and that is 
 
 ##The Renderer
 
-As I mentioned at the beggining of the post, WPF is really not a good choice for particle animation.  
-However it should hold up to the abuse we give it provided we allow for a degree of mutabality and alter our approach slightly in order to keep things smooth (As smooth as it can be!).
+As I mentioned at the beginning of the post, WPF is really not a good choice for particle animation.  
+However it should hold up to the abuse we give it provided we allow for a degree of mutability and alter our approach slightly in order to keep things smooth (As smooth as it can be!).
 
 For the renderer implementation, I am making use of FSXaml and FSharp.ViewModule.  
 The reason for this is two fold. They are familiar to me and greatly speed up development.
@@ -464,71 +520,30 @@ As we are using WPF, I found the easiest way to create a loop was to utilise a D
 *)
 
 (*** hide ***)
-namespace ViewModels
 
+#r """..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.dll"""
+#r """..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.TypeProvider.dll"""
+#r """..\packages\FSharp.ViewModule.Core\lib\net45\FSharp.ViewModule.Core.Wpf.dll"""
+#r "PresentationFramework.dll"
+#r "PresentationCore.dll"
+#r "System.Xaml.dll"
+#r "WindowsBase.dll"
+
+open FSharp.ViewModule
+open System.Windows
+open System.Windows.Controls
+open Engine
+open Particle
+open Snow
+open System.Collections.ObjectModel
+open System
+open System.Windows.Threading
+
+module View =
 (***)
 
-type GlobeViewModel() as this = 
-    inherit EventViewModelBase<EngineEvent>() //If not using events, change base
-    
-    let frameTimer = new DispatcherTimer()
-    
-(**
-We now need to attach an event handler to the 'Tick' of the timer.  
-This is where we call both the update of our simulation, and specifiy any updates to render to the UI.
-
-
-*)
-
-    let onTick (_, elapsed) =
-        let snowState = Snow.Animation.Update elapsed
-        snowState.Particles |> updateParticleUI particles
-
-(**
-
-The onTick function takes a tuple comprised of the current tick time and the total elapsed time.  
-All this tick function does is cal update on the Snow animation and then updates the UI.  
-
-You will have noticed the call to updateParticleUI above, we will get to that shortly.
-
-First let's look at how we attch this function to the loop.
-This is done in the constructor of our view model and we pass the frameTimer.Tick observable to the scan function of the observable module.
-This allows us to capture some state on each tick and is how we go about getting the current time and the elapsed time (in seconds). This is all done with the use of the current tick count.
-
-This new observable function is then passed to subscribe and given our onTick function as a callback.  
-Finally we set the tick interval so that it fires 60 times a second and start the timer.
-*)
-
-    do
-        frameTimer.Tick
-        |> Observable.scan (fun (previous, elapsed) _  -> 
-            (float Environment.TickCount, (float Environment.TickCount - previous) / 1000.0)) (float Environment.TickCount, float Environment.TickCount)
-        |> Observable.subscribe onTick
-        |> ignore
-        frameTimer.Interval <- TimeSpan.FromSeconds(1.0 / 60.0);
-        frameTimer.Start();
-        
-(**
-
-###Handling UI Updates
-
-We saw earlier that we need to update the UI on each tick.  
-Before we can do this we need to create a UI to update!
-
-So let's look at what's needed.
-
- - A Particle ViewModel. We use this to prevent adding mutablity to the engines representation and to speed things up on the rendering side
- - An observable collection to hold our particles
- - A UI representation of a particle. This will be an image in our case representing the particle texture
- - A canvas or other UI component in order to display the particles
-
-As usual we can look at each of these in turn.  
-For the ViewModel I will make use of FSharp.ViewModules BaseViewModel in order to take advantage of its implementation of INotifyPropertyChanged.  
-This means my UI can bind straight into its properties and update itself automatically on each tick.
-
-*)
-
-    type NotifyingPoint(x,y,scale,rotation,alpha) as this = 
+(*** define: ParticleViewModel ***)
+    type ParticleViewModel(x,y,scale,rotation,alpha) as this = 
         inherit ViewModelBase()
     
         let rotation = this.Factory.Backing(<@this.Rotation@>, rotation)
@@ -542,38 +557,110 @@ This means my UI can bind straight into its properties and update itself automat
         member this.Alpha with get () = alpha.Value and set (v) = alpha.Value <- v
         member this.X with get () = x.Value and set (v) = x.Value <- v
         member this.Y with get () = y.Value and set (v) = y.Value <- v
+(***)
+    type GlobeViewModel() as this = 
+        inherit EventViewModelBase<EngineEvent>() //If not using events, change base
+    
+        let frameTimer = new DispatcherTimer()
+
+(*** define: particle-list ***)
+        let particles = ObservableCollection<ParticleViewModel>() //Snow
+    
+(**
+We now need to attach an event handler to the 'Tick' of the timer.  
+This is where we call both the update of our simulation, and specify any updates to render to the UI.
+
+
+*)
+    
+
+(*** define: update-gui ***)
+        let updateParticleUI (collection: ObservableCollection<ParticleViewModel>) particles = 
+            particles 
+            |> List.rev
+            |> List.iteri (fun i p-> 
+                match i,p with
+                | x,_ when i < collection.Count ->
+                    collection.[i].X <- p.Coords.X
+                    collection.[i].Y <- p.Coords.Y
+                    collection.[i].Rotation <- p.Rotation
+                    collection.[i].Alpha <- p.Alpha
+                | _,_ ->
+                    collection.Add(new ParticleViewModel(p.Coords.X, p.Coords.Y,p.Scale,p.Rotation, p.Alpha)))
+(***)
+
+        let onTick (_, elapsed) =
+            let snowState = Snow.Animation.Update elapsed
+            snowState.Particles |> updateParticleUI particles
 
 (**
-Our MainViewModel can then be given the relevant colection like so and expose it as a method that can be bound to from XAML.
+
+The onTick function takes a tuple comprised of the current tick time and the total elapsed time.  
+All this tick function does is cal update on the Snow animation and then updates the UI.  
+
+You will have noticed the call to updateParticleUI above, we will get to that shortly.
+
+First let's look at how we attach this function to the loop.
+This is done in the constructor of our view model and we pass the frameTimer.Tick observable to the scan function of the observable module.
+This allows us to capture some state on each tick and is how we go about getting the current time and the elapsed time (in seconds). This is all done with the use of the current tick count.
+
+This new observable function is then passed to subscribe and given our onTick function as a call-back.  
+Finally we set the tick interval so that it fires 60 times a second and start the timer.
 *)
 
-    let particles = ObservableCollection<NotifyingPoint>() //Snow
-    member x.Particles: ObservableCollection<NotifyingPoint> = particles
-    
+        do
+            frameTimer.Tick
+            |> Observable.scan (fun (previous, elapsed) _  -> 
+                (float Environment.TickCount, (float Environment.TickCount - previous) / 1000.0)) (float Environment.TickCount, float Environment.TickCount)
+            |> Observable.subscribe onTick
+            |> ignore
+            frameTimer.Interval <- TimeSpan.FromSeconds(1.0 / 60.0);
+            frameTimer.Start();
+
+(*** define: particle-member ***)
+        member x.Particles: ObservableCollection<ParticleViewModel> = particles
+        
+(**
+
+###Handling UI Updates
+
+We saw earlier that we need to update the UI on each tick.  
+Before we can do this we need to create a UI to update!
+
+So let's look at what's needed.
+
+ - A Particle ViewModel. We use this to prevent adding mutability to the engines representation and to speed things up on the rendering side
+ - An observable collection to hold our particles
+ - A UI representation of a particle. This will be an image in our case representing the particle texture
+ - A canvas or other UI component in order to display the particles
+
+As usual we can look at each of these in turn.  
+For the ViewModel I will make use of FSharp.ViewModules BaseViewModel in order to take advantage of its implementation of INotifyPropertyChanged.  
+This means my UI can bind straight into its properties and update itself automatically on each tick.
+
+*)
+
+(*** include: ParticleViewModel ***)
+
+(**
+Our MainViewModel can then be given the relevant collection like so and expose it as a method that can be bound to from XAML.
+*)
+
+(*** include: particle-list ***)
+(*** include: particle-member ***)
 (**
 This is then used during the onTick function from earlier in the statement `snowState.Particles |> updateParticleUI particles`  
 
-The `updateParticleUI` function iterates the given collection of particle records and either creates a new viewModel for the particel if it doesn't exist, or alters an existing ones state.
+The `updateParticleUI` function iterates the given collection of particle records and either creates a new viewModel for the particle if it doesn't exist, or alters an existing ones state.
 
 You will notice that I am relying on the particle lists index in order to locate the correct view model to update.  
-This is a consequance of a much needed use of mutable data as we cannot rebuild the UI collection due to the massive performance hit that occurs.
+This is a consequence of a much needed use of mutable data as we cannot rebuild the UI collection due to the massive performance hit that occurs.
 
 We also need to reverse the list as new particles are always added to start of the particles collection.
 
 *)
-    let updateParticleUI (collection: ObservableCollection<NotifyingPoint>) particles = 
-        particles 
-        |> List.rev
-        |> List.iteri (fun i p-> 
-            match i,p with
-            | x,_ when i < collection.Count ->
-                collection.[i].Visible <- true
-                collection.[i].X <- p.Coords.X
-                collection.[i].Y <- p.Coords.Y
-                collection.[i].Rotation <- p.Rotation
-                collection.[i].Alpha <- p.Alpha
-            | _,_ ->
-                collection.Add(new NotifyingPoint(p.Coords.X, p.Coords.Y,p.Scale,p.Rotation, p.Alpha)))
+
+(*** include: update-gui ***)    
 
 (**
 
@@ -581,7 +668,126 @@ Great, onto the UI.
 
 ###The XAML View
 
+In order to display the particles on the screen, we need something light weight in terms of child positioning and that can also hold a collection of elements.  
+The solution was to create an items control and set its panel to be a canvas element.  
+
+This will then allow us to define a simple data template item style in order to display the particles as we want.
+
+Below is the important section of XAML. The rest can be viewed on GitHub if interested.
+
+{% highlight xml %}
+<ItemsControl ItemsSource="{Binding Particles}">
+    <ItemsControl.ItemsPanel>
+        <ItemsPanelTemplate>
+            <Canvas xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" 
+            x:Name="Canvas" Grid.Row="0" Width="1280" Height="720" Canvas.Left="0" Canvas.Top="0" Margin="0,0,0,0" Background="Transparent" />
+        </ItemsPanelTemplate>
+    </ItemsControl.ItemsPanel>
+    <ItemsControl.ItemTemplate>
+        <DataTemplate>
+            <Image Source="SnowFlake.png" Width="8" Height="8">
+                <Image.RenderTransform>
+                    <TransformGroup>
+                        <ScaleTransform ScaleX="{Binding Scale}" ScaleY="{Binding Scale}"  />
+                        <RotateTransform Angle="{Binding Rotation}" />
+                    </TransformGroup>
+                </Image.RenderTransform>
+            </Image>
+        </DataTemplate>
+    </ItemsControl.ItemTemplate>
+    <ItemsControl.ItemContainerStyle>
+        <Style>
+            <Setter Property="Canvas.Left" Value="{Binding Path=X}" />
+            <Setter Property="Canvas.Top" Value="{Binding Path=Y}" />
+            <Setter Property="Image.Opacity" Value="{Binding Alpha}" />
+        </Style>
+    </ItemsControl.ItemContainerStyle>
+</ItemsControl>
+{% endhighlight %}
+
+As you can see, the above XAML contains bindings to set the `Canvas.Left` and `Canvas.Right` props, along with opacity, scale and rotation, with the latter two inside a render transform on the image element.
+
+This is all we needed to accomplish. The animation should now be in a state to run successfully and render us a happy little snow scene!
+But we can go further. Why not have another type of particle animating at the same time? And what about some user interaction?
+
+##Running Two Animations
+
+Running two animations is an easy task.  
+All we need is to set up another animation in exactly the same way as we did for the Snow.  
+
+That is, implement any emitters, colliders, forces and update logic that are required and instantiate a new Animation using them.  
+The ViewModel will then need a slight change to make use of them.
+
+It will now require two particle collections and needs to ensure both animations get updated every tick.
 *)
+(*** hide ***)
+    let updateParticleUI (collection: ObservableCollection<ParticleViewModel>) particles = 
+            particles 
+            |> List.rev
+            |> List.iteri (fun i p-> 
+                match i,p with
+                | x,_ when i < collection.Count ->
+                    collection.[i].X <- p.Coords.X
+                    collection.[i].Y <- p.Coords.Y
+                    collection.[i].Rotation <- p.Rotation
+                    collection.[i].Alpha <- p.Alpha
+                | _,_ ->
+                    collection.Add(new ParticleViewModel(p.Coords.X, p.Coords.Y,p.Scale,p.Rotation, p.Alpha)))
+
+    
+
+(***)
+
+    let particles = ObservableCollection<ParticleViewModel>() //Snow
+    let mistParticles = ObservableCollection<ParticleViewModel>() //Mist
+
+    let onTick (_, elapsed) =
+        let snowState = Snow.Animation.Update elapsed
+        let mistState = Mist.Animation.Update elapsed 
+        snowState.Particles |> updateParticleUI particles
+        mistState.Particles |> updateParticleUI mistParticles
+
+(**
+The definition of my second animation is incredibly similar to the first.  
+It differs in the fact is has no specific update logic, has no forces or colliders and is therefore much simpler.
+
+With no colliders or forces, it means the mist particles simply drift across the screen in their initial direction and speed. Perfect!
+I've omitted the code for brevity so check it out on GitHub if you are intrigued.
+
+To handle the rendering, we will create another ItemsControl with a canvas in the UI and overlap the first with it.
+And that's it, as simple as that!
+
+I won't paste the XAML in here as it is almost identical. Feel free to check it on GitHub [here] if you want.
+
+##User Interaction - Events
+
+Now for the best part. Some user interaction.  
+
+For this we need a few things.
+
+ - A way of getting events from the UI into the engine
+ - Passing these events to the relevant animations
+ - Allow the event handlers to have a causal effect on the particles.
+
+Luckily for us, FsXaml provides us with some handy event to command and event converter functionality that we can utilise in order to capture UI events and transform them into our EngineEvent records.
+
+
+*)
+
+(**
+
+TODO
+
+ - Events Code
+ - Event bindings
+ - Event handlers
+ - Force Creation
+ - Gif
+
+ ![Preview](/content/images/post-images/fsAdventInteractive.gif)
+
+*)
+
 
 (**
 [F# advent]:https://sergeytihon.wordpress.com/2015/10/25/f-advent-calendar-in-english-2015/
