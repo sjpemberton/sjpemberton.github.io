@@ -133,7 +133,7 @@ module Engine =
         { Particles : list<Particle>
           Forces : list<Vector -> Vector>
           Colliders : list<Particle -> Particle> 
-          Counter: float}
+          Elapsed: float}
 
     type Animation(spawnRate, maxParticles, particleEmitter, tick, forces, colliders) as x = 
     
@@ -286,7 +286,9 @@ We can utilise fold to do this, like so.
 (**
 
 The final piece of the puzzle is to apply the rest of the updates to the particle.  
-This includes an alpha fade in/out
+This includes an alpha fade in/out as well as the current coordiantes.  
+
+At the same time we need to decrement the delta time passed from the particles life and update it's velocity for future use.
 
 *)
 
@@ -315,7 +317,7 @@ This method take a float representing the amount of time passed, in seconds, sin
 *)
 
         let tick secs state = 
-            let updatedState = tick secs {state with Counter = state.Counter + secs} // Tick updates forces
+            let updatedState = tick secs state // Tick updates forces
             { updatedState with Particles = 
                                     spawnParticles (secs * spawnRate) (updatedState.Particles |> List.rev) 
                                     |> List.map (fun p -> 
@@ -325,7 +327,7 @@ This method take a float representing the amount of time passed, in seconds, sin
                                            |> updatePosition secs) }
 
         member this.Update(secs) = 
-            state <- tick secs state
+            state <- tick secs {state with Elapsed = state.Elapsed + secs}
             state
 
 
@@ -419,11 +421,9 @@ in order to give it varying magnitude in a single direction.
 
 *)
     let private tick delta state =
-        let step = state.Counter + delta;
-        let wind = fun _ -> { X = (Math.Sin step * 0.5 + 0.5) / 10.0;
-                              Y = Math.Sin(step * 0.5) / 10.0}
-        { state with Forces = [gravity; wind]
-                     Counter = step}
+        let wind = fun _ -> { X = (Math.Sin state.Elapsed * 0.5 + 0.5) / 10.0;
+                              Y = Math.Sin(state.Elapsed * 0.5) / 10.0}
+        { state with Forces = [gravity; wind]}
 
 
 (*** hide ***)
@@ -431,6 +431,155 @@ in order to give it varying magnitude in a single direction.
 
 (**
 We could also set the colliders here but as we only have our floor collider that we saw earlier, there is no need.
+
+The last thing we need to do, is create the animation instance passing in the required parameters.  
+*)
+    let Animation = new Animation(10.0, 1000, CreateSnowFlake, tick, [gravity; wind], [floorCollider]) 
+
+
+(**
+That's it! Our animation is no ready to be ran.  
+Of course, we are going to need some form of UI to show the results and that is where I turn to WPF.
+
+##The Renderer
+
+As I mentioned at the beggining of the post, WPF is really not a good choice for particle animation.  
+However it should hold up to the abuse we give it provided we allow for a degree of mutabality and alter our approach slightly in order to keep things smooth (As smooth as it can be!).
+
+For the renderer implementation, I am making use of FSXaml and FSharp.ViewModule.  
+The reason for this is two fold. They are familiar to me and greatly speed up development.
+
+So, where do we start?
+
+The control loop is a good base point.
+
+###The Animation Loop
+
+An animation loop is a simple beast at it's core, but can become complex if striving to keep things running smoothly on machines of varying performance.
+We can start by creating a ViewModel to house our animation control logic.  
+
+Within this view model, we can create our loop.
+As we are using WPF, I found the easiest way to create a loop was to utilise a DispatchTimer as this plays well with WPFs own rendering engine.
+
+*)
+
+(*** hide ***)
+namespace ViewModels
+
+(***)
+
+type GlobeViewModel() as this = 
+    inherit EventViewModelBase<EngineEvent>() //If not using events, change base
+    
+    let frameTimer = new DispatcherTimer()
+    
+(**
+We now need to attach an event handler to the 'Tick' of the timer.  
+This is where we call both the update of our simulation, and specifiy any updates to render to the UI.
+
+
+*)
+
+    let onTick (_, elapsed) =
+        let snowState = Snow.Animation.Update elapsed
+        snowState.Particles |> updateParticleUI particles
+
+(**
+
+The onTick function takes a tuple comprised of the current tick time and the total elapsed time.  
+All this tick function does is cal update on the Snow animation and then updates the UI.  
+
+You will have noticed the call to updateParticleUI above, we will get to that shortly.
+
+First let's look at how we attch this function to the loop.
+This is done in the constructor of our view model and we pass the frameTimer.Tick observable to the scan function of the observable module.
+This allows us to capture some state on each tick and is how we go about getting the current time and the elapsed time (in seconds). This is all done with the use of the current tick count.
+
+This new observable function is then passed to subscribe and given our onTick function as a callback.  
+Finally we set the tick interval so that it fires 60 times a second and start the timer.
+*)
+
+    do
+        frameTimer.Tick
+        |> Observable.scan (fun (previous, elapsed) _  -> 
+            (float Environment.TickCount, (float Environment.TickCount - previous) / 1000.0)) (float Environment.TickCount, float Environment.TickCount)
+        |> Observable.subscribe onTick
+        |> ignore
+        frameTimer.Interval <- TimeSpan.FromSeconds(1.0 / 60.0);
+        frameTimer.Start();
+        
+(**
+
+###Handling UI Updates
+
+We saw earlier that we need to update the UI on each tick.  
+Before we can do this we need to create a UI to update!
+
+So let's look at what's needed.
+
+ - A Particle ViewModel. We use this to prevent adding mutablity to the engines representation and to speed things up on the rendering side
+ - An observable collection to hold our particles
+ - A UI representation of a particle. This will be an image in our case representing the particle texture
+ - A canvas or other UI component in order to display the particles
+
+As usual we can look at each of these in turn.  
+For the ViewModel I will make use of FSharp.ViewModules BaseViewModel in order to take advantage of its implementation of INotifyPropertyChanged.  
+This means my UI can bind straight into its properties and update itself automatically on each tick.
+
+*)
+
+    type NotifyingPoint(x,y,scale,rotation,alpha) as this = 
+        inherit ViewModelBase()
+    
+        let rotation = this.Factory.Backing(<@this.Rotation@>, rotation)
+        let scale = this.Factory.Backing(<@this.Scale@>, scale)
+        let alpha = this.Factory.Backing(<@this.Alpha@>, alpha)
+        let x = this.Factory.Backing(<@this.X@>, x)
+        let y = this.Factory.Backing(<@this.Y@>, y)
+    
+        member this.Rotation with get () = rotation.Value and set (v) = rotation.Value <- v
+        member this.Scale with get () = scale.Value and set (v) = scale.Value <- v
+        member this.Alpha with get () = alpha.Value and set (v) = alpha.Value <- v
+        member this.X with get () = x.Value and set (v) = x.Value <- v
+        member this.Y with get () = y.Value and set (v) = y.Value <- v
+
+(**
+Our MainViewModel can then be given the relevant colection like so and expose it as a method that can be bound to from XAML.
+*)
+
+    let particles = ObservableCollection<NotifyingPoint>() //Snow
+    member x.Particles: ObservableCollection<NotifyingPoint> = particles
+    
+(**
+This is then used during the onTick function from earlier in the statement `snowState.Particles |> updateParticleUI particles`  
+
+The `updateParticleUI` function iterates the given collection of particle records and either creates a new viewModel for the particel if it doesn't exist, or alters an existing ones state.
+
+You will notice that I am relying on the particle lists index in order to locate the correct view model to update.  
+This is a consequance of a much needed use of mutable data as we cannot rebuild the UI collection due to the massive performance hit that occurs.
+
+We also need to reverse the list as new particles are always added to start of the particles collection.
+
+*)
+    let updateParticleUI (collection: ObservableCollection<NotifyingPoint>) particles = 
+        particles 
+        |> List.rev
+        |> List.iteri (fun i p-> 
+            match i,p with
+            | x,_ when i < collection.Count ->
+                collection.[i].Visible <- true
+                collection.[i].X <- p.Coords.X
+                collection.[i].Y <- p.Coords.Y
+                collection.[i].Rotation <- p.Rotation
+                collection.[i].Alpha <- p.Alpha
+            | _,_ ->
+                collection.Add(new NotifyingPoint(p.Coords.X, p.Coords.Y,p.Scale,p.Rotation, p.Alpha)))
+
+(**
+
+Great, onto the UI.
+
+###The XAML View
 
 *)
 
