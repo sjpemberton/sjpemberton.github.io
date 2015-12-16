@@ -1,6 +1,7 @@
 
 (*** hide ***)
 namespace FsWPF
+open System
 
 
 (**
@@ -73,6 +74,10 @@ module Core =
         { X = polar.Radius * Math.Cos(polar.Theta)
           Y = polar.Radius * Math.Sin(polar.Theta) }
 
+(*** hide ***)
+    let toDegrees rads =
+        rads * (180.0 / Math.PI)
+
 (**
 
 Now that is out of the way, we can look at creating the representation of our particle.
@@ -92,7 +97,7 @@ module Particle =
           Mass : float
           Img : string
           Alpha: float
-          AlphaMod: float
+          AlphaTarget: float
           Velocity : Vector
           AngularVelocity: float
           Acceleration : Vector
@@ -258,11 +263,11 @@ We can then utilise this to create a box collider with explicit logic to execute
         let pointInBounds (min,max) point = 
             min.X < point.X && max.Y > point.Y && min.Y < point.Y && max.Y > point.Y
     
-        let BoxCollider min max particle =
+        let boxCollider min max particle =
             pointInBounds (min,max) particle.Coords
 
         let floorCollider particle = 
-            {particle with Locked = BoxCollider {X = 0.0; Y=670.0} {X = 1280.0; Y=720.0} particle}
+            {particle with Locked = boxCollider {X = 0.0; Y=670.0} {X = 1280.0; Y=720.0} particle}
 (**
 
 We see above the use of a box collider that will lock a particle in place when it hits an area of the screen near to the floor.
@@ -288,10 +293,10 @@ This includes an alpha fade in/out
         let updateAlpha p =
             match 1.0 - p.TimeToLive / p.Life with
             | lifeRatio when lifeRatio <= 0.25
-                -> { p with Alpha = lifeRatio / 0.25 * p.AlphaMod }
+                -> { p with Alpha = lifeRatio / 0.25 * p.AlphaTarget }
             | lifeRatio when lifeRatio >= 0.75 
-                -> { p with Alpha = (1.0 - lifeRatio) / 0.25 * p.AlphaMod }
-            | _ -> { p with Alpha = p.AlphaMod }
+                -> { p with Alpha = (1.0 - lifeRatio) / 0.25 * p.AlphaTarget }
+            | _ -> { p with Alpha = p.AlphaTarget }
 
         let updatePosition delta p =
             match p.Locked with
@@ -310,7 +315,7 @@ This method take a float representing the amount of time passed, in seconds, sin
 *)
 
         let tick secs state = 
-            let updatedState = tick secs state // Tick updates forces
+            let updatedState = tick secs {state with Counter = state.Counter + secs} // Tick updates forces
             { updatedState with Particles = 
                                     spawnParticles (secs * spawnRate) (updatedState.Particles |> List.rev) 
                                     |> List.map (fun p -> 
@@ -327,21 +332,105 @@ This method take a float representing the amount of time passed, in seconds, sin
 (**
 
 Phew! That covered a lot of code in a pretty dense format.  
-The code we just covered gives us pretty much all we need to start creating an actual animation.
+The code above gives us pretty much all we need to start creating an actual animation.
 
 ##Creating an animation
 
 In order to create an animation we need to tackle two parts.  
 
  - The creation of a UI, complete with some rendering logic.
- - Creating a set of specifc emitters, colliders, forces and particle types to implement the animation logic itself.
+ - Creating a set of specific emitters, colliders, forces and particle types to implement the animation logic itself.
  
  We will start by setting up an instance of our animation type to represent snow.
  
  ###It's Snowtime!
  
  First up, we need to tackle our representation of a snowflake and create an emitter in order to initialise them.  
- 
+ For our snowflakes, we will create a box emitter that creates random starting coordinates for our snowflakes within a 
+ rectangle that starts above and to the left of the view port.
+
+*)
+(*** hide ***)
+module snow =
+    open Engine
+
+    let floorCollider particle = 
+        {particle with Locked = BoxCollider {X = 0.0; Y=670.0} {X = 1280.0; Y=720.0} particle}
+
+    let private rand = Random()
+
+(***)
+
+    let BoxEmitter min max = 
+        fun () -> { X = float (rand.Next(int min.X, int max.X))
+                    Y = float (rand.Next(int min.Y, int max.Y)) }
+
+    let emitter = BoxEmitter {X = -50.0; Y= -40.0} {X = 1280.0; Y=100.0}
+
+(**
+
+We will the use this emitter in or snowflake generator function.  
+This function basically just generates some random values for the important properties of the particle.  
+
+Let's run through some of these quickly and describe there usage.
+
+ - Coords: The initial coordinates created by our box emitter.
+ - life/TimeToLive: This value controls how long the particle should live for.
+ - Mass: Used in the acceleration calculation. We use a random value between 0.002 and 0.003.
+ - Alpha/AlphaTarget - Control the alpha of the particle in the UI
+ - Velocity: A vector representing the particles initial direction and speed
+ - Acceleration: Starts at zero
+ - Rotation: Starting particle rotation in degrees
+ - Scale: A random scale between 0.5 and 1 to give the particles a random size
+
+*)
+
+    let CreateSnowFlake () = 
+        let life = 4.0 * (rand.NextDouble() * 2.0)
+        { Coords = emitter ()
+          Img = "SnowFlake.png"
+          Mass = (rand.NextDouble() / 1000.0) + 0.001
+          Alpha = 1.0
+          AlphaTarget = 1.0
+          Velocity = toCartesian {Radius = 30.0; Theta = rand.NextDouble() * Math.PI * 2.0}
+          AngularVelocity = 1.0
+          Acceleration = defaultVector
+          TimeToLive = life
+          Life = life
+          Rotation = (Math.PI * 2.0 * rand.NextDouble()) |> toDegrees
+          Scale = rand.NextDouble() / 2.0 + 0.5 
+          Locked = false} 
+
+(**
+Next up. Forces.  
+For our snow flakes we want gravity and wind in order to give more dynamic movement to the particles.
+*)
+
+    let gravity p = {X = 0.0; Y = 9.81 / 60.0}
+    let wind p = {X = 0.5; Y = 0.0}
+
+(**
+Finally we need a tick (or update) function that can be called during iteration of the simulation loop.  
+This function will update the the forces in play. 
+
+Particular notice should be given to the wind force that is calculated based upon a sine wave (or rather half of it) 
+in order to give it varying magnitude in a single direction.
+
+
+*)
+    let private tick delta state =
+        let step = state.Counter + delta;
+        let wind = fun _ -> { X = (Math.Sin step * 0.5 + 0.5) / 10.0;
+                              Y = Math.Sin(step * 0.5) / 10.0}
+        { state with Forces = [gravity; wind]
+                     Counter = step}
+
+
+(*** hide ***)
+    let zzz = ()
+
+(**
+We could also set the colliders here but as we only have our floor collider that we saw earlier, there is no need.
 
 *)
 
