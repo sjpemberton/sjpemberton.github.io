@@ -13,49 +13,63 @@ namespace FsWPF
 (**
 #A basic particle system in F# and WPF
 
-This post is part of the fantastic [F# advent] event. Thanks to Sergey for organising it!
+>This post is part of the fantastic [F# advent] event. Thanks to Sergey for organising it!  
 
-For the post, I decided to do something a bit different and with a 'slightly' more Christmassy theme.
-That led me to create a very simple 2D particle engine.
+While my post my not be quite as advanced as the others so far, I hope you'll find it as interesting as I did writing it.
 
-The engine is created in F# of course, and for the UI I chose to use WPF.
-WPF might not be a great choice for what I want, but it is familiar to me and meant I could utilise FSXaml and Fsharp.ViewModule to speed up development.
+For the post, I wanted to do something a bit different and with a *slightly* more Christmassy (more wintery at least) theme then my usual posts.
+This led me to create a very simple 2D particle engine that could be used to simulate a snow scene.
 
-A much better option would have been to use OpenGL or DirectX but the learning curve would have likely been to steep for the time I had.
-Anyway, on to the fun part.
+The engine is created in F# of course, while the UI is implemented in WPF.
+WPF might not be a great choice for particle animation, but it is familiar to me and means I can utilise [FSXaml] and [Fsharp.ViewModule] to speed up development.
+
+Here's a sneak peak of where we're heading.
 
 ![Preview](/content/images/post-images/fsAdvent1.gif)
 
 <!-- more -->
 
-##Particles, Particles everywhere!
+##Particles, particles everywhere!
 
-A basic particle engine is made up of a few simple parts, allowing for a nice abstraction.
-The engine will consist of the following:
+We'll start with a bit of background on particle engines.
+
+A basic particle engine is made up of a few simple parts.
 
  - Emitters: These create particles and initialise them with starting state
  - Colliders: Used to apply logic when a particle collides with an entity (or space)
  - Forces: Applied to the particles in order to alter their state
+
+These parts, are then utilised by a core *engine* in order to generate, update and effectively *simulate* a representation of a particle, or more importantly, many particles.
  
- In addition, there will be a simulation loop in order to control the updating of the particle engine and the rendering of the particles to the UI.
- This should be fully abstracted away so that the UI implementation could be provided in any language/technology, as long as we can call the F# engine code from it.
+In addition, an engine requires a loop in order to drive the updating of the particle engines simulation and subsequently the rendering of the particles to the UI.
+This *should* be fully abstracted away so that the UI implementation could be provided in any language/technology, as long as the engine can be called from it.
 
-We will start by creating the necessary types in order to represent our particles.
-I have chosen to use records here for simplicity. It is worth pointing out that using immutable data structures, while perfectly valid, will slow down the implementation.  
-However, for this simple demo I will stick with immutable structures (At least for the engine).
+So, we know what is needed, where do we start?
 
-A particle will consist of a vector (2D pair of coordinates) and various attributes that control how it is to be rendered and controlled. 
-Such as scale, rotation, alpha and time to live.
+###Core Types
 
-The need for a basic vector type, as well as a general representation of Cartesian coordinates prompted me to create a core types module to hold the common record types.
+We will start by creating the necessary types that we will need in all areas of the engine code and inparticular the represent our particles.
+I have chosen to use records here for simplicity. It is worth pointing out that using immutable data structures, while perfectly valid, 
+will slow down the implementation due to the overhead of recreating the records and containing lists each iteration.  
 
-This module includes our Point record, which is used as both a vector and in cases where we just need Cartesian coordinates, 
-and also some useful common functions to operate on a vector such as calculating the magnitude (or distance) and summing to vectors.
+However, I will stick with immutable structures (At least for the engine), as it's safer and the overhead is bareable for such a simple simulation.
 
-This, of course could have been implemented in a class but I like the functional approach as it will allow me to pipe the vectors (points) to successive function calls.
+**Vectors**
 
-As well as the Cartesian point, we also need a Polar record.
-This is used to determine a random starting direction for our particles.
+A particle will consist of its current coordinates, acceleration, and velocity along with various attributes that will directly affect how it is controlled by the engine and rendered to the UI. 
+These main attributes can each be represented by a 2D vector (A pair of cartesian coordinates).
+
+The other attributes such as scale, rotation, alpha etc will be looked at in detail later when we declare the Particle type.
+
+Firstly we will create a core types module to hold the record types and functions related to Vectors and coordinates.
+
+This module includes our Vector record, which is used as both a vector and in cases where we just need Cartesian coordinates, 
+in addition to some useful common functions to operate on vector records, such as for calculating the magnitude (or distance) and summing two vectors.
+
+This, of course could have been implemented in a class but I like the functional approach as it will allow me to pipe the vectors to successive function calls.
+
+As well as the Cartesian based vector, we also need a Polar coordinate record (an angle and radius).  
+Polar coordinates can be used to determine a random starting direction and magnitude for our particles vectors.
 
 *)
 
@@ -88,7 +102,9 @@ module Core =
 
 (**
 
-Now that is out of the way, we can look at creating the representation of our particle.
+Now that we have our core types, let's look at creating the representation of our particles.
+
+**Particles**
 
 We know that this particle record will need some vectors for position, acceleration and velocity.
 We also know that we require some properties that will be used to alter rendering by the UI.  
@@ -125,11 +141,11 @@ module Particle =
       
 (**
 
-Let's leave the particles there for a minute and investigate what we need to engine to do.
+Let's leave the particles there for a minute and investigate what we need the engine to do.
 
 ##The engine
 
-Form the list provided earlier we can see we need a few basic things for our engine.
+From the list provided earlier we can see we need a few basic things for our engine.
 Let's look at each in turn.
 
 ###State Updates
@@ -928,6 +944,7 @@ I hope you enjoyed this simple animation.
 It was fun to create and the simplicity of F# made for a relatively quick and painless experience.
 
 I would love to see how it performs when WPF is not being used as the render and I am more than aware of many places where efficiency could be improved in the engine code.
+Likewise a much better option would have been to use OpenGL or DirectX for the rendering but the learning curve would have likely been to steep for the time I had. (Possible follow on post in the new year?)
 
 As usual, all the code is available on [GitHub] so feel free to check it out!
 
@@ -940,6 +957,8 @@ Thanks again to Sergey Tihan for organising the event.
 [F# advent]:https://sergeytihon.wordpress.com/2015/10/25/f-advent-calendar-in-english-2015/
 [here]:https://github.com/sjpemberton/FsSnowGlobe/blob/master/FsSnowGlobe/MainWindow.xaml
 [GitHub]:https://github.com/sjpemberton/FsSnowGlobe/
+[FSharp.ViewModule]:https://github.com/fsprojects/FSharp.ViewModule
+[FSharp.Desktop.UI]:https://github.com/fsprojects/FSharp.Desktop.UI
 *)
 
 (*** hide ***)
