@@ -1,8 +1,14 @@
 
 (*** hide ***)
-namespace FsWPF
-open System
+#r """..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.dll"""
+#r """..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.TypeProvider.dll"""
+#r """..\packages\FSharp.ViewModule.Core\lib\net45\FSharp.ViewModule.Core.Wpf.dll"""
+#r "PresentationFramework.dll"
+#r "PresentationCore.dll"
+#r "System.Xaml.dll"
+#r "WindowsBase.dll"
 
+namespace FsWPF
 
 (**
 #A basic particle system in F# and WPF
@@ -108,6 +114,14 @@ module Particle =
           Rotation: float
           Scale: float
           Locked: bool}
+
+(*** define: exert-force ***)
+    let exertForce epicentre strength decayF vec = 
+        let diff = epicentre |> diff vec 
+        let distance = magnitude diff 
+        let decay = decayF distance
+        { X = diff.X / distance * decay * strength
+          Y = diff.Y / distance * decay * strength }
       
 (**
 
@@ -128,7 +142,7 @@ I have chosen to capture the mutable state in a single record on a new type that
 *)
 (***hide***)
 module Engine =
-
+    open System
     open Particle
 
 (*** define: engine-event ***)
@@ -147,7 +161,10 @@ module Engine =
           Elapsed: float}
 
     type Animation(spawnRate, maxParticles, particleEmitter, tick, forces, colliders) as x = 
-    
+
+(*** define: events ***)
+        let mouseEvent = new Event<EngineEvent>()
+(***)
         let mutable state = 
             { Particles = list<Particle>.Empty
               Forces = forces
@@ -199,28 +216,27 @@ Below is the spawnParticle function, along with the replace function.
 
 *)
 
-        let replace test replaceWith list = 
+        let replace test replacement list = 
             let rec search acc = 
                 function 
                 | [] -> None
                 | h :: t -> 
                     match test h with
-                    | true -> Some(List.rev t @ replaceWith :: acc)
+                    | true -> Some(List.rev t @ replacement :: acc)
                     | false -> search (h :: acc) t
             search [] list
-
-        let rec spawnParticles toSpawn (accu: Particle list) = 
+    
+        let rec spawnParticles toSpawn (accu : Particle list) = 
             match toSpawn with
             | a when accu.Length >= maxParticles -> 
                 let replaced = replace (fun p -> p.Locked || p.TimeToLive < 0.0) (particleEmitter()) accu
-                match replaced with 
+                match replaced with
                 | Some replaced -> 
-                    if toSpawn > 1.0 then spawnParticles (toSpawn - 1.0) replaced else replaced
-                | _ -> accu |> List.rev
-            | b when toSpawn > 0.0 -> 
-                particleEmitter() :: accu
-                |> spawnParticles (toSpawn - 1.0)
-            | _ -> accu |> List.rev
+                    if toSpawn > 1.0 then spawnParticles (toSpawn - 1.0) replaced |> List.rev
+                    else replaced |> List.rev
+                | _ -> accu
+            | b when toSpawn > 0.0 -> particleEmitter() :: accu |> spawnParticles (toSpawn - 1.0)
+            | _ -> accu
 
 (**
 
@@ -340,7 +356,9 @@ This method take a float representing the amount of time passed, in seconds, sin
         member this.Update(delta) = 
             state <- tick delta {state with Elapsed = state.Elapsed + delta}
             state
-
+(*** define: event-members ***)
+        member this.RaiseMouseEvent status = status |> mouseEvent.Trigger
+        member this.MouseEvent = mouseEvent.Publish :> IObservable<EngineEvent>
 
 (**
 
@@ -403,6 +421,7 @@ module Mist =
 
 (*** hide ***)
 module Snow =
+    open System
     open Engine
     open Particle
 
@@ -482,8 +501,8 @@ in order to give it varying magnitude in a single direction.
         { state with Forces = [gravity; wind]}
 
 
-(*** hide ***)
-    let zzz = ()
+(*** define: snow-mouse-force ***)
+    let mutable private mouseForce = fun _ -> {X = 0.0; Y = 0.0}
 
 (**
 We could also set the colliders here but as we only have our floor collider that we saw earlier, there is no need.
@@ -491,6 +510,19 @@ We could also set the colliders here but as we only have our floor collider that
 The last thing we need to do, is create the animation instance passing in the required parameters.  
 *)
     let Animation = new Animation(10.0, 1000, CreateSnowFlake, tick, [gravity; wind], [floorCollider]) 
+
+(*** define: handle-mouse-force ***)
+    let private applyMouseForce = function
+    | MouseEvent(LeftDown, currentPos) ->
+        mouseForce <- exertForce currentPos 200.0 (fun d -> 1.0 / (1.0 + d))
+    | MouseEvent(RightDown, currentPos) ->
+        mouseForce <- exertForce currentPos -200.0 (fun d -> 1.0 / (1.0 + d))
+    |_ -> mouseForce <- fun _ -> {X = 0.0; Y = 0.0}
+
+    do
+        Animation.MouseEvent
+        |> Observable.subscribe applyMouseForce 
+        |> ignore
 
 
 (**
@@ -521,17 +553,11 @@ As we are using WPF, I found the easiest way to create a loop was to utilise a D
 
 (*** hide ***)
 
-#r """..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.dll"""
-#r """..\packages\FsXaml.Wpf\lib\net45\FsXaml.Wpf.TypeProvider.dll"""
-#r """..\packages\FSharp.ViewModule.Core\lib\net45\FSharp.ViewModule.Core.Wpf.dll"""
-#r "PresentationFramework.dll"
-#r "PresentationCore.dll"
-#r "System.Xaml.dll"
-#r "WindowsBase.dll"
-
 open FSharp.ViewModule
 open System.Windows
+open System.Windows.Input
 open System.Windows.Controls
+open FsXaml
 open Engine
 open Particle
 open Snow
@@ -558,10 +584,14 @@ module View =
         member this.X with get () = x.Value and set (v) = x.Value <- v
         member this.Y with get () = y.Value and set (v) = y.Value <- v
 (***)
-    type GlobeViewModel() as this = 
+    type MainViewModel() as this = 
         inherit EventViewModelBase<EngineEvent>() //If not using events, change base
     
         let frameTimer = new DispatcherTimer()
+(*** define: mouse-command ***)
+        let mouseCommand = FunCommand((fun o ->
+            let mEvent = o :?> EngineEvent
+            Snow.Animation.RaiseMouseEvent mEvent), fun _ -> true) :> ICommand
 
 (*** define: particle-list ***)
         let particles = ObservableCollection<ParticleViewModel>() //Snow
@@ -619,7 +649,8 @@ Finally we set the tick interval so that it fires 60 times a second and start th
 
 (*** define: particle-member ***)
         member x.Particles: ObservableCollection<ParticleViewModel> = particles
-        
+(*** define: mouse-command-member ***)
+        member x.MouseCommand = mouseCommand
 (**
 
 ###Handling UI Updates
@@ -769,28 +800,146 @@ For this we need a few things.
  - Passing these events to the relevant animations
  - Allow the event handlers to have a causal effect on the particles.
 
-Luckily for us, FsXaml provides us with some handy event to command and event converter functionality that we can utilise in order to capture UI events and transform them into our EngineEvent records.
-
+Luckily for us, FsXaml provides us with some handy event to command and event converter functionality that we can utilise in order to capture UI events and transform them into an EngineEvent records.
+The code for an EngineEvent is straight forward, especially as we currently only care about mouse events.  
+Other cases could be added to this union as required.
 
 *)
 
+(*** include: engine-event ***)
+
 (**
 
-TODO
+Next up, we create the usage of this event on the Animation type.
 
- - Events Code
- - Event bindings
- - Event handlers
- - Force Creation
- - Gif
+*)
 
- ![Preview](/content/images/post-images/fsAdventInteractive.gif)
+(*** include: events ***)
+
+(**
+And finally publish the event to the outside world, along with a convenient raise event member.  
+These will be our port into the events from the UI code.
+
+*)
+
+(*** include: event-members ***)
+
+(**
+
+That is one half of the problem solved, now let's look at how we bind to them from the UI.  
+To do this, we will be making use of the event converters from FsXaml.  
+
+The basic premise here is to define a function that takes a system MousEventArgs as a paramter and converts it to an instance of our EngineEvent.  
+Of course, if our EngineEvent union had more cases we may need multiple converters from different system event types.
+
+*)
+    module EventConverters = 
+    (*** hide ***)
+        open System.Windows.Input
+        open FsXaml
+        open Engine
+        open Particle
+        open System.Windows
+    (***)
+
+        let mouseConverter (args : MouseEventArgs) = 
+            let status = 
+                if args.LeftButton = MouseButtonState.Pressed then LeftDown
+                elif args.RightButton = MouseButtonState.Pressed then RightDown
+                else Released
+        
+            let pt = args.GetPosition(args.OriginalSource :?> IInputElement)
+            MouseEvent(status, { X = pt.X; Y = pt.Y })
+
+// The converter to convert from MouseEventArgs -> EngineEvent
+    type MouseConverter() = 
+        inherit EventArgsConverter<MouseEventArgs, EngineEvent>(EventConverters.mouseConverter, MouseEvent(Released, { X = 0.0; Y = 0.0 }))
+
+(**
+
+In order to utilise this converter we need to add it as a resource to the XAML for our view and then use FsXamls EventToCommand utility in order to bind to a command on our MainViewModel.  
+This is done using the System.Windows.Interactivity helpers by specifying a trigger on the MouseMove event of the containing Grid element.
+
+{% highlight xml %}
+<Window.Resources>
+    <events:MouseConverter x:Key="mouseConverter" />
+</Window.Resources>
+<Grid>
+    <i:Interaction.Triggers>
+        <i:EventTrigger EventName="MouseMove">
+            <fsxaml:EventToCommand Command="{Binding MouseCommand}" EventArgsConverter="{StaticResource mouseConverter}" />
+        </i:EventTrigger>
+    </i:Interaction.Triggers>
+    ...
+    {% endhighlight %}
+
+The arguments for the command flow from the event, through the converter, and to the command.  
+Hence, we can create our command on the view model to utilise the EngineEvent.  
+
+In fact, I have cheated slightly and simply passed the EngineEvent straight from the view model to the snow animation (As this is the animation I want to handle the event in).
+
+*)
+
+(*** include: mouse-command ***)
+(*** include: mouse-command-member ***)
+
+(**
+
+Almost there!
+
+The last, but not least task to complete is the actual handling of the EngineEvent.  
+For my mouse events I wanted to have different forces applied to the snow particles depending on what button was held down while moving the mouse.
+
+ - If the left button is pressed, the particles should be repelled away from the cursors origin
+ - If the right nutton is pressed, the particles are pulled towards the cursor.
+ - When both buttons are released the force is removed.
+
+That sounds simple enough. We just need to pattern match over our EngineEvent and assign a new event to a mutable variable.
+
+We therefore add the following to our snow animation module.
+*)
+(**
+The mutable binding.
+*)
+(*** include: snow-mouse-force ***)
+(**
+The event handler and event subcription.
+*)
+(*** include: handle-mouse-force ***)
+(**
+
+Keen readers will be wondering what the exertForce cunstion does so here it is
+
+*)
+
+(*** include: exert-force ***)
+(**
+It takes an epicentre for the force, strength, a decay function and a vector.  
+It then calculates how much force to apply to the vector bassed on the distance form the epicentre and the decay function. The result is particles closer to the epicentre have more force exerted on them.
+
+That's it, everything is in place.  
+The gif below shows the interactivity in action.
+
+![Preview](/content/images/post-images/fsAdventInteractive.gif)
+
+##Conclusion
+
+I hope you enjoyed this simple animation.  
+It was fun to create and the simplicity of F# made for a relatively quick and painless experience.
+
+I would love to see how it performs when WPF is not being used as the render and I am more than aware of many places where efficiency could be improved in the engine code.
+
+As usual, all the code is available on [GitHub] so feel free to check it out!
+
+Thanks again to Sergey Tihan for organising the event.
 
 *)
 
 
 (**
 [F# advent]:https://sergeytihon.wordpress.com/2015/10/25/f-advent-calendar-in-english-2015/
+[here]:https://github.com/sjpemberton/FsSnowGlobe/blob/master/FsSnowGlobe/MainWindow.xaml
+[GitHub]:https://github.com/sjpemberton/FsSnowGlobe/
 *)
 
 (*** hide ***)
