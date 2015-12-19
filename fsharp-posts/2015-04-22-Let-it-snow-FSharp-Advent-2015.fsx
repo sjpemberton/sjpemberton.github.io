@@ -18,14 +18,20 @@ namespace FsWPF
 While my post my not be quite as advanced as the others so far, I hope you'll find it as interesting as I did writing it.
 
 For the post, I wanted to do something a bit different and with a *slightly* more Christmassy (more wintery at least) theme then my usual posts.
-This led me to create a very simple 2D particle engine that could be used to simulate a snow scene.
 
-The engine is created in F# of course, while the UI is implemented in WPF.  
+What could be better than a snow simulation implemented using a basic particle system?  
+Well, probably quite a lot, but hey, it does look pretty cool - Especially with the F# logo in the background.
+
+The engine is implemented entirely in F#, in a *mostly* functional manner, while the UI uses WPF.  
 WPF might not be a great choice for particle animation, but it is familiar to me and means I can utilise [FSXaml] and [Fsharp.ViewModule] to speed up development.
 
 Here's a sneak peak of where we're heading.
 
-![Preview](/content/images/post-images/fsAdvent1.gif)
+<video autoplay controls loop poster="/content/images/post-images/FsAdvent1.jpg" src="/content/images/post-images/fsAdvent1.webm">
+Sorry, your browser doesn't support HTML5 video!
+Don't worry you can download the video <a href="http://stevenpemberton.net/content/images/post-images/fsAdvent1.webm">here</a> and view it in a video player.
+Alternatively, you view <a href="http://stevenpemberton.net/content/images/post-images/fsAdvent1.gif">this .gif</a> instead.
+</video>
 
 <!-- more -->
 
@@ -355,13 +361,18 @@ This attempts to keep the simulation at a constant speed across a varying speed 
                 -> { p with Alpha = (1.0 - lifeRatio) / 0.25 * p.AlphaTarget }
             | _ -> { p with Alpha = p.AlphaTarget }
 
-        let updatePosition delta p =
+        let updatePosition delta p = 
             match p.Locked with
-            | true -> { p with TimeToLive = p.TimeToLive - delta}
-            | false ->{ p with TimeToLive = p.TimeToLive - delta
-                               Coords = sum p.Coords {X = p.Velocity.X * delta; Y = p.Velocity.Y * delta} 
-                               Velocity = sum p.Velocity {X = p.Acceleration.X * delta; Y = p.Acceleration.Y * delta} 
-                               Rotation = p.Rotation + (p.AngularVelocity * delta)}
+            | true -> { p with TimeToLive = p.TimeToLive - delta }
+            | false -> 
+                { p with TimeToLive = p.TimeToLive - delta
+                         Coords = { X = p.Velocity.X * delta
+                                    Y = p.Velocity.Y * delta }
+                                  |> sum p.Coords 
+                         Velocity = { X = p.Acceleration.X * delta
+                                      Y = p.Acceleration.Y * delta }
+                                    |> sum p.Velocity 
+                         Rotation = p.Rotation + (p.AngularVelocity * delta) }
 
 (**
 By bringing this all together we can finally define our update function.  
@@ -375,7 +386,9 @@ This is the how the we control how often the engine is updated from within the s
         let tick delta state = 
             let updatedState = tick delta state // Tick updates forces
             { updatedState with Particles = 
-                                    spawnParticles (delta * spawnRate) (updatedState.Particles |> List.rev) 
+                                    updatedState.Particles
+                                    |> List.rev
+                                    |> spawnParticles (delta * spawnRate)
                                     |> List.map (fun p -> 
                                            calcAcceleration p
                                            |> applyColliders
@@ -429,7 +442,7 @@ module Mist =
     let rand = Random() //TODO - Can we share?
 
     //Needs to rework alpha and life if possible
-    let CreateMistPatch () = 
+    let CreateMistPatch() = 
         let life = 3.0 + rand.NextDouble()
         { Mass = 1.0
           Img = ""
@@ -439,8 +452,10 @@ module Mist =
           Locked = false
           TimeToLive = life
           Life = life
-          Coords = emitter ()
-          Velocity = toCartesian {Radius = 50.0; Theta = rand.NextDouble() * Math.PI * 2.0}
+          Coords = emitter()
+          Velocity = { Radius = 50.0
+                       Theta = rand.NextDouble() * Math.PI * 2.0 }
+                       |> toCartesian
           Rotation = (Math.PI * 2.0 * rand.NextDouble()) * 180.0 / Math.PI
           AngularVelocity = (1.0 - rand.NextDouble() * 2.0) * 0.5
           Scale = rand.NextDouble() + 1.0 }
@@ -501,7 +516,9 @@ Let's run through some of these quickly and describe there usage.
           Mass = (rand.NextDouble() / 1000.0) + 0.001
           Alpha = 1.0
           AlphaTarget = 1.0
-          Velocity = toCartesian {Radius = 30.0; Theta = rand.NextDouble() * Math.PI * 2.0}
+          Velocity = { Radius = 30.0; 
+                       Theta = rand.NextDouble() * Math.PI * 2.0}
+                       |> toCartesian
           AngularVelocity = 1.0
           Acceleration = defaultVector
           TimeToLive = life
@@ -966,7 +983,11 @@ It then calculates how much force to apply to the vector based on the distance f
 That's it, everything is in place.  
 The .gif below shows the interactivity in action.
 
-![Preview](/content/images/post-images/fsAdventInteractive.gif)
+<video autoplay controls loop poster="/content/images/post-images/fsAdventInteractive.jpg" src="/content/images/post-images/fsAdventInteractive.webm">
+Sorry, your browser doesn't support HTML5 video!
+Don't worry you can download the video <a href="http://stevenpemberton.net/content/images/post-images/fsAdventInteractive.webm">here</a> and view it in a video player.
+Alternatively, you view <a href="http://stevenpemberton.net/content/images/post-images/fsAdventInteractive.gif">this .gif</a> instead.
+</video>
 
 ##Conclusion
 
