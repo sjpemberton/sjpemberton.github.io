@@ -30,7 +30,7 @@ Here's a sneak peak of where we're heading.
 <video autoplay controls loop poster="/content/images/post-images/FsAdvent1.jpg" src="/content/images/post-images/fsAdvent1.webm">
 Sorry, your browser doesn't support HTML5 video!
 Don't worry you can download the video <a href="http://stevenpemberton.net/content/images/post-images/fsAdvent1.webm">here</a> and view it in a video player.
-Alternatively, you view <a href="http://stevenpemberton.net/content/images/post-images/fsAdvent1.gif">this .gif</a> instead.
+Alternatively, you can view <a href="http://stevenpemberton.net/content/images/post-images/fsAdvent1.gif">this .gif</a> instead.
 </video>
 
 <!-- more -->
@@ -986,7 +986,7 @@ The .gif below shows the interactivity in action.
 <video autoplay controls loop poster="/content/images/post-images/fsAdventInteractive.jpg" src="/content/images/post-images/fsAdventInteractive.webm">
 Sorry, your browser doesn't support HTML5 video!
 Don't worry you can download the video <a href="http://stevenpemberton.net/content/images/post-images/fsAdventInteractive.webm">here</a> and view it in a video player.
-Alternatively, you view <a href="http://stevenpemberton.net/content/images/post-images/fsAdventInteractive.gif">this .gif</a> instead.
+Alternatively, you can view <a href="http://stevenpemberton.net/content/images/post-images/fsAdventInteractive.gif">this .gif</a> instead.
 </video>
 
 ##Conclusion
