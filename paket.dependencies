@@ -1,0 +1,5 @@
+source https://nuget.org/api/v2
+
+// NuGet packages
+nuget FsXaml.Wpf ~> 0.9.9
+nuget FSharp.ViewModule.Core ~> 0.9.9.1
